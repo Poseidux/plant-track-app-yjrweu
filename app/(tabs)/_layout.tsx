@@ -42,14 +42,14 @@ export default function TabLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: 'none',
+          animation: 'fade',
         }}
       >
-        <Stack.Screen key="home" name="(home)" />
-        <Stack.Screen key="tracker" name="tracker" />
-        <Stack.Screen key="earnings" name="earnings" />
-        <Stack.Screen key="analytics" name="analytics" />
-        <Stack.Screen key="profile" name="profile" />
+        <Stack.Screen name="(home)" />
+        <Stack.Screen name="tracker" />
+        <Stack.Screen name="earnings" />
+        <Stack.Screen name="analytics" />
+        <Stack.Screen name="profile" />
       </Stack>
       <FloatingTabBar tabs={tabs} />
     </>

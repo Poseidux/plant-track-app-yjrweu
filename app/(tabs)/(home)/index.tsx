@@ -7,6 +7,7 @@ import {
   ScrollView,
   Dimensions,
   ImageBackground,
+  Platform,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
@@ -15,7 +16,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { PieChart } from 'react-native-chart-kit';
 
 export default function HomeScreen() {
-  const { colors } = useThemeContext();
+  const { colors, isDark } = useThemeContext();
   const [treeLogs, setTreeLogs] = useState<TreePlantingLog[]>([]);
   const [earningsLogs, setEarningsLogs] = useState<EarningsLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +74,7 @@ export default function HomeScreen() {
         style={styles.backgroundImage}
         imageStyle={styles.backgroundImageStyle}
       >
-        <View style={styles.overlay} />
+        <View style={[styles.overlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.85)' }]} />
       </ImageBackground>
       
       <ScrollView
@@ -201,10 +202,9 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
   scrollContent: {
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'android' ? 60 : 16,
     paddingHorizontal: 16,
     paddingBottom: 120,
   },

@@ -20,7 +20,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import * as Haptics from 'expo-haptics';
 
 export default function TrackerScreen() {
-  const { colors } = useThemeContext();
+  const { colors, isDark } = useThemeContext();
   const [treeLogs, setTreeLogs] = useState<TreePlantingLog[]>([]);
   const [currentDayLog, setCurrentDayLog] = useState<TreePlantingLog | null>(null);
   const [showAddHourlyModal, setShowAddHourlyModal] = useState(false);
@@ -256,7 +256,7 @@ export default function TrackerScreen() {
         style={styles.backgroundImage}
         imageStyle={styles.backgroundImageStyle}
       >
-        <View style={styles.overlay} />
+        <View style={[styles.overlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.85)' }]} />
       </ImageBackground>
 
       <ScrollView
@@ -734,7 +734,6 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.75)',
   },
   scrollContent: {
     paddingTop: Platform.OS === 'android' ? 60 : 16,
@@ -924,7 +923,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
     paddingBottom: 16,
     borderBottomWidth: 1,
   },
