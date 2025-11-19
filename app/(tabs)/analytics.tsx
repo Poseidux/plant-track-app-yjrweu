@@ -6,38 +6,45 @@ import {
   StyleSheet,
   ScrollView,
   Dimensions,
-  TouchableOpacity,
   Platform,
+  ImageBackground,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
-import { TreePlantingLog, EarningsLog } from '@/types/TreePlanting';
+import { TreePlantingLog, EarningsLog, Achievement } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LineChart, BarChart } from 'react-native-chart-kit';
+import { checkAchievements } from '@/utils/achievements';
 
 export default function AnalyticsScreen() {
   const { colors, isDark } = useThemeContext();
   const [treeLogs, setTreeLogs] = useState<TreePlantingLog[]>([]);
   const [earningsLogs, setEarningsLogs] = useState<EarningsLog[]>([]);
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'season'>('week');
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
-    const [trees, earnings] = await Promise.all([
+    const [trees, earnings, savedAchievements] = await Promise.all([
       StorageService.getTreeLogs(),
       StorageService.getEarningsLogs(),
+      StorageService.getAchievements(),
     ]);
     setTreeLogs(trees);
     setEarningsLogs(earnings);
+    
+    const updatedAchievements = checkAchievements(trees, earnings, savedAchievements);
+    setAchievements(updatedAchievements);
+    await StorageService.saveAchievements(updatedAchievements);
   };
 
   const totalTrees = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
   const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
   const averageTreesPerDay = treeLogs.length > 0 ? totalTrees / treeLogs.length : 0;
   const averageEarningsPerDay = earningsLogs.length > 0 ? totalEarnings / earningsLogs.length : 0;
+  const unlockedAchievements = achievements.filter(a => a.progress >= a.target);
 
   const getTreesChartData = () => {
     const sortedLogs = [...treeLogs].sort((a, b) => 
@@ -46,9 +53,9 @@ export default function AnalyticsScreen() {
     const last7 = sortedLogs.slice(-7);
     
     return {
-      labels: last7.map(log => 
-        new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      ),
+      labels: last7.length > 0 
+        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        : ['No Data'],
       datasets: [{
         data: last7.length > 0 ? last7.map(log => log.totalTrees) : [0],
       }],
@@ -62,9 +69,9 @@ export default function AnalyticsScreen() {
     const last7 = sortedLogs.slice(-7);
     
     return {
-      labels: last7.map(log => 
-        new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      ),
+      labels: last7.length > 0 
+        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        : ['No Data'],
       datasets: [{
         data: last7.length > 0 ? last7.map(log => log.amount) : [0],
       }],
@@ -92,14 +99,22 @@ export default function AnalyticsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-1511497584788-876760111969?w=800&q=80' }}
+        style={styles.backgroundImage}
+        imageStyle={styles.backgroundImageStyle}
+      >
+        <View style={[styles.overlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.85)' }]} />
+      </ImageBackground>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>📊 Analytics</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>📊 Analytics & Achievements</Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            Track your performance
+            Track your performance and unlock badges
           </Text>
         </View>
 
@@ -151,16 +166,16 @@ export default function AnalyticsScreen() {
 
           <View style={[styles.statCard, { backgroundColor: colors.card }]}>
             <IconSymbol
-              ios_icon_name="banknote.fill"
-              android_material_icon_name="payments"
+              ios_icon_name="trophy.fill"
+              android_material_icon_name="emoji-events"
               size={24}
-              color={colors.success}
+              color={colors.gold}
             />
             <Text style={[styles.statNumber, { color: colors.text }]}>
-              ${averageEarningsPerDay.toFixed(0)}
+              {unlockedAchievements.length}
             </Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              Avg Earnings/Day
+              Badges Earned
             </Text>
           </View>
         </View>
@@ -200,6 +215,80 @@ export default function AnalyticsScreen() {
             />
           </View>
         )}
+
+        <View style={[styles.achievementsCard, { backgroundColor: colors.card }]}>
+          <View style={styles.achievementsHeader}>
+            <IconSymbol
+              ios_icon_name="trophy.fill"
+              android_material_icon_name="emoji-events"
+              size={28}
+              color={colors.gold}
+            />
+            <Text style={[styles.achievementsTitle, { color: colors.text }]}>
+              Achievements & Badges
+            </Text>
+          </View>
+          
+          {achievements.length === 0 ? (
+            <Text style={[styles.achievementsEmpty, { color: colors.textSecondary }]}>
+              Start planting trees to unlock achievements!
+            </Text>
+          ) : (
+            <View style={styles.achievementsList}>
+              {achievements.map((achievement, index) => {
+                const isUnlocked = achievement.progress >= achievement.target;
+                return (
+                  <View 
+                    key={index} 
+                    style={[
+                      styles.achievementItem,
+                      { backgroundColor: isUnlocked ? colors.highlight : colors.background },
+                      { borderColor: colors.border }
+                    ]}
+                  >
+                    <View style={styles.achievementIcon}>
+                      <Text style={styles.achievementEmoji}>{achievement.icon}</Text>
+                      {isUnlocked && (
+                        <View style={[styles.achievementBadge, { backgroundColor: colors.gold }]}>
+                          <IconSymbol
+                            ios_icon_name="checkmark"
+                            android_material_icon_name="check"
+                            size={12}
+                            color="#FFFFFF"
+                          />
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.achievementContent}>
+                      <Text style={[styles.achievementTitle, { color: colors.text }]}>
+                        {achievement.title}
+                      </Text>
+                      <Text style={[styles.achievementDescription, { color: colors.textSecondary }]}>
+                        {achievement.description}
+                      </Text>
+                      <View style={styles.achievementProgress}>
+                        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+                          <View 
+                            style={[
+                              styles.progressFill, 
+                              { 
+                                backgroundColor: isUnlocked ? colors.gold : colors.primary,
+                                width: `${Math.min((achievement.progress / achievement.target) * 100, 100)}%`
+                              }
+                            ]} 
+                          />
+                        </View>
+                        <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                          {achievement.progress}/{achievement.target}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
 
         <View style={[styles.tipsCard, { backgroundColor: colors.card }]}>
           <View style={styles.tipsHeader}>
@@ -262,8 +351,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  backgroundImage: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  backgroundImageStyle: {
+    opacity: 0.08,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingTop: Platform.OS === 'android' ? 60 : 16,
     paddingHorizontal: 16,
     paddingBottom: 120,
   },
@@ -319,6 +419,86 @@ const styles = StyleSheet.create({
   chart: {
     marginVertical: 8,
     borderRadius: 16,
+  },
+  achievementsCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 3,
+  },
+  achievementsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  achievementsTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  achievementsEmpty: {
+    fontSize: 15,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  achievementsList: {
+    gap: 12,
+  },
+  achievementItem: {
+    flexDirection: 'row',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  achievementIcon: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  achievementEmoji: {
+    fontSize: 40,
+  },
+  achievementBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  achievementContent: {
+    flex: 1,
+  },
+  achievementTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  achievementDescription: {
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  achievementProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  progressBar: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '600',
+    minWidth: 50,
   },
   tipsCard: {
     borderRadius: 16,

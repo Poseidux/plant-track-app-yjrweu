@@ -10,47 +10,57 @@ import {
   Alert,
   Modal,
   Dimensions,
+  Platform,
+  ImageBackground,
 } from 'react-native';
-import { useTheme } from '@react-navigation/native';
-import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
+import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
-import { EarningsLog } from '@/types/TreePlanting';
+import { EarningsLog, ExpenseLog, EXPENSE_CATEGORIES } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
-import { LineChart } from 'react-native-chart-kit';
+import { LineChart, BarChart } from 'react-native-chart-kit';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Haptics from 'expo-haptics';
 
 export default function EarningsScreen() {
-  const theme = useTheme();
+  const { colors, isDark } = useThemeContext();
   const [earningsLogs, setEarningsLogs] = useState<EarningsLog[]>([]);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [expenseLogs, setExpenseLogs] = useState<ExpenseLog[]>([]);
+  const [showAddEarningsModal, setShowAddEarningsModal] = useState(false);
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   
   const [amount, setAmount] = useState('');
-  const [paymentType, setPaymentType] = useState<'hourly' | 'per-tree'>('per-tree');
-  const [hoursWorked, setHoursWorked] = useState('');
-  const [treesPlanted, setTreesPlanted] = useState('');
   const [notes, setNotes] = useState('');
+  const [expenseCategory, setExpenseCategory] = useState(EXPENSE_CATEGORIES[0]);
+  const [expenseDescription, setExpenseDescription] = useState('');
 
   useEffect(() => {
     loadLogs();
   }, []);
 
   const loadLogs = async () => {
-    const logs = await StorageService.getEarningsLogs();
-    setEarningsLogs(logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    const [earnings, expenses] = await Promise.all([
+      StorageService.getEarningsLogs(),
+      StorageService.getExpenseLogs(),
+    ]);
+    setEarningsLogs(earnings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    setExpenseLogs(expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
   };
 
-  const handleAddLog = async () => {
+  const handleAddEarnings = async () => {
     if (!amount || parseFloat(amount) <= 0) {
       Alert.alert('Error', 'Please enter a valid amount');
       return;
     }
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     const newLog: EarningsLog = {
       id: Date.now().toString(),
-      date: new Date().toISOString().split('T')[0],
+      date: selectedDate.toISOString().split('T')[0],
       amount: parseFloat(amount),
-      paymentType,
-      hoursWorked: hoursWorked ? parseFloat(hoursWorked) : undefined,
-      treesPlanted: treesPlanted ? parseInt(treesPlanted) : undefined,
+      paymentType: 'per-tree',
       notes,
     };
 
@@ -58,17 +68,42 @@ export default function EarningsScreen() {
     await loadLogs();
     
     setAmount('');
-    setHoursWorked('');
-    setTreesPlanted('');
     setNotes('');
-    setShowAddModal(false);
-    Alert.alert('Success', 'Earnings log added successfully!');
+    setSelectedDate(new Date());
+    setShowAddEarningsModal(false);
+    Alert.alert('Success', 'Earnings added successfully!');
   };
 
-  const handleDeleteLog = (id: string) => {
+  const handleAddExpense = async () => {
+    if (!amount || parseFloat(amount) <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const newLog: ExpenseLog = {
+      id: Date.now().toString(),
+      date: selectedDate.toISOString().split('T')[0],
+      amount: parseFloat(amount),
+      category: expenseCategory,
+      description: expenseDescription,
+    };
+
+    await StorageService.saveExpenseLog(newLog);
+    await loadLogs();
+    
+    setAmount('');
+    setExpenseDescription('');
+    setSelectedDate(new Date());
+    setShowAddExpenseModal(false);
+    Alert.alert('Success', 'Expense added successfully!');
+  };
+
+  const handleDeleteEarnings = (id: string) => {
     Alert.alert(
-      'Delete Log',
-      'Are you sure you want to delete this log?',
+      'Delete Earnings',
+      'Are you sure you want to delete this earnings log?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -83,104 +118,181 @@ export default function EarningsScreen() {
     );
   };
 
-  const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
-  const averageEarnings = earningsLogs.length > 0 ? totalEarnings / earningsLogs.length : 0;
-
-  const getChartData = () => {
-    const last7Logs = earningsLogs.slice(0, 7).reverse();
-    return {
-      labels: last7Logs.map((log) => 
-        new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      ),
-      datasets: [
+  const handleDeleteExpense = (id: string) => {
+    Alert.alert(
+      'Delete Expense',
+      'Are you sure you want to delete this expense log?',
+      [
+        { text: 'Cancel', style: 'cancel' },
         {
-          data: last7Logs.map((log) => log.amount),
-          color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
-          strokeWidth: 3,
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await StorageService.deleteExpenseLog(id);
+            await loadLogs();
+          },
         },
-      ],
+      ]
+    );
+  };
+
+  const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
+  const totalExpenses = expenseLogs.reduce((sum, log) => sum + log.amount, 0);
+  const netIncome = totalEarnings - totalExpenses;
+
+  const getEarningsChartData = () => {
+    const sortedLogs = [...earningsLogs].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    const last7 = sortedLogs.slice(-7);
+    
+    return {
+      labels: last7.length > 0 
+        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        : ['No Data'],
+      datasets: [{
+        data: last7.length > 0 ? last7.map(log => log.amount) : [0],
+      }],
     };
   };
 
   const screenWidth = Dimensions.get('window').width;
 
+  const chartConfig = {
+    backgroundColor: colors.card,
+    backgroundGradientFrom: colors.card,
+    backgroundGradientTo: colors.card,
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
+    labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(45, 52, 54, ${opacity})`,
+    style: {
+      borderRadius: 16,
+    },
+    propsForDots: {
+      r: '5',
+      strokeWidth: '2',
+      stroke: colors.secondary,
+    },
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=800&q=80' }}
+        style={styles.backgroundImage}
+        imageStyle={styles.backgroundImageStyle}
+      >
+        <View style={[styles.overlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.85)' }]} />
+      </ImageBackground>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>💰 Earnings Tracker</Text>
-          <TouchableOpacity
-            style={buttonStyles.secondaryButton}
-            onPress={() => setShowAddModal(true)}
-          >
-            <Text style={buttonStyles.buttonText}>+ Add Earnings</Text>
-          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>💰 Earnings & Expenses</Text>
         </View>
 
         <View style={styles.summaryContainer}>
-          <View style={[commonStyles.card, styles.summaryCard]}>
-            <Text style={styles.summaryLabel}>Total Earnings</Text>
+          <View style={[styles.summaryCard, { backgroundColor: colors.secondary }]}>
+            <IconSymbol
+              ios_icon_name="arrow.up.circle.fill"
+              android_material_icon_name="arrow-upward"
+              size={24}
+              color="#FFFFFF"
+            />
             <Text style={styles.summaryAmount}>${totalEarnings.toFixed(2)}</Text>
+            <Text style={styles.summaryLabel}>Total Earnings</Text>
           </View>
 
-          <View style={[commonStyles.card, styles.summaryCard]}>
-            <Text style={styles.summaryLabel}>Average per Day</Text>
-            <Text style={styles.summaryAmount}>${averageEarnings.toFixed(2)}</Text>
+          <View style={[styles.summaryCard, { backgroundColor: colors.error }]}>
+            <IconSymbol
+              ios_icon_name="arrow.down.circle.fill"
+              android_material_icon_name="arrow-downward"
+              size={24}
+              color="#FFFFFF"
+            />
+            <Text style={styles.summaryAmount}>${totalExpenses.toFixed(2)}</Text>
+            <Text style={styles.summaryLabel}>Total Expenses</Text>
+          </View>
+
+          <View style={[styles.summaryCard, { backgroundColor: netIncome >= 0 ? colors.primary : colors.warning }]}>
+            <IconSymbol
+              ios_icon_name="banknote.fill"
+              android_material_icon_name="account-balance-wallet"
+              size={24}
+              color="#FFFFFF"
+            />
+            <Text style={styles.summaryAmount}>${netIncome.toFixed(2)}</Text>
+            <Text style={styles.summaryLabel}>Net Income</Text>
           </View>
         </View>
 
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.secondary }]}
+            onPress={() => setShowAddEarningsModal(true)}
+          >
+            <IconSymbol
+              ios_icon_name="plus.circle.fill"
+              android_material_icon_name="add-circle"
+              size={20}
+              color="#FFFFFF"
+            />
+            <Text style={styles.actionButtonText}>Add Earnings</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.error }]}
+            onPress={() => setShowAddExpenseModal(true)}
+          >
+            <IconSymbol
+              ios_icon_name="minus.circle.fill"
+              android_material_icon_name="remove-circle"
+              size={20}
+              color="#FFFFFF"
+            />
+            <Text style={styles.actionButtonText}>Add Expense</Text>
+          </TouchableOpacity>
+        </View>
+
         {earningsLogs.length >= 2 && (
-          <View style={[commonStyles.card, styles.chartCard]}>
-            <Text style={commonStyles.cardTitle}>Earnings Trend</Text>
+          <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>Earnings Trend (Last 7 Days)</Text>
             <LineChart
-              data={getChartData()}
+              data={getEarningsChartData()}
               width={screenWidth - 64}
               height={220}
-              chartConfig={{
-                backgroundColor: colors.card,
-                backgroundGradientFrom: colors.card,
-                backgroundGradientTo: colors.card,
-                decimalPlaces: 2,
-                color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(45, 52, 54, ${opacity})`,
-                style: {
-                  borderRadius: 16,
-                },
-                propsForDots: {
-                  r: '6',
-                  strokeWidth: '2',
-                  stroke: colors.primary,
-                },
-              }}
+              chartConfig={chartConfig}
               bezier
               style={styles.chart}
             />
           </View>
         )}
 
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Earnings</Text>
         {earningsLogs.length === 0 ? (
-          <View style={[commonStyles.card, styles.emptyCard]}>
+          <View style={[styles.emptyCard, { backgroundColor: colors.card }]}>
             <IconSymbol
               ios_icon_name="dollarsign.circle.fill"
               android_material_icon_name="attach-money"
               size={64}
               color={colors.textSecondary}
             />
-            <Text style={styles.emptyTitle}>No Earnings Yet</Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Earnings Yet</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               Start tracking your earnings to see your financial progress!
             </Text>
           </View>
         ) : (
-          earningsLogs.map((log) => (
-            <View key={log.id} style={commonStyles.card}>
+          earningsLogs.slice(0, 10).map((log) => (
+            <View key={log.id} style={[styles.logCard, { backgroundColor: colors.card }]}>
               <View style={styles.logHeader}>
                 <View style={styles.logHeaderLeft}>
-                  <Text style={styles.logAmount}>${log.amount.toFixed(2)}</Text>
-                  <Text style={styles.logDate}>
+                  <Text style={[styles.logAmount, { color: colors.secondary }]}>
+                    +${log.amount.toFixed(2)}
+                  </Text>
+                  <Text style={[styles.logDate, { color: colors.textSecondary }]}>
                     {new Date(log.date).toLocaleDateString('en-US', {
                       weekday: 'short',
                       month: 'short',
@@ -189,7 +301,7 @@ export default function EarningsScreen() {
                     })}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => handleDeleteLog(log.id)}>
+                <TouchableOpacity onPress={() => handleDeleteEarnings(log.id)}>
                   <IconSymbol
                     ios_icon_name="trash.fill"
                     android_material_icon_name="delete"
@@ -199,51 +311,62 @@ export default function EarningsScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.logDetails}>
-                <View style={styles.logDetail}>
-                  <IconSymbol
-                    ios_icon_name="clock.fill"
-                    android_material_icon_name="schedule"
-                    size={16}
-                    color={colors.primary}
-                  />
-                  <Text style={styles.logDetailText}>
-                    {log.paymentType === 'hourly' ? 'Hourly Rate' : 'Per Tree'}
+              {log.notes && (
+                <View style={[styles.logNotes, { backgroundColor: colors.highlight }]}>
+                  <Text style={[styles.logNotesText, { color: colors.text }]}>{log.notes}</Text>
+                </View>
+              )}
+            </View>
+          ))
+        )}
+
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Expenses</Text>
+        {expenseLogs.length === 0 ? (
+          <View style={[styles.emptyCard, { backgroundColor: colors.card }]}>
+            <IconSymbol
+              ios_icon_name="cart.fill"
+              android_material_icon_name="shopping-cart"
+              size={64}
+              color={colors.textSecondary}
+            />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Expenses Yet</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              Track your expenses to better manage your finances!
+            </Text>
+          </View>
+        ) : (
+          expenseLogs.slice(0, 10).map((log) => (
+            <View key={log.id} style={[styles.logCard, { backgroundColor: colors.card }]}>
+              <View style={styles.logHeader}>
+                <View style={styles.logHeaderLeft}>
+                  <Text style={[styles.logAmount, { color: colors.error }]}>
+                    -${log.amount.toFixed(2)}
+                  </Text>
+                  <Text style={[styles.logDate, { color: colors.textSecondary }]}>
+                    {new Date(log.date).toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </Text>
+                  <Text style={[styles.logCategory, { color: colors.primary }]}>
+                    {log.category}
                   </Text>
                 </View>
-
-                {log.hoursWorked && (
-                  <View style={styles.logDetail}>
-                    <IconSymbol
-                      ios_icon_name="timer"
-                      android_material_icon_name="timer"
-                      size={16}
-                      color={colors.accent}
-                    />
-                    <Text style={styles.logDetailText}>
-                      {log.hoursWorked} hours
-                    </Text>
-                  </View>
-                )}
-
-                {log.treesPlanted && (
-                  <View style={styles.logDetail}>
-                    <IconSymbol
-                      ios_icon_name="leaf.fill"
-                      android_material_icon_name="eco"
-                      size={16}
-                      color={colors.secondary}
-                    />
-                    <Text style={styles.logDetailText}>
-                      {log.treesPlanted} trees
-                    </Text>
-                  </View>
-                )}
+                <TouchableOpacity onPress={() => handleDeleteExpense(log.id)}>
+                  <IconSymbol
+                    ios_icon_name="trash.fill"
+                    android_material_icon_name="delete"
+                    size={24}
+                    color={colors.error}
+                  />
+                </TouchableOpacity>
               </View>
 
-              {log.notes && (
-                <View style={styles.logNotes}>
-                  <Text style={styles.logNotesText}>{log.notes}</Text>
+              {log.description && (
+                <View style={[styles.logNotes, { backgroundColor: colors.highlight }]}>
+                  <Text style={[styles.logNotesText, { color: colors.text }]}>{log.description}</Text>
                 </View>
               )}
             </View>
@@ -254,14 +377,14 @@ export default function EarningsScreen() {
       </ScrollView>
 
       <Modal
-        visible={showAddModal}
+        visible={showAddEarningsModal}
         animationType="slide"
         presentationStyle="pageSheet"
       >
         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add Earnings</Text>
-            <TouchableOpacity onPress={() => setShowAddModal(false)}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Earnings</Text>
+            <TouchableOpacity onPress={() => setShowAddEarningsModal(false)}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
                 android_material_icon_name="close"
@@ -272,9 +395,44 @@ export default function EarningsScreen() {
           </View>
 
           <ScrollView style={styles.modalContent}>
-            <Text style={styles.label}>Amount Earned *</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Date *</Text>
+            <TouchableOpacity
+              style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <IconSymbol
+                ios_icon_name="calendar"
+                android_material_icon_name="calendar-today"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={[styles.dateButtonText, { color: colors.text }]}>
+                {selectedDate.toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="default"
+                onChange={(event, date) => {
+                  setShowDatePicker(Platform.OS === 'ios');
+                  if (date) {
+                    setSelectedDate(date);
+                  }
+                }}
+              />
+            )}
+
+            <Text style={[styles.label, { color: colors.text }]}>Amount Earned *</Text>
             <TextInput
-              style={commonStyles.input}
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
               placeholder="e.g., 250.00"
               keyboardType="decimal-pad"
               value={amount}
@@ -282,74 +440,9 @@ export default function EarningsScreen() {
               placeholderTextColor={colors.textSecondary}
             />
 
-            <Text style={styles.label}>Payment Type *</Text>
-            <View style={styles.paymentTypeContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.paymentTypeButton,
-                  paymentType === 'per-tree' && styles.paymentTypeButtonActive,
-                ]}
-                onPress={() => setPaymentType('per-tree')}
-              >
-                <Text
-                  style={[
-                    styles.paymentTypeText,
-                    paymentType === 'per-tree' && styles.paymentTypeTextActive,
-                  ]}
-                >
-                  Per Tree
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.paymentTypeButton,
-                  paymentType === 'hourly' && styles.paymentTypeButtonActive,
-                ]}
-                onPress={() => setPaymentType('hourly')}
-              >
-                <Text
-                  style={[
-                    styles.paymentTypeText,
-                    paymentType === 'hourly' && styles.paymentTypeTextActive,
-                  ]}
-                >
-                  Hourly
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {paymentType === 'hourly' && (
-              <>
-                <Text style={styles.label}>Hours Worked</Text>
-                <TextInput
-                  style={commonStyles.input}
-                  placeholder="e.g., 8.5"
-                  keyboardType="decimal-pad"
-                  value={hoursWorked}
-                  onChangeText={setHoursWorked}
-                  placeholderTextColor={colors.textSecondary}
-                />
-              </>
-            )}
-
-            {paymentType === 'per-tree' && (
-              <>
-                <Text style={styles.label}>Trees Planted</Text>
-                <TextInput
-                  style={commonStyles.input}
-                  placeholder="e.g., 500"
-                  keyboardType="numeric"
-                  value={treesPlanted}
-                  onChangeText={setTreesPlanted}
-                  placeholderTextColor={colors.textSecondary}
-                />
-              </>
-            )}
-
-            <Text style={styles.label}>Notes (Optional)</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Notes (Optional)</Text>
             <TextInput
-              style={[commonStyles.input, styles.notesInput]}
+              style={[styles.notesInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
               placeholder="Add any additional notes..."
               multiline
               numberOfLines={4}
@@ -359,10 +452,123 @@ export default function EarningsScreen() {
             />
 
             <TouchableOpacity
-              style={[buttonStyles.secondaryButton, styles.submitButton]}
-              onPress={handleAddLog}
+              style={[styles.submitButton, { backgroundColor: colors.secondary }]}
+              onPress={handleAddEarnings}
             >
-              <Text style={buttonStyles.buttonText}>Save Earnings</Text>
+              <Text style={styles.submitButtonText}>Save Earnings</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showAddExpenseModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Expense</Text>
+            <TouchableOpacity onPress={() => setShowAddExpenseModal(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={32}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <Text style={[styles.label, { color: colors.text }]}>Date *</Text>
+            <TouchableOpacity
+              style={[styles.dateButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <IconSymbol
+                ios_icon_name="calendar"
+                android_material_icon_name="calendar-today"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={[styles.dateButtonText, { color: colors.text }]}>
+                {selectedDate.toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="default"
+                onChange={(event, date) => {
+                  setShowDatePicker(Platform.OS === 'ios');
+                  if (date) {
+                    setSelectedDate(date);
+                  }
+                }}
+              />
+            )}
+
+            <Text style={[styles.label, { color: colors.text }]}>Category *</Text>
+            <View style={styles.categoryContainer}>
+              {EXPENSE_CATEGORIES.map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryButton,
+                    { borderColor: colors.border },
+                    expenseCategory === category && { 
+                      borderColor: colors.error, 
+                      backgroundColor: colors.highlight 
+                    },
+                  ]}
+                  onPress={() => setExpenseCategory(category)}
+                >
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      { color: colors.textSecondary },
+                      expenseCategory === category && { color: colors.error, fontWeight: '600' },
+                    ]}
+                  >
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.label, { color: colors.text }]}>Amount *</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+              placeholder="e.g., 50.00"
+              keyboardType="decimal-pad"
+              value={amount}
+              onChangeText={setAmount}
+              placeholderTextColor={colors.textSecondary}
+            />
+
+            <Text style={[styles.label, { color: colors.text }]}>Description (Optional)</Text>
+            <TextInput
+              style={[styles.notesInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+              placeholder="What was this expense for?"
+              multiline
+              numberOfLines={4}
+              value={expenseDescription}
+              onChangeText={setExpenseDescription}
+              placeholderTextColor={colors.textSecondary}
+            />
+
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: colors.error }]}
+              onPress={handleAddExpense}
+            >
+              <Text style={styles.submitButtonText}>Save Expense</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -375,8 +581,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  backgroundImage: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  backgroundImageStyle: {
+    opacity: 0.08,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
   scrollContent: {
-    paddingTop: 48,
+    paddingTop: Platform.OS === 'android' ? 60 : 16,
     paddingHorizontal: 16,
     paddingBottom: 120,
   },
@@ -386,59 +603,105 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: colors.text,
-    marginBottom: 16,
   },
   summaryContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   summaryCard: {
     flex: 1,
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
-    paddingVertical: 20,
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 8,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+    elevation: 6,
   },
   summaryAmount: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: '800',
-    color: colors.secondary,
+    color: '#FFFFFF',
+    marginTop: 8,
+  },
+  summaryLabel: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   chartCard: {
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 24,
     alignItems: 'center',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 3,
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
   },
   chart: {
     marginVertical: 8,
     borderRadius: 16,
   },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
   emptyCard: {
     alignItems: 'center',
     paddingVertical: 48,
+    borderRadius: 16,
+    marginBottom: 24,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 3,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 32,
+  },
+  logCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 3,
   },
   logHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
   },
   logHeaderLeft: {
     flex: 1,
@@ -446,39 +709,23 @@ const styles = StyleSheet.create({
   logAmount: {
     fontSize: 24,
     fontWeight: '800',
-    color: colors.secondary,
     marginBottom: 4,
   },
   logDate: {
     fontSize: 14,
-    color: colors.textSecondary,
+    marginBottom: 4,
   },
-  logDetails: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  logDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  logDetailText: {
+  logCategory: {
     fontSize: 14,
-    color: colors.text,
+    fontWeight: '600',
   },
   logNotes: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: colors.highlight,
     borderRadius: 8,
   },
   logNotesText: {
     fontSize: 14,
-    color: colors.text,
     lineHeight: 20,
   },
   bottomPadding: {
@@ -492,15 +739,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.text,
   },
   modalContent: {
     flex: 1,
@@ -510,42 +755,67 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 8,
   },
-  paymentTypeContainer: {
+  dateButton: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  paymentTypeButton: {
-    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.border,
-    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
   },
-  paymentTypeButtonActive: {
-    borderColor: colors.secondary,
-    backgroundColor: colors.highlight,
-  },
-  paymentTypeText: {
+  dateButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: colors.textSecondary,
+    flex: 1,
   },
-  paymentTypeTextActive: {
-    color: colors.secondary,
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  categoryButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 2,
+  },
+  categoryText: {
+    fontSize: 14,
   },
   notesInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 16,
     height: 100,
     textAlignVertical: 'top',
-    paddingTop: 12,
   },
   submitButton: {
-    marginTop: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
     marginBottom: 48,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

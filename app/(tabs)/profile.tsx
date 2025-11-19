@@ -10,15 +10,17 @@ import {
   Alert,
   Modal,
   FlatList,
+  Platform,
+  ImageBackground,
 } from 'react-native';
-import { useTheme } from '@react-navigation/native';
-import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
+import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
-import { UserProfile, PROVINCES, TREE_SPECIES } from '@/types/TreePlanting';
+import { UserProfile, PROVINCES } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
+import * as Haptics from 'expo-haptics';
 
 export default function ProfileScreen() {
-  const theme = useTheme();
+  const { colors, isDark, setThemeMode, themeMode } = useThemeContext();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   
@@ -51,12 +53,22 @@ export default function ProfileScreen() {
       return;
     }
 
+    const ageNum = parseInt(age);
+    if (ageNum < 18) {
+      Alert.alert('Age Requirement', 'You must be at least 18 years old to use this app');
+      return;
+    }
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
     const newProfile: UserProfile = {
       name,
-      age: parseInt(age),
+      age: ageNum,
       province: selectedProvince,
       experienceLevel,
       favoriteSpecies: [],
+      totalBadges: 0,
+      achievements: [],
     };
 
     await StorageService.saveUserProfile(newProfile);
@@ -65,12 +77,18 @@ export default function ProfileScreen() {
     Alert.alert('Success', 'Profile saved successfully!');
   };
 
+  const toggleTheme = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newMode = isDark ? 'light' : 'dark';
+    await setThemeMode(newMode);
+  };
+
   const renderProvincePicker = () => (
     <Modal visible={showProvincePicker} transparent animationType="slide">
       <View style={styles.modalOverlay}>
-        <View style={styles.pickerModal}>
-          <View style={styles.pickerHeader}>
-            <Text style={styles.pickerTitle}>Select Province</Text>
+        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
+          <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
             <TouchableOpacity onPress={() => setShowProvincePicker(false)}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
@@ -87,7 +105,8 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={[
                   styles.pickerItem,
-                  item === selectedProvince && styles.pickerItemSelected,
+                  { borderBottomColor: colors.border },
+                  item === selectedProvince && { backgroundColor: colors.highlight },
                 ]}
                 onPress={() => {
                   setSelectedProvince(item);
@@ -97,7 +116,8 @@ export default function ProfileScreen() {
                 <Text
                   style={[
                     styles.pickerItemText,
-                    item === selectedProvince && styles.pickerItemTextSelected,
+                    { color: colors.text },
+                    item === selectedProvince && { fontWeight: '600', color: colors.primary },
                   ]}
                 >
                   {item}
@@ -120,23 +140,31 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?w=800&q=80' }}
+        style={styles.backgroundImage}
+        imageStyle={styles.backgroundImageStyle}
+      >
+        <View style={[styles.overlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.85)' }]} />
+      </ImageBackground>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <View style={styles.avatarContainer}>
+          <View style={[styles.avatarContainer, { backgroundColor: colors.primary }]}>
             <IconSymbol
-              ios_icon_name="person.circle.fill"
-              android_material_icon_name="account-circle"
-              size={80}
-              color={colors.primary}
+              ios_icon_name="person.fill"
+              android_material_icon_name="person"
+              size={60}
+              color="#FFFFFF"
             />
           </View>
           {profile && !isEditing && (
             <>
-              <Text style={styles.profileName}>{profile.name}</Text>
-              <Text style={styles.profileInfo}>
+              <Text style={[styles.profileName, { color: colors.text }]}>{profile.name}</Text>
+              <Text style={[styles.profileInfo, { color: colors.textSecondary }]}>
                 {profile.age} years • {profile.province}
               </Text>
             </>
@@ -145,8 +173,8 @@ export default function ProfileScreen() {
 
         {!isEditing && profile ? (
           <View>
-            <View style={commonStyles.card}>
-              <Text style={commonStyles.cardTitle}>Profile Information</Text>
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Profile Information</Text>
               
               <View style={styles.infoRow}>
                 <IconSymbol
@@ -156,8 +184,8 @@ export default function ProfileScreen() {
                   color={colors.primary}
                 />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Name</Text>
-                  <Text style={styles.infoValue}>{profile.name}</Text>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Name</Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{profile.name}</Text>
                 </View>
               </View>
 
@@ -169,8 +197,8 @@ export default function ProfileScreen() {
                   color={colors.accent}
                 />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Age</Text>
-                  <Text style={styles.infoValue}>{profile.age} years</Text>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Age</Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{profile.age} years</Text>
                 </View>
               </View>
 
@@ -182,12 +210,12 @@ export default function ProfileScreen() {
                   color={colors.secondary}
                 />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Province</Text>
-                  <Text style={styles.infoValue}>{profile.province}</Text>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Province</Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{profile.province}</Text>
                 </View>
               </View>
 
-              <View style={styles.infoRow}>
+              <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
                 <IconSymbol
                   ios_icon_name="star.fill"
                   android_material_icon_name="star"
@@ -195,8 +223,8 @@ export default function ProfileScreen() {
                   color={colors.accent}
                 />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Experience Level</Text>
-                  <Text style={styles.infoValue}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Experience Level</Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>
                     {profile.experienceLevel.charAt(0).toUpperCase() + profile.experienceLevel.slice(1)}
                   </Text>
                 </View>
@@ -204,95 +232,81 @@ export default function ProfileScreen() {
             </View>
 
             <TouchableOpacity
-              style={[buttonStyles.primaryButton, styles.editButton]}
+              style={[styles.editButton, { backgroundColor: colors.primary }]}
               onPress={() => setIsEditing(true)}
             >
-              <Text style={buttonStyles.buttonText}>Edit Profile</Text>
+              <IconSymbol
+                ios_icon_name="pencil"
+                android_material_icon_name="edit"
+                size={20}
+                color="#FFFFFF"
+              />
+              <Text style={styles.editButtonText}>Edit Profile</Text>
             </TouchableOpacity>
 
-            <View style={[commonStyles.card, styles.subscriptionCard]}>
-              <Text style={commonStyles.cardTitle}>💎 Premium Subscription</Text>
-              <Text style={styles.subscriptionText}>
-                Unlock advanced features with our premium subscription for just $4/month!
-              </Text>
-              <View style={styles.featuresList}>
-                <View style={styles.featureItem}>
-                  <IconSymbol
-                    ios_icon_name="checkmark.circle.fill"
-                    android_material_icon_name="check-circle"
-                    size={20}
-                    color={colors.secondary}
-                  />
-                  <Text style={styles.featureText}>Advanced analytics and reports</Text>
-                </View>
-                <View style={styles.featureItem}>
-                  <IconSymbol
-                    ios_icon_name="checkmark.circle.fill"
-                    android_material_icon_name="check-circle"
-                    size={20}
-                    color={colors.secondary}
-                  />
-                  <Text style={styles.featureText}>Offline mode with sync</Text>
-                </View>
-                <View style={styles.featureItem}>
-                  <IconSymbol
-                    ios_icon_name="checkmark.circle.fill"
-                    android_material_icon_name="check-circle"
-                    size={20}
-                    color={colors.secondary}
-                  />
-                  <Text style={styles.featureText}>Export detailed reports</Text>
-                </View>
-                <View style={styles.featureItem}>
-                  <IconSymbol
-                    ios_icon_name="checkmark.circle.fill"
-                    android_material_icon_name="check-circle"
-                    size={20}
-                    color={colors.secondary}
-                  />
-                  <Text style={styles.featureText}>Priority support</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={[buttonStyles.accentButton, styles.subscribeButton]}
-                onPress={() => Alert.alert('Coming Soon', 'Subscription feature will be available soon!')}
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Settings</Text>
+              
+              <TouchableOpacity 
+                style={styles.settingRow}
+                onPress={toggleTheme}
               >
-                <Text style={buttonStyles.buttonText}>Subscribe Now - $4/month</Text>
+                <View style={styles.settingLeft}>
+                  <IconSymbol
+                    ios_icon_name={isDark ? "moon.fill" : "sun.max.fill"}
+                    android_material_icon_name={isDark ? "dark-mode" : "light-mode"}
+                    size={20}
+                    color={colors.accent}
+                  />
+                  <Text style={[styles.settingText, { color: colors.text }]}>
+                    {isDark ? 'Dark Mode' : 'Light Mode'}
+                  </Text>
+                </View>
+                <View style={[styles.toggle, { backgroundColor: isDark ? colors.primary : colors.border }]}>
+                  <View style={[
+                    styles.toggleThumb,
+                    { backgroundColor: '#FFFFFF' },
+                    isDark && styles.toggleThumbActive
+                  ]} />
+                </View>
               </TouchableOpacity>
             </View>
           </View>
         ) : (
           <View>
-            <View style={commonStyles.card}>
-              <Text style={commonStyles.cardTitle}>
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>
                 {profile ? 'Edit Profile' : 'Create Your Profile'}
               </Text>
+              <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
+                You must be at least 18 years old to use this app
+              </Text>
 
-              <Text style={styles.label}>Name *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Name *</Text>
               <TextInput
-                style={commonStyles.input}
+                style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
                 placeholder="Enter your name"
                 value={name}
                 onChangeText={setName}
                 placeholderTextColor={colors.textSecondary}
               />
 
-              <Text style={styles.label}>Age *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Age *</Text>
               <TextInput
-                style={commonStyles.input}
-                placeholder="Enter your age"
+                style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+                placeholder="Enter your age (18+)"
                 keyboardType="numeric"
                 value={age}
                 onChangeText={setAge}
                 placeholderTextColor={colors.textSecondary}
               />
 
-              <Text style={styles.label}>Province *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Province *</Text>
               <TouchableOpacity
-                style={styles.pickerButton}
+                style={[styles.pickerButton, { backgroundColor: colors.background, borderColor: colors.border }]}
                 onPress={() => setShowProvincePicker(true)}
               >
-                <Text style={styles.pickerButtonText}>{selectedProvince}</Text>
+                <Text style={[styles.pickerButtonText, { color: colors.text }]}>{selectedProvince}</Text>
                 <IconSymbol
                   ios_icon_name="chevron.down"
                   android_material_icon_name="arrow-drop-down"
@@ -301,21 +315,26 @@ export default function ProfileScreen() {
                 />
               </TouchableOpacity>
 
-              <Text style={styles.label}>Experience Level *</Text>
+              <Text style={[styles.label, { color: colors.text }]}>Experience Level *</Text>
               <View style={styles.experienceContainer}>
                 {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
                   <TouchableOpacity
                     key={level}
                     style={[
                       styles.experienceButton,
-                      experienceLevel === level && styles.experienceButtonActive,
+                      { borderColor: colors.border },
+                      experienceLevel === level && { 
+                        borderColor: colors.primary, 
+                        backgroundColor: colors.highlight 
+                      },
                     ]}
                     onPress={() => setExperienceLevel(level)}
                   >
                     <Text
                       style={[
                         styles.experienceText,
-                        experienceLevel === level && styles.experienceTextActive,
+                        { color: colors.textSecondary },
+                        experienceLevel === level && { color: colors.primary, fontWeight: '600' },
                       ]}
                     >
                       {level.charAt(0).toUpperCase() + level.slice(1)}
@@ -325,10 +344,10 @@ export default function ProfileScreen() {
               </View>
 
               <TouchableOpacity
-                style={[buttonStyles.primaryButton, styles.saveButton]}
+                style={[styles.saveButton, { backgroundColor: colors.primary }]}
                 onPress={handleSaveProfile}
               >
-                <Text style={buttonStyles.buttonText}>Save Profile</Text>
+                <Text style={styles.saveButtonText}>Save Profile</Text>
               </TouchableOpacity>
 
               {profile && (
@@ -339,7 +358,7 @@ export default function ProfileScreen() {
                     loadProfile();
                   }}
                 >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                  <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -358,8 +377,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  backgroundImage: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  backgroundImageStyle: {
+    opacity: 0.08,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
   scrollContent: {
-    paddingTop: 48,
+    paddingTop: Platform.OS === 'android' ? 60 : 16,
     paddingHorizontal: 16,
     paddingBottom: 120,
   },
@@ -368,24 +398,44 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   avatarContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+    elevation: 6,
   },
   profileName: {
     fontSize: 28,
     fontWeight: '800',
-    color: colors.text,
     marginBottom: 4,
   },
   profileInfo: {
     fontSize: 16,
-    color: colors.textSecondary,
+  },
+  card: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   infoContent: {
     marginLeft: 12,
@@ -393,56 +443,78 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    color: colors.textSecondary,
     marginBottom: 2,
   },
   infoValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
   },
   editButton: {
-    marginVertical: 16,
-  },
-  subscriptionCard: {
-    marginTop: 8,
-  },
-  subscriptionText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  featuresList: {
-    marginBottom: 16,
-  },
-  featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 16,
     gap: 8,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
   },
-  featureText: {
-    fontSize: 14,
-    color: colors.text,
-    flex: 1,
+  editButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  subscribeButton: {
-    marginTop: 8,
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  settingText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  toggle: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.2)',
+    elevation: 3,
+  },
+  toggleThumbActive: {
+    alignSelf: 'flex-end',
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 16,
   },
   pickerButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -450,7 +522,6 @@ const styles = StyleSheet.create({
   },
   pickerButtonText: {
     fontSize: 16,
-    color: colors.text,
   },
   experienceContainer: {
     flexDirection: 'row',
@@ -463,23 +534,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: colors.border,
     alignItems: 'center',
-  },
-  experienceButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.highlight,
   },
   experienceText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  experienceTextActive: {
-    color: colors.primary,
   },
   saveButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
     marginTop: 8,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   cancelButton: {
     marginTop: 12,
@@ -489,7 +560,6 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textSecondary,
   },
   bottomPadding: {
     height: 20,
@@ -500,7 +570,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   pickerModal: {
-    backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
@@ -511,12 +580,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   pickerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
   },
   pickerItem: {
     flexDirection: 'row',
@@ -525,17 +592,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  pickerItemSelected: {
-    backgroundColor: colors.highlight,
   },
   pickerItemText: {
     fontSize: 16,
-    color: colors.text,
-  },
-  pickerItemTextSelected: {
-    fontWeight: '600',
-    color: colors.primary,
   },
 });

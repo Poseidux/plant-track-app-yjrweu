@@ -38,16 +38,6 @@ export interface EarningsLog {
   notes?: string;
 }
 
-export interface UserProfile {
-  name: string;
-  age: number;
-  province: string;
-  experienceLevel: 'beginner' | 'intermediate' | 'advanced';
-  favoriteSpecies: string[];
-  totalBadges: number;
-  achievements: Achievement[];
-}
-
 export interface Achievement {
   id: string;
   title: string;
@@ -56,6 +46,16 @@ export interface Achievement {
   unlockedAt: string;
   progress: number;
   target: number;
+}
+
+export interface UserProfile {
+  name: string;
+  age: number;
+  province: string;
+  experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+  favoriteSpecies: string[];
+  totalBadges: number;
+  achievements: Achievement[];
 }
 
 export interface LeaderboardEntry {

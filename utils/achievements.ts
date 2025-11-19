@@ -1,101 +1,156 @@
 
-import { Achievement, TreePlantingLog, EarningsLog } from '@/types/TreePlanting';
+import { TreePlantingLog, EarningsLog, Achievement } from '@/types/TreePlanting';
 
 export const ACHIEVEMENT_DEFINITIONS = [
   {
     id: 'first_tree',
     title: 'First Seedling',
     description: 'Plant your first tree',
-    icon: 'leaf.fill',
+    icon: '🌱',
     target: 1,
-    checkProgress: (trees: number) => trees >= 1,
+    type: 'trees' as const,
   },
   {
     id: 'hundred_trees',
-    title: '100 Trees',
+    title: 'Century Planter',
     description: 'Plant 100 trees',
-    icon: 'tree.fill',
+    icon: '🌿',
     target: 100,
-    checkProgress: (trees: number) => trees >= 100,
+    type: 'trees' as const,
   },
   {
     id: 'thousand_trees',
-    title: '1,000 Trees',
+    title: 'Forest Maker',
     description: 'Plant 1,000 trees',
-    icon: 'tree.circle.fill',
+    icon: '🌳',
     target: 1000,
-    checkProgress: (trees: number) => trees >= 1000,
+    type: 'trees' as const,
+  },
+  {
+    id: 'five_thousand_trees',
+    title: 'Tree Legend',
+    description: 'Plant 5,000 trees',
+    icon: '🏆',
+    target: 5000,
+    type: 'trees' as const,
   },
   {
     id: 'ten_thousand_trees',
-    title: '10,000 Trees',
+    title: 'Eco Warrior',
     description: 'Plant 10,000 trees',
-    icon: 'sparkles',
+    icon: '👑',
     target: 10000,
-    checkProgress: (trees: number) => trees >= 10000,
+    type: 'trees' as const,
+  },
+  {
+    id: 'first_day',
+    title: 'Day One',
+    description: 'Complete your first planting day',
+    icon: '📅',
+    target: 1,
+    type: 'days' as const,
+  },
+  {
+    id: 'week_streak',
+    title: 'Week Warrior',
+    description: 'Plant trees for 7 days',
+    icon: '🔥',
+    target: 7,
+    type: 'days' as const,
+  },
+  {
+    id: 'month_streak',
+    title: 'Monthly Master',
+    description: 'Plant trees for 30 days',
+    icon: '⭐',
+    target: 30,
+    type: 'days' as const,
   },
   {
     id: 'first_earnings',
     title: 'First Paycheck',
     description: 'Earn your first dollar',
-    icon: 'dollarsign.circle.fill',
+    icon: '💵',
     target: 1,
-    checkProgress: (trees: number, earnings: number) => earnings >= 1,
+    type: 'earnings' as const,
   },
   {
     id: 'thousand_earnings',
-    title: '$1,000 Earned',
+    title: 'Money Maker',
     description: 'Earn $1,000',
-    icon: 'banknote.fill',
+    icon: '💰',
     target: 1000,
-    checkProgress: (trees: number, earnings: number) => earnings >= 1000,
+    type: 'earnings' as const,
   },
   {
-    id: 'week_streak',
-    title: 'Week Warrior',
-    description: 'Log trees for 7 consecutive days',
-    icon: 'calendar.badge.clock',
-    target: 7,
-    checkProgress: (trees: number, earnings: number, days: number) => days >= 7,
+    id: 'five_thousand_earnings',
+    title: 'Big Earner',
+    description: 'Earn $5,000',
+    icon: '💎',
+    target: 5000,
+    type: 'earnings' as const,
   },
   {
-    id: 'month_streak',
-    title: 'Monthly Master',
-    description: 'Log trees for 30 consecutive days',
-    icon: 'calendar.circle.fill',
-    target: 30,
-    checkProgress: (trees: number, earnings: number, days: number) => days >= 30,
+    id: 'productive_day',
+    title: 'Productive Day',
+    description: 'Plant 2,000 trees in one day',
+    icon: '🚀',
+    target: 2000,
+    type: 'single_day' as const,
+  },
+  {
+    id: 'super_productive',
+    title: 'Super Productive',
+    description: 'Plant 3,000 trees in one day',
+    icon: '⚡',
+    target: 3000,
+    type: 'single_day' as const,
   },
 ];
 
-export function checkAndUnlockAchievements(
+export function checkAchievements(
   treeLogs: TreePlantingLog[],
   earningsLogs: EarningsLog[],
-  currentAchievements: Achievement[]
+  existingAchievements: Achievement[]
 ): Achievement[] {
   const totalTrees = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-  const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
   const totalDays = treeLogs.length;
+  const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
+  const maxTreesInDay = treeLogs.length > 0 
+    ? Math.max(...treeLogs.map(log => log.totalTrees))
+    : 0;
 
-  const newAchievements: Achievement[] = [];
+  const achievements: Achievement[] = ACHIEVEMENT_DEFINITIONS.map(def => {
+    let progress = 0;
 
-  ACHIEVEMENT_DEFINITIONS.forEach(def => {
-    const existing = currentAchievements.find(a => a.id === def.id);
-    if (!existing) {
-      const unlocked = def.checkProgress(totalTrees, totalEarnings, totalDays);
-      if (unlocked) {
-        newAchievements.push({
-          id: def.id,
-          title: def.title,
-          description: def.description,
-          icon: def.icon,
-          unlockedAt: new Date().toISOString(),
-          progress: def.target,
-          target: def.target,
-        });
-      }
+    switch (def.type) {
+      case 'trees':
+        progress = totalTrees;
+        break;
+      case 'days':
+        progress = totalDays;
+        break;
+      case 'earnings':
+        progress = totalEarnings;
+        break;
+      case 'single_day':
+        progress = maxTreesInDay;
+        break;
     }
+
+    const existing = existingAchievements.find(a => a.id === def.id);
+    const isNewlyUnlocked = !existing?.unlockedAt && progress >= def.target;
+
+    return {
+      id: def.id,
+      title: def.title,
+      description: def.description,
+      icon: def.icon,
+      progress,
+      target: def.target,
+      unlockedAt: existing?.unlockedAt || (isNewlyUnlocked ? new Date().toISOString() : ''),
+    };
   });
 
-  return [...currentAchievements, ...newAchievements];
+  return achievements;
 }
