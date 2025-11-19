@@ -7,7 +7,7 @@ import {
   ScrollView,
   Dimensions,
   ImageBackground,
-} from 'react';
+} from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
 import { TreePlantingLog, EarningsLog } from '@/types/TreePlanting';
