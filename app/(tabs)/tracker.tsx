@@ -39,6 +39,7 @@ export default function TrackerScreen() {
   const [showWeatherPicker, setShowWeatherPicker] = useState(false);
 
   useEffect(() => {
+    console.log('TrackerScreen mounted');
     loadLogs();
   }, []);
 
@@ -736,7 +737,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 60 : 16,
+    paddingTop: Platform.OS === 'android' ? 60 : 80,
     paddingHorizontal: 16,
     paddingBottom: 120,
   },

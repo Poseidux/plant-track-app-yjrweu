@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useColorScheme, View, ActivityIndicator } from 'react-native';
+import { useColorScheme } from 'react-native';
 import { StorageService } from '@/utils/storage';
 import { getColors } from '@/styles/commonStyles';
 
@@ -51,12 +51,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const isDark = themeMode === 'dark' || (themeMode === 'auto' && systemColorScheme === 'dark');
   const colors = getColors(isDark);
 
-  // Show a simple loading indicator while theme is loading
+  // Don't show loading screen, just render with default theme
+  // This prevents blank white screen issues
   if (!isLoaded) {
+    const defaultColors = getColors(false);
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F0F4F7' }}>
-        <ActivityIndicator size="large" color="#3498DB" />
-      </View>
+      <ThemeContext.Provider value={{ 
+        themeMode: 'light', 
+        setThemeMode, 
+        colors: defaultColors, 
+        isDark: false 
+      }}>
+        {children}
+      </ThemeContext.Provider>
     );
   }
 

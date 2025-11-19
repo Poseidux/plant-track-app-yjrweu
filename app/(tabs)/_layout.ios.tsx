@@ -1,44 +1,59 @@
 
 import React from 'react';
-import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
+import { Stack } from 'expo-router';
+import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
 
+// Using the same layout as Android/Web for consistency
+// Native tabs are unstable and causing rendering issues
 export default function TabLayout() {
+  const tabs: TabBarItem[] = [
+    {
+      name: '(home)',
+      route: '/(tabs)/(home)/',
+      icon: 'home',
+      label: 'Home',
+    },
+    {
+      name: 'tracker',
+      route: '/(tabs)/tracker',
+      icon: 'eco',
+      label: 'Log',
+    },
+    {
+      name: 'earnings',
+      route: '/(tabs)/earnings',
+      icon: 'attach-money',
+      label: 'Earnings',
+    },
+    {
+      name: 'analytics',
+      route: '/(tabs)/analytics',
+      icon: 'bar-chart',
+      label: 'Analytics',
+    },
+    {
+      name: 'profile',
+      route: '/(tabs)/profile',
+      icon: 'person',
+      label: 'Profile',
+    },
+  ];
+
   return (
-    <NativeTabs>
-      <NativeTabs.Screen name="(home)" options={{ title: 'Home' }}>
-        <NativeTabs.Trigger>
-          <Icon sf="house.fill" />
-          <Label>Home</Label>
-        </NativeTabs.Trigger>
-      </NativeTabs.Screen>
-      
-      <NativeTabs.Screen name="tracker" options={{ title: 'Tracker' }}>
-        <NativeTabs.Trigger>
-          <Icon sf="leaf.fill" />
-          <Label>Log</Label>
-        </NativeTabs.Trigger>
-      </NativeTabs.Screen>
-      
-      <NativeTabs.Screen name="earnings" options={{ title: 'Earnings' }}>
-        <NativeTabs.Trigger>
-          <Icon sf="dollarsign.circle.fill" />
-          <Label>Earnings</Label>
-        </NativeTabs.Trigger>
-      </NativeTabs.Screen>
-      
-      <NativeTabs.Screen name="analytics" options={{ title: 'Analytics' }}>
-        <NativeTabs.Trigger>
-          <Icon sf="chart.bar.fill" />
-          <Label>Analytics</Label>
-        </NativeTabs.Trigger>
-      </NativeTabs.Screen>
-      
-      <NativeTabs.Screen name="profile" options={{ title: 'Profile' }}>
-        <NativeTabs.Trigger>
-          <Icon sf="person.fill" />
-          <Label>Profile</Label>
-        </NativeTabs.Trigger>
-      </NativeTabs.Screen>
-    </NativeTabs>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'fade',
+        }}
+      >
+        <Stack.Screen name="(home)" />
+        <Stack.Screen name="tracker" />
+        <Stack.Screen name="earnings" />
+        <Stack.Screen name="analytics" />
+        <Stack.Screen name="profile" />
+      </Stack>
+      <FloatingTabBar tabs={tabs} />
+    </>
   );
 }

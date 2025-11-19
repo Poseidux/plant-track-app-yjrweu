@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useThemeContext } from '@/contexts/ThemeContext';
@@ -20,6 +20,12 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { colors } = useThemeContext();
+
+  useEffect(() => {
+    console.log('FloatingTabBar mounted');
+    console.log('Current pathname:', pathname);
+    console.log('Tab bar colors:', colors);
+  }, [pathname]);
 
   const isActive = (route: string) => {
     if (route === '/(tabs)/(home)/') {
@@ -49,7 +55,10 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
           <TouchableOpacity
             key={tab.name}
             style={styles.tab}
-            onPress={() => router.push(tab.route as any)}
+            onPress={() => {
+              console.log('Tab pressed:', tab.route);
+              router.push(tab.route as any);
+            }}
           >
             <IconSymbol
               ios_icon_name={iconNames.ios}

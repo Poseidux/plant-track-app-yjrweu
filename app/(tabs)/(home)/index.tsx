@@ -22,15 +22,18 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('HomeScreen mounted');
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
+      console.log('Loading home screen data...');
       const [trees, earnings] = await Promise.all([
         StorageService.getTreeLogs(),
         StorageService.getEarningsLogs(),
       ]);
+      console.log('Loaded trees:', trees.length, 'earnings:', earnings.length);
       setTreeLogs(trees);
       setEarningsLogs(earnings);
     } catch (error) {
@@ -66,6 +69,8 @@ export default function HomeScreen() {
   }));
 
   const screenWidth = Dimensions.get('window').width;
+
+  console.log('Rendering HomeScreen with colors:', colors);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -204,7 +209,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 60 : 16,
+    paddingTop: Platform.OS === 'android' ? 60 : 80,
     paddingHorizontal: 16,
     paddingBottom: 120,
   },
