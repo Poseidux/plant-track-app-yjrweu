@@ -1,3 +1,4 @@
+
 /* eslint-disable */
 
 // @eslint-ignore-file
@@ -34,6 +35,15 @@ const toArray = (object: T | T[]): T[] => {
 };
 
 export default function EditableElement_(_props: PropsWithChildren<any>) {
+  const { children } = _props;
+  const { props } = children;
+
+  // If we are not running in the web the windows will causes
+  // issues hence editable mode is not enabled.
+  if (Platform.OS !== "web") {
+    return cloneElement(children, props);
+  }
+
   const {
     editModeEnabled,
     selected,
@@ -44,20 +54,11 @@ export default function EditableElement_(_props: PropsWithChildren<any>) {
     popHovered,
   } = useContext(EditableContext);
 
-  const { children } = _props;
-  const { props } = children;
-
-  // If we are not running in the web the windows will causes
-  // issues hence editable mode is not enabled.
-  if (Platform.OS !== "web") {
-    return cloneElement(children, props);
-  }
-
   const type = getType(children);
   const __sourceLocation = props.__sourceLocation;
   const __trace = props.__trace;
   const id = __trace.join("");
-  const attributes = overwrittenProps[id] ?? {};
+  const attributes = overwrittenProps?.[id] ?? {};
 
   const editStyling =
     selected === id

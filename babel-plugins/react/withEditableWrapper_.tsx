@@ -1,3 +1,4 @@
+
 /* eslint-disable */
 
 import {
@@ -28,7 +29,16 @@ type EditableContextType = {
   popHovered: (hovered: string) => void;
 };
 
-export const EditableContext = createContext<EditableContextType>({} as any);
+export const EditableContext = createContext<EditableContextType>({
+  onElementClick: () => {},
+  editModeEnabled: false,
+  attributes: {},
+  selected: undefined,
+  setSelected: () => {},
+  hovered: undefined,
+  pushHovered: () => {},
+  popHovered: () => {},
+});
 
 const EditablePage = (props: PropsWithChildren) => {
   const { children } = props;
@@ -42,41 +52,47 @@ const EditablePage = (props: PropsWithChildren) => {
   );
 
   useEffect(() => {
+    if (Platform.OS !== "web") {
+      return;
+    }
+
     if (!haveBooted) {
       setHaveBooted(true);
-      window.addEventListener("message", (event) => {
-        const { type, data } = event.data ?? {};
-        switch (type) {
-          case "element_editor_enable": {
-            setEditModeEnabled(true);
-            break;
+      if (typeof window !== "undefined") {
+        window.addEventListener("message", (event) => {
+          const { type, data } = event.data ?? {};
+          switch (type) {
+            case "element_editor_enable": {
+              setEditModeEnabled(true);
+              break;
+            }
+            case "element_editor_disable": {
+              setEditModeEnabled(false);
+              break;
+            }
+            case "override_props": {
+              setOvewrittenProps((overwrittenProps) => {
+                return {
+                  ...overwrittenProps,
+                  [data.id]: {
+                    ...(overwrittenProps[data.id] ?? {}),
+                    ...data.props,
+                  },
+                };
+              });
+              break;
+            }
           }
-          case "element_editor_disable": {
-            setEditModeEnabled(false);
-            break;
-          }
-          case "override_props": {
-            setOvewrittenProps((overwrittenProps) => {
-              return {
-                ...overwrittenProps,
-                [data.id]: {
-                  ...(overwrittenProps[data.id] ?? {}),
-                  ...data.props,
-                },
-              };
-            });
-            break;
-          }
-        }
 
-        setOrigin(event.origin);
-      });
+          setOrigin(event.origin);
+        });
+      }
     }
   }, [haveBooted]);
 
   const postMessageToParent = useCallback(
     (message: any) => {
-      if (origin && window.parent) {
+      if (Platform.OS === "web" && origin && typeof window !== "undefined" && window.parent) {
         window.parent.postMessage(message, origin);
       }
     },
