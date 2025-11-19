@@ -5,18 +5,17 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Dimensions,
-} from 'react-native';
-import { useTheme } from '@react-navigation/native';
-import { colors, commonStyles } from '@/styles/commonStyles';
+  ImageBackground,
+} from 'react';
+import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
 import { TreePlantingLog, EarningsLog } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import { PieChart } from 'react-native-chart-kit';
 
 export default function HomeScreen() {
-  const theme = useTheme();
+  const { colors } = useThemeContext();
   const [treeLogs, setTreeLogs] = useState<TreePlantingLog[]>([]);
   const [earningsLogs, setEarningsLogs] = useState<EarningsLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,14 +39,14 @@ export default function HomeScreen() {
     }
   };
 
-  const totalTrees = treeLogs.reduce((sum, log) => sum + log.treesPlanted, 0);
+  const totalTrees = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
   const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
   const totalDays = treeLogs.length;
 
   const getSpeciesBreakdown = () => {
     const speciesCount: { [key: string]: number } = {};
     treeLogs.forEach(log => {
-      speciesCount[log.species] = (speciesCount[log.species] || 0) + log.treesPlanted;
+      speciesCount[log.species] = (speciesCount[log.species] || 0) + log.totalTrees;
     });
     return Object.entries(speciesCount)
       .sort((a, b) => b[1] - a[1])
@@ -69,13 +68,23 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80' }}
+        style={styles.backgroundImage}
+        imageStyle={styles.backgroundImageStyle}
+      >
+        <View style={styles.overlay} />
+      </ImageBackground>
+      
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>🌲 Tree Planter Tracker</Text>
-          <Text style={styles.headerSubtitle}>Track your environmental impact</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>🌲 Tree Planter</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Track your environmental impact
+          </Text>
         </View>
 
         <View style={styles.statsContainer}>
@@ -83,7 +92,7 @@ export default function HomeScreen() {
             <IconSymbol
               ios_icon_name="leaf.fill"
               android_material_icon_name="eco"
-              size={32}
+              size={28}
               color="#FFFFFF"
             />
             <Text style={styles.statNumber}>{totalTrees.toLocaleString()}</Text>
@@ -94,7 +103,7 @@ export default function HomeScreen() {
             <IconSymbol
               ios_icon_name="dollarsign.circle.fill"
               android_material_icon_name="attach-money"
-              size={32}
+              size={28}
               color="#FFFFFF"
             />
             <Text style={styles.statNumber}>${totalEarnings.toFixed(2)}</Text>
@@ -105,7 +114,7 @@ export default function HomeScreen() {
             <IconSymbol
               ios_icon_name="calendar.badge.clock"
               android_material_icon_name="event"
-              size={32}
+              size={28}
               color="#FFFFFF"
             />
             <Text style={styles.statNumber}>{totalDays}</Text>
@@ -114,8 +123,8 @@ export default function HomeScreen() {
         </View>
 
         {pieChartData.length > 0 && (
-          <View style={[commonStyles.card, styles.chartCard]}>
-            <Text style={commonStyles.cardTitle}>Species Distribution</Text>
+          <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>Species Distribution</Text>
             <PieChart
               data={pieChartData}
               width={screenWidth - 64}
@@ -132,26 +141,26 @@ export default function HomeScreen() {
         )}
 
         {treeLogs.length === 0 && (
-          <View style={[commonStyles.card, styles.emptyCard]}>
+          <View style={[styles.emptyCard, { backgroundColor: colors.card }]}>
             <IconSymbol
               ios_icon_name="tree.fill"
               android_material_icon_name="park"
-              size={64}
-              color={colors.textSecondary}
+              size={80}
+              color={colors.secondary}
             />
-            <Text style={styles.emptyTitle}>Start Your Journey</Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>Start Your Journey</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               Log your first tree planting session to see your progress!
             </Text>
           </View>
         )}
 
         {treeLogs.length > 0 && (
-          <View style={[commonStyles.card, styles.recentCard]}>
-            <Text style={commonStyles.cardTitle}>Recent Activity</Text>
+          <View style={[styles.recentCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.recentTitle, { color: colors.text }]}>Recent Activity</Text>
             {treeLogs.slice(-3).reverse().map((log, index) => (
-              <View key={index} style={styles.activityItem}>
-                <View style={styles.activityIcon}>
+              <View key={index} style={[styles.activityItem, { borderBottomColor: colors.border }]}>
+                <View style={[styles.activityIcon, { backgroundColor: colors.highlight }]}>
                   <IconSymbol
                     ios_icon_name="leaf.fill"
                     android_material_icon_name="eco"
@@ -160,10 +169,10 @@ export default function HomeScreen() {
                   />
                 </View>
                 <View style={styles.activityContent}>
-                  <Text style={styles.activityTitle}>
-                    {log.treesPlanted} {log.species}
+                  <Text style={[styles.activityTitle, { color: colors.text }]}>
+                    {log.totalTrees} {log.species}
                   </Text>
-                  <Text style={styles.activityDate}>
+                  <Text style={[styles.activityDate, { color: colors.textSecondary }]}>
                     {new Date(log.date).toLocaleDateString()} • {log.province}
                   </Text>
                 </View>
@@ -182,8 +191,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  backgroundImage: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  backgroundImageStyle: {
+    opacity: 0.1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+  },
   scrollContent: {
-    paddingTop: 48,
+    paddingTop: 60,
     paddingHorizontal: 16,
     paddingBottom: 120,
   },
@@ -194,12 +215,10 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 32,
     fontWeight: '800',
-    color: colors.text,
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: colors.textSecondary,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -212,57 +231,75 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
-    elevation: 4,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+    elevation: 6,
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     color: '#FFFFFF',
     marginTop: 8,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#FFFFFF',
     marginTop: 4,
     textAlign: 'center',
   },
   chartCard: {
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 16,
     alignItems: 'center',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 4,
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
   },
   emptyCard: {
     alignItems: 'center',
     paddingVertical: 48,
+    borderRadius: 16,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 4,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
-    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyText: {
-    fontSize: 14,
-    color: colors.textSecondary,
+    fontSize: 15,
     textAlign: 'center',
     paddingHorizontal: 32,
+    lineHeight: 22,
   },
   recentCard: {
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 16,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 4,
+  },
+  recentTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
   },
   activityItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   activityIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.highlight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -273,12 +310,10 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 2,
   },
   activityDate: {
     fontSize: 13,
-    color: colors.textSecondary,
   },
   bottomPadding: {
     height: 20,

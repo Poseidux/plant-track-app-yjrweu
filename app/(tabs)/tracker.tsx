@@ -11,6 +11,7 @@ import {
   Modal,
   FlatList,
   Platform,
+  ImageBackground,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
@@ -24,9 +25,8 @@ export default function TrackerScreen() {
   const [currentDayLog, setCurrentDayLog] = useState<TreePlantingLog | null>(null);
   const [showAddHourlyModal, setShowAddHourlyModal] = useState(false);
   const [showEndDayModal, setShowEndDayModal] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
   const [treesPlanted, setTreesPlanted] = useState('');
   const [selectedSpecies, setSelectedSpecies] = useState(TREE_SPECIES[0]);
   const [selectedProvince, setSelectedProvince] = useState(PROVINCES[0]);
@@ -51,24 +51,41 @@ export default function TrackerScreen() {
     setCurrentDayLog(todayLog || null);
   };
 
+  const startSession = () => {
+    setSessionStartTime(new Date());
+    setShowAddHourlyModal(true);
+  };
+
   const handleAddHourlyLog = async () => {
     if (!treesPlanted || parseInt(treesPlanted) <= 0) {
       Alert.alert('Error', 'Please enter a valid number of trees planted');
       return;
     }
 
-    if (!startTime || !endTime) {
-      Alert.alert('Error', 'Please enter start and end times');
+    if (!sessionStartTime) {
+      Alert.alert('Error', 'Session start time not recorded');
       return;
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    const endTime = new Date();
+    const startTimeStr = sessionStartTime.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    const endTimeStr = endTime.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+
     const today = new Date().toISOString().split('T')[0];
     const newHourlyLog: HourlyLog = {
       id: Date.now().toString(),
-      startTime,
-      endTime,
+      startTime: startTimeStr,
+      endTime: endTimeStr,
       treesPlanted: parseInt(treesPlanted),
     };
 
@@ -97,8 +114,7 @@ export default function TrackerScreen() {
     await loadLogs();
     
     setTreesPlanted('');
-    setStartTime('');
-    setEndTime('');
+    setSessionStartTime(null);
     setShowAddHourlyModal(false);
     Alert.alert('Success', 'Hourly log added successfully!');
   };
@@ -235,6 +251,14 @@ export default function TrackerScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?w=800&q=80' }}
+        style={styles.backgroundImage}
+        imageStyle={styles.backgroundImageStyle}
+      >
+        <View style={styles.overlay} />
+      </ImageBackground>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -308,7 +332,7 @@ export default function TrackerScreen() {
             <View style={styles.currentDayActions}>
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: colors.primary }]}
-                onPress={() => setShowAddHourlyModal(true)}
+                onPress={startSession}
               >
                 <IconSymbol
                   ios_icon_name="plus.circle.fill"
@@ -338,7 +362,7 @@ export default function TrackerScreen() {
         {!currentDayLog && (
           <TouchableOpacity
             style={[styles.startDayButton, { backgroundColor: colors.primary }]}
-            onPress={() => setShowAddHourlyModal(true)}
+            onPress={startSession}
           >
             <IconSymbol
               ios_icon_name="play.circle.fill"
@@ -465,7 +489,10 @@ export default function TrackerScreen() {
         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Add Hourly Log</Text>
-            <TouchableOpacity onPress={() => setShowAddHourlyModal(false)}>
+            <TouchableOpacity onPress={() => {
+              setShowAddHourlyModal(false);
+              setSessionStartTime(null);
+            }}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
                 android_material_icon_name="close"
@@ -476,6 +503,24 @@ export default function TrackerScreen() {
           </View>
 
           <ScrollView style={styles.modalContent}>
+            {sessionStartTime && (
+              <View style={[styles.timeInfo, { backgroundColor: colors.highlight }]}>
+                <IconSymbol
+                  ios_icon_name="clock.fill"
+                  android_material_icon_name="schedule"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={[styles.timeInfoText, { color: colors.text }]}>
+                  Session started at {sessionStartTime.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    hour12: true 
+                  })}
+                </Text>
+              </View>
+            )}
+
             {!currentDayLog && (
               <>
                 <Text style={[styles.label, { color: colors.text }]}>Tree Species *</Text>
@@ -527,24 +572,6 @@ export default function TrackerScreen() {
                 </TouchableOpacity>
               </>
             )}
-
-            <Text style={[styles.label, { color: colors.text }]}>Start Time *</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-              placeholder="e.g., 8:00 AM"
-              value={startTime}
-              onChangeText={setStartTime}
-              placeholderTextColor={colors.textSecondary}
-            />
-
-            <Text style={[styles.label, { color: colors.text }]}>End Time *</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-              placeholder="e.g., 9:00 AM"
-              value={endTime}
-              onChangeText={setEndTime}
-              placeholderTextColor={colors.textSecondary}
-            />
 
             <Text style={[styles.label, { color: colors.text }]}>Trees Planted *</Text>
             <TextInput
@@ -697,8 +724,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  backgroundImage: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  backgroundImageStyle: {
+    opacity: 0.08,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+  },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 48 : 16,
+    paddingTop: Platform.OS === 'android' ? 60 : 16,
     paddingHorizontal: 16,
     paddingBottom: 120,
   },
@@ -897,6 +936,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 24,
+  },
+  timeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    gap: 12,
+  },
+  timeInfoText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   label: {
     fontSize: 16,
