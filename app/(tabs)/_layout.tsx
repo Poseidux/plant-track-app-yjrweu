@@ -2,7 +2,6 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
-import { colors } from '@/styles/commonStyles';
 
 export default function TabLayout() {
   const tabs: TabBarItem[] = [
@@ -16,13 +15,19 @@ export default function TabLayout() {
       name: 'tracker',
       route: '/(tabs)/tracker',
       icon: 'eco',
-      label: 'Tracker',
+      label: 'Log',
     },
     {
       name: 'earnings',
       route: '/(tabs)/earnings',
       icon: 'attach-money',
       label: 'Earnings',
+    },
+    {
+      name: 'analytics',
+      route: '/(tabs)/analytics',
+      icon: 'bar-chart',
+      label: 'Analytics',
     },
     {
       name: 'profile',
@@ -43,6 +48,7 @@ export default function TabLayout() {
         <Stack.Screen key="home" name="(home)" />
         <Stack.Screen key="tracker" name="tracker" />
         <Stack.Screen key="earnings" name="earnings" />
+        <Stack.Screen key="analytics" name="analytics" />
         <Stack.Screen key="profile" name="profile" />
       </Stack>
       <FloatingTabBar tabs={tabs} />

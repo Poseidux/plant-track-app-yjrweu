@@ -1,11 +1,14 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TreePlantingLog, EarningsLog, UserProfile } from '@/types/TreePlanting';
+import { TreePlantingLog, EarningsLog, UserProfile, ExpenseLog, Achievement } from '@/types/TreePlanting';
 
 const KEYS = {
   TREE_LOGS: '@tree_planting_logs',
   EARNINGS_LOGS: '@earnings_logs',
+  EXPENSE_LOGS: '@expense_logs',
   USER_PROFILE: '@user_profile',
+  THEME_MODE: '@theme_mode',
+  ACHIEVEMENTS: '@achievements',
 };
 
 export const StorageService = {
@@ -23,7 +26,12 @@ export const StorageService = {
   async saveTreeLog(log: TreePlantingLog): Promise<void> {
     try {
       const logs = await this.getTreeLogs();
-      logs.push(log);
+      const existingIndex = logs.findIndex(l => l.id === log.id);
+      if (existingIndex >= 0) {
+        logs[existingIndex] = log;
+      } else {
+        logs.push(log);
+      }
       await AsyncStorage.setItem(KEYS.TREE_LOGS, JSON.stringify(logs));
     } catch (error) {
       console.error('Error saving tree log:', error);
@@ -37,6 +45,20 @@ export const StorageService = {
       await AsyncStorage.setItem(KEYS.TREE_LOGS, JSON.stringify(filtered));
     } catch (error) {
       console.error('Error deleting tree log:', error);
+    }
+  },
+
+  async deleteHourlyLog(logId: string, hourlyLogId: string): Promise<void> {
+    try {
+      const logs = await this.getTreeLogs();
+      const log = logs.find(l => l.id === logId);
+      if (log) {
+        log.hourlyLogs = log.hourlyLogs.filter(hl => hl.id !== hourlyLogId);
+        log.totalTrees = log.hourlyLogs.reduce((sum, hl) => sum + hl.treesPlanted, 0);
+        await this.saveTreeLog(log);
+      }
+    } catch (error) {
+      console.error('Error deleting hourly log:', error);
     }
   },
 
@@ -71,6 +93,37 @@ export const StorageService = {
     }
   },
 
+  // Expense Logs
+  async getExpenseLogs(): Promise<ExpenseLog[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.EXPENSE_LOGS);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting expense logs:', error);
+      return [];
+    }
+  },
+
+  async saveExpenseLog(log: ExpenseLog): Promise<void> {
+    try {
+      const logs = await this.getExpenseLogs();
+      logs.push(log);
+      await AsyncStorage.setItem(KEYS.EXPENSE_LOGS, JSON.stringify(logs));
+    } catch (error) {
+      console.error('Error saving expense log:', error);
+    }
+  },
+
+  async deleteExpenseLog(id: string): Promise<void> {
+    try {
+      const logs = await this.getExpenseLogs();
+      const filtered = logs.filter(log => log.id !== id);
+      await AsyncStorage.setItem(KEYS.EXPENSE_LOGS, JSON.stringify(filtered));
+    } catch (error) {
+      console.error('Error deleting expense log:', error);
+    }
+  },
+
   // User Profile
   async getUserProfile(): Promise<UserProfile | null> {
     try {
@@ -87,6 +140,44 @@ export const StorageService = {
       await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify(profile));
     } catch (error) {
       console.error('Error saving user profile:', error);
+    }
+  },
+
+  // Theme Mode
+  async getThemeMode(): Promise<'light' | 'dark'> {
+    try {
+      const mode = await AsyncStorage.getItem(KEYS.THEME_MODE);
+      return (mode as 'light' | 'dark') || 'light';
+    } catch (error) {
+      console.error('Error getting theme mode:', error);
+      return 'light';
+    }
+  },
+
+  async saveThemeMode(mode: 'light' | 'dark'): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.THEME_MODE, mode);
+    } catch (error) {
+      console.error('Error saving theme mode:', error);
+    }
+  },
+
+  // Achievements
+  async getAchievements(): Promise<Achievement[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.ACHIEVEMENTS);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting achievements:', error);
+      return [];
+    }
+  },
+
+  async saveAchievements(achievements: Achievement[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.ACHIEVEMENTS, JSON.stringify(achievements));
+    } catch (error) {
+      console.error('Error saving achievements:', error);
     }
   },
 };

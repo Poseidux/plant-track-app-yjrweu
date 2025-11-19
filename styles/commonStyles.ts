@@ -1,19 +1,26 @@
 
-import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, useColorScheme } from 'react-native';
 
-export const colors = {
-  background: '#F0F4F7',
-  text: '#2D3436',
-  textSecondary: '#747A7C',
+export const getColors = (isDark: boolean) => ({
+  background: isDark ? '#1A1A1A' : '#F0F4F7',
+  text: isDark ? '#FFFFFF' : '#2D3436',
+  textSecondary: isDark ? '#B0B0B0' : '#747A7C',
   primary: '#3498DB',
   secondary: '#2ECC71',
   accent: '#F39C12',
-  card: '#FFFFFF',
-  highlight: '#EBF5FB',
-  border: '#E0E0E0',
+  card: isDark ? '#2A2A2A' : '#FFFFFF',
+  highlight: isDark ? '#3A3A3A' : '#EBF5FB',
+  border: isDark ? '#404040' : '#E0E0E0',
   error: '#E74C3C',
   success: '#27AE60',
-};
+  warning: '#F39C12',
+  gold: '#FFD700',
+  silver: '#C0C0C0',
+  bronze: '#CD7F32',
+});
+
+// Default light theme colors for compatibility
+export const colors = getColors(false);
 
 export const buttonStyles = StyleSheet.create({
   primaryButton: {

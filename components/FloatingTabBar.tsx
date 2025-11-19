@@ -1,226 +1,93 @@
 
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-  Dimensions,
-} from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/IconSymbol';
-import { BlurView } from 'expo-blur';
-import { useTheme } from '@react-navigation/native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  interpolate,
-} from 'react-native-reanimated';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { Href } from 'expo-router';
-import { colors } from '@/styles/commonStyles';
-
-const { width: screenWidth } = Dimensions.get('window');
+import { useThemeContext } from '@/contexts/ThemeContext';
+import { IconSymbol } from './IconSymbol';
 
 export interface TabBarItem {
   name: string;
-  route: Href;
-  icon: keyof typeof MaterialIcons.glyphMap;
+  route: string;
+  icon: string;
   label: string;
 }
 
 interface FloatingTabBarProps {
   tabs: TabBarItem[];
-  containerWidth?: number;
-  borderRadius?: number;
-  bottomMargin?: number;
 }
 
-export default function FloatingTabBar({
-  tabs,
-  containerWidth = screenWidth - 40,
-  borderRadius = 35,
-  bottomMargin
-}: FloatingTabBarProps) {
+export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const theme = useTheme();
-  const animatedValue = useSharedValue(0);
+  const { colors } = useThemeContext();
 
-  const activeTabIndex = React.useMemo(() => {
-    let bestMatch = -1;
-    let bestMatchScore = 0;
-
-    tabs.forEach((tab, index) => {
-      let score = 0;
-
-      if (pathname === tab.route) {
-        score = 100;
-      } else if (pathname.startsWith(tab.route as string)) {
-        score = 80;
-      } else if (pathname.includes(tab.name)) {
-        score = 60;
-      } else if (tab.route.includes('/(tabs)/') && pathname.includes(tab.route.split('/(tabs)/')[1])) {
-        score = 40;
-      }
-
-      if (score > bestMatchScore) {
-        bestMatchScore = score;
-        bestMatch = index;
-      }
-    });
-
-    return bestMatch >= 0 ? bestMatch : 0;
-  }, [pathname, tabs]);
-
-  React.useEffect(() => {
-    if (activeTabIndex >= 0) {
-      animatedValue.value = withSpring(activeTabIndex, {
-        damping: 20,
-        stiffness: 120,
-        mass: 1,
-      });
+  const isActive = (route: string) => {
+    if (route === '/(tabs)/(home)/') {
+      return pathname === '/' || pathname.startsWith('/(tabs)/(home)');
     }
-  }, [activeTabIndex, animatedValue]);
-
-  const handleTabPress = (route: Href) => {
-    router.push(route);
+    return pathname.startsWith(route);
   };
 
-  const tabWidthPercent = ((100 / tabs.length) - 1).toFixed(2);
-
-  const indicatorStyle = useAnimatedStyle(() => {
-    const tabWidth = (containerWidth - 8) / tabs.length;
-    return {
-      transform: [
-        {
-          translateX: interpolate(
-            animatedValue.value,
-            [0, tabs.length - 1],
-            [0, tabWidth * (tabs.length - 1)]
-          ),
-        },
-      ],
+  const getIconName = (icon: string) => {
+    const iconMap: { [key: string]: { ios: string; android: string } } = {
+      home: { ios: 'house.fill', android: 'home' },
+      eco: { ios: 'leaf.fill', android: 'eco' },
+      'attach-money': { ios: 'dollarsign.circle.fill', android: 'attach-money' },
+      'bar-chart': { ios: 'chart.bar.fill', android: 'bar-chart' },
+      person: { ios: 'person.fill', android: 'person' },
     };
-  });
-
-  const dynamicStyles = {
-    blurContainer: {
-      ...styles.blurContainer,
-      borderWidth: 1.2,
-      borderColor: 'rgba(200, 200, 200, 0.3)',
-      ...Platform.select({
-        ios: {
-          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        },
-        android: {
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        },
-        web: {
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
-        },
-      }),
-    },
-    background: {
-      ...styles.background,
-    },
-    indicator: {
-      ...styles.indicator,
-      backgroundColor: colors.highlight,
-      width: `${tabWidthPercent}%` as `${number}%`,
-    },
+    return iconMap[icon] || { ios: icon, android: icon };
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      <View style={[
-        styles.container,
-        {
-          width: containerWidth,
-          marginBottom: bottomMargin ?? 20
-        }
-      ]}>
-        <BlurView
-          intensity={80}
-          style={[dynamicStyles.blurContainer, { borderRadius }]}
-        >
-          <View style={dynamicStyles.background} />
-          <Animated.View style={[dynamicStyles.indicator, indicatorStyle]} />
-          <View style={styles.tabsContainer}>
-            {tabs.map((tab, index) => {
-              const isActive = activeTabIndex === index;
-
-              return (
-                <React.Fragment key={index}>
-                <TouchableOpacity
-                  style={styles.tab}
-                  onPress={() => handleTabPress(tab.route)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.tabContent}>
-                    <IconSymbol
-                      android_material_icon_name={tab.icon}
-                      ios_icon_name={tab.icon}
-                      size={24}
-                      color={isActive ? colors.primary : colors.text}
-                    />
-                    <Text
-                      style={[
-                        styles.tabLabel,
-                        { color: colors.textSecondary },
-                        isActive && { color: colors.primary, fontWeight: '600' },
-                      ]}
-                    >
-                      {tab.label}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-                </React.Fragment>
-              );
-            })}
-          </View>
-        </BlurView>
-      </View>
-    </SafeAreaView>
+    <View style={[styles.container, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
+      {tabs.map((tab) => {
+        const active = isActive(tab.route);
+        const iconNames = getIconName(tab.icon);
+        
+        return (
+          <TouchableOpacity
+            key={tab.name}
+            style={styles.tab}
+            onPress={() => router.push(tab.route as any)}
+          >
+            <IconSymbol
+              ios_icon_name={iconNames.ios}
+              android_material_icon_name={iconNames.android}
+              size={24}
+              color={active ? colors.primary : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.label,
+                {
+                  color: active ? colors.primary : colors.textSecondary,
+                  fontWeight: active ? '600' : '400',
+                },
+              ]}
+            >
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    zIndex: 1000,
-    alignItems: 'center',
-  },
-  container: {
-    marginHorizontal: 20,
-    alignSelf: 'center',
-  },
-  blurContainer: {
-    overflow: 'hidden',
-  },
-  background: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  indicator: {
-    position: 'absolute',
-    top: 4,
-    left: 2,
-    bottom: 4,
-    borderRadius: 27,
-    width: `${(100 / 2) - 1}%`,
-  },
-  tabsContainer: {
     flexDirection: 'row',
-    height: 60,
-    alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    paddingTop: 12,
+    paddingHorizontal: 8,
+    borderTopWidth: 1,
+    boxShadow: '0px -2px 10px rgba(0, 0, 0, 0.1)',
+    elevation: 8,
   },
   tab: {
     flex: 1,
@@ -228,14 +95,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
   },
-  tabContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  tabLabel: {
-    fontSize: 9,
-    fontWeight: '500',
-    marginTop: 2,
+  label: {
+    fontSize: 11,
+    marginTop: 4,
   },
 });

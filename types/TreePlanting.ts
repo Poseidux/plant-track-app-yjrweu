@@ -1,12 +1,30 @@
 
+export interface HourlyLog {
+  id: string;
+  startTime: string;
+  endTime: string;
+  treesPlanted: number;
+}
+
 export interface TreePlantingLog {
   id: string;
   date: string;
-  treesPlanted: number;
+  hourlyLogs: HourlyLog[];
+  totalTrees: number;
   species: string;
   province: string;
   weatherCondition: string;
   notes?: string;
+  dayRating?: number;
+  averageRate?: number;
+}
+
+export interface ExpenseLog {
+  id: string;
+  date: string;
+  amount: number;
+  category: string;
+  description: string;
 }
 
 export interface EarningsLog {
@@ -14,8 +32,9 @@ export interface EarningsLog {
   date: string;
   amount: number;
   paymentType: 'hourly' | 'per-tree';
-  hoursWorked?: number;
+  treePrice?: number;
   treesPlanted?: number;
+  hoursWorked?: number;
   notes?: string;
 }
 
@@ -25,6 +44,26 @@ export interface UserProfile {
   province: string;
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
   favoriteSpecies: string[];
+  totalBadges: number;
+  achievements: Achievement[];
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  unlockedAt: string;
+  progress: number;
+  target: number;
+}
+
+export interface LeaderboardEntry {
+  userId: string;
+  name: string;
+  totalTrees: number;
+  totalEarnings: number;
+  rank: number;
 }
 
 export const PROVINCES = [
@@ -66,4 +105,12 @@ export const WEATHER_CONDITIONS = [
   'Hot',
   'Cold',
   'Foggy',
+];
+
+export const EXPENSE_CATEGORIES = [
+  'Travel',
+  'Meals',
+  'Accommodation',
+  'Equipment',
+  'Other',
 ];

@@ -11,22 +11,27 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
-import { Stack } from 'expo-router';
-import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
+import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
-import { TreePlantingLog, PROVINCES, TREE_SPECIES, WEATHER_CONDITIONS } from '@/types/TreePlanting';
+import { TreePlantingLog, HourlyLog, PROVINCES, TREE_SPECIES, WEATHER_CONDITIONS } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
+import * as Haptics from 'expo-haptics';
 
 export default function TrackerScreen() {
+  const { colors } = useThemeContext();
   const [treeLogs, setTreeLogs] = useState<TreePlantingLog[]>([]);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [currentDayLog, setCurrentDayLog] = useState<TreePlantingLog | null>(null);
+  const [showAddHourlyModal, setShowAddHourlyModal] = useState(false);
+  const [showEndDayModal, setShowEndDayModal] = useState(false);
   
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [treesPlanted, setTreesPlanted] = useState('');
   const [selectedSpecies, setSelectedSpecies] = useState(TREE_SPECIES[0]);
   const [selectedProvince, setSelectedProvince] = useState(PROVINCES[0]);
   const [selectedWeather, setSelectedWeather] = useState(WEATHER_CONDITIONS[0]);
   const [notes, setNotes] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dayRating, setDayRating] = useState(3);
 
   const [showSpeciesPicker, setShowSpeciesPicker] = useState(false);
   const [showProvincePicker, setShowProvincePicker] = useState(false);
@@ -39,37 +44,118 @@ export default function TrackerScreen() {
   const loadLogs = async () => {
     const logs = await StorageService.getTreeLogs();
     setTreeLogs(logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    
+    const today = new Date().toISOString().split('T')[0];
+    const todayLog = logs.find(log => log.date === today);
+    setCurrentDayLog(todayLog || null);
   };
 
-  const handleAddLog = async () => {
+  const handleAddHourlyLog = async () => {
     if (!treesPlanted || parseInt(treesPlanted) <= 0) {
       Alert.alert('Error', 'Please enter a valid number of trees planted');
       return;
     }
 
-    const newLog: TreePlantingLog = {
+    if (!startTime || !endTime) {
+      Alert.alert('Error', 'Please enter start and end times');
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const today = new Date().toISOString().split('T')[0];
+    const newHourlyLog: HourlyLog = {
       id: Date.now().toString(),
-      date,
+      startTime,
+      endTime,
       treesPlanted: parseInt(treesPlanted),
-      species: selectedSpecies,
-      province: selectedProvince,
-      weatherCondition: selectedWeather,
-      notes,
     };
 
-    await StorageService.saveTreeLog(newLog);
+    let updatedLog: TreePlantingLog;
+
+    if (currentDayLog) {
+      updatedLog = {
+        ...currentDayLog,
+        hourlyLogs: [...currentDayLog.hourlyLogs, newHourlyLog],
+        totalTrees: currentDayLog.totalTrees + parseInt(treesPlanted),
+      };
+    } else {
+      updatedLog = {
+        id: Date.now().toString(),
+        date: today,
+        hourlyLogs: [newHourlyLog],
+        totalTrees: parseInt(treesPlanted),
+        species: selectedSpecies,
+        province: selectedProvince,
+        weatherCondition: selectedWeather,
+        notes: '',
+      };
+    }
+
+    await StorageService.saveTreeLog(updatedLog);
     await loadLogs();
     
     setTreesPlanted('');
+    setStartTime('');
+    setEndTime('');
+    setShowAddHourlyModal(false);
+    Alert.alert('Success', 'Hourly log added successfully!');
+  };
+
+  const handleEndDay = async () => {
+    if (!currentDayLog) {
+      Alert.alert('Error', 'No logs for today to end');
+      return;
+    }
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    const totalHours = currentDayLog.hourlyLogs.length;
+    const averageRate = totalHours > 0 ? currentDayLog.totalTrees / totalHours : 0;
+
+    const updatedLog: TreePlantingLog = {
+      ...currentDayLog,
+      notes,
+      dayRating,
+      averageRate,
+    };
+
+    await StorageService.saveTreeLog(updatedLog);
+    await loadLogs();
+    
     setNotes('');
-    setShowAddModal(false);
-    Alert.alert('Success', 'Tree planting log added successfully!');
+    setDayRating(3);
+    setShowEndDayModal(false);
+    
+    Alert.alert(
+      'Day Complete! 🎉',
+      `Total Trees: ${currentDayLog.totalTrees}\nAverage Rate: ${averageRate.toFixed(0)} trees/hour\nRating: ${dayRating}/5`,
+      [{ text: 'Great!', style: 'default' }]
+    );
+  };
+
+  const handleDeleteHourlyLog = (logId: string, hourlyLogId: string) => {
+    Alert.alert(
+      'Delete Hourly Log',
+      'Are you sure you want to delete this hourly log?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await StorageService.deleteHourlyLog(logId, hourlyLogId);
+            await loadLogs();
+          },
+        },
+      ]
+    );
   };
 
   const handleDeleteLog = (id: string) => {
     Alert.alert(
       'Delete Log',
-      'Are you sure you want to delete this log?',
+      'Are you sure you want to delete this entire day log?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -94,9 +180,9 @@ export default function TrackerScreen() {
   ) => (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
-        <View style={styles.pickerModal}>
-          <View style={styles.pickerHeader}>
-            <Text style={styles.pickerTitle}>{title}</Text>
+        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
+          <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.pickerTitle, { color: colors.text }]}>{title}</Text>
             <TouchableOpacity onPress={onClose}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
@@ -113,7 +199,8 @@ export default function TrackerScreen() {
               <TouchableOpacity
                 style={[
                   styles.pickerItem,
-                  item === selectedItem && styles.pickerItemSelected,
+                  { borderBottomColor: colors.border },
+                  item === selectedItem && { backgroundColor: colors.highlight },
                 ]}
                 onPress={() => {
                   onSelect(item);
@@ -123,7 +210,8 @@ export default function TrackerScreen() {
                 <Text
                   style={[
                     styles.pickerItemText,
-                    item === selectedItem && styles.pickerItemTextSelected,
+                    { color: colors.text },
+                    item === selectedItem && { fontWeight: '600', color: colors.primary },
                   ]}
                 >
                   {item}
@@ -145,47 +233,145 @@ export default function TrackerScreen() {
   );
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: 'Tracker',
-          headerLargeTitle: true,
-          headerRight: () => (
-            <TouchableOpacity onPress={() => setShowAddModal(true)}>
-              <IconSymbol
-                ios_icon_name="plus.circle.fill"
-                android_material_icon_name="add-circle"
-                size={32}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {treeLogs.length === 0 ? (
-            <View style={[commonStyles.card, styles.emptyCard]}>
-              <IconSymbol
-                ios_icon_name="tree.fill"
-                android_material_icon_name="park"
-                size={64}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.emptyTitle}>No Logs Yet</Text>
-              <Text style={styles.emptyText}>
-                Start tracking your tree planting journey by adding your first log!
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Tracker</Text>
+        </View>
+
+        {currentDayLog && (
+          <View style={[styles.currentDayCard, { backgroundColor: colors.card }]}>
+            <View style={styles.currentDayHeader}>
+              <Text style={[styles.currentDayTitle, { color: colors.text }]}>
+                Today&apos;s Progress
+              </Text>
+              <Text style={[styles.currentDayDate, { color: colors.textSecondary }]}>
+                {new Date().toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
               </Text>
             </View>
-          ) : (
-            treeLogs.map((log) => (
-              <View key={log.id} style={commonStyles.card}>
+
+            <View style={styles.currentDayStats}>
+              <View style={styles.currentDayStat}>
+                <Text style={[styles.currentDayStatNumber, { color: colors.secondary }]}>
+                  {currentDayLog.totalTrees}
+                </Text>
+                <Text style={[styles.currentDayStatLabel, { color: colors.textSecondary }]}>
+                  Total Trees
+                </Text>
+              </View>
+              <View style={styles.currentDayStat}>
+                <Text style={[styles.currentDayStatNumber, { color: colors.primary }]}>
+                  {currentDayLog.hourlyLogs.length}
+                </Text>
+                <Text style={[styles.currentDayStatLabel, { color: colors.textSecondary }]}>
+                  Hours Logged
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.hourlyLogsList}>
+              {currentDayLog.hourlyLogs.map((hourlyLog, index) => (
+                <View 
+                  key={index} 
+                  style={[styles.hourlyLogItem, { backgroundColor: colors.highlight }]}
+                >
+                  <View style={styles.hourlyLogInfo}>
+                    <Text style={[styles.hourlyLogTime, { color: colors.text }]}>
+                      {hourlyLog.startTime} - {hourlyLog.endTime}
+                    </Text>
+                    <Text style={[styles.hourlyLogTrees, { color: colors.secondary }]}>
+                      {hourlyLog.treesPlanted} trees
+                    </Text>
+                  </View>
+                  <TouchableOpacity 
+                    onPress={() => handleDeleteHourlyLog(currentDayLog.id, hourlyLog.id)}
+                  >
+                    <IconSymbol
+                      ios_icon_name="trash.fill"
+                      android_material_icon_name="delete"
+                      size={20}
+                      color={colors.error}
+                    />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.currentDayActions}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                onPress={() => setShowAddHourlyModal(true)}
+              >
+                <IconSymbol
+                  ios_icon_name="plus.circle.fill"
+                  android_material_icon_name="add-circle"
+                  size={20}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.actionButtonText}>Add Hour</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.accent }]}
+                onPress={() => setShowEndDayModal(true)}
+              >
+                <IconSymbol
+                  ios_icon_name="checkmark.circle.fill"
+                  android_material_icon_name="check-circle"
+                  size={20}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.actionButtonText}>End Day</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {!currentDayLog && (
+          <TouchableOpacity
+            style={[styles.startDayButton, { backgroundColor: colors.primary }]}
+            onPress={() => setShowAddHourlyModal(true)}
+          >
+            <IconSymbol
+              ios_icon_name="play.circle.fill"
+              android_material_icon_name="play-circle-filled"
+              size={32}
+              color="#FFFFFF"
+            />
+            <Text style={styles.startDayButtonText}>Start Today&apos;s Log</Text>
+          </TouchableOpacity>
+        )}
+
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Previous Days</Text>
+
+        {treeLogs.filter(log => log.date !== new Date().toISOString().split('T')[0]).length === 0 ? (
+          <View style={[styles.emptyCard, { backgroundColor: colors.card }]}>
+            <IconSymbol
+              ios_icon_name="tree.fill"
+              android_material_icon_name="park"
+              size={64}
+              color={colors.textSecondary}
+            />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Previous Logs</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              Your previous planting days will appear here
+            </Text>
+          </View>
+        ) : (
+          treeLogs
+            .filter(log => log.date !== new Date().toISOString().split('T')[0])
+            .map((log) => (
+              <View key={log.id} style={[styles.logCard, { backgroundColor: colors.card }]}>
                 <View style={styles.logHeader}>
                   <View style={styles.logHeaderLeft}>
-                    <Text style={styles.logDate}>
+                    <Text style={[styles.logDate, { color: colors.text }]}>
                       {new Date(log.date).toLocaleDateString('en-US', {
                         weekday: 'short',
                         month: 'short',
@@ -193,7 +379,9 @@ export default function TrackerScreen() {
                         year: 'numeric',
                       })}
                     </Text>
-                    <Text style={styles.logProvince}>{log.province}</Text>
+                    <Text style={[styles.logProvince, { color: colors.textSecondary }]}>
+                      {log.province}
+                    </Text>
                   </View>
                   <TouchableOpacity onPress={() => handleDeleteLog(log.id)}>
                     <IconSymbol
@@ -205,7 +393,7 @@ export default function TrackerScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.logStats}>
+                <View style={[styles.logStats, { borderTopColor: colors.border }]}>
                   <View style={styles.logStat}>
                     <IconSymbol
                       ios_icon_name="leaf.fill"
@@ -213,161 +401,294 @@ export default function TrackerScreen() {
                       size={20}
                       color={colors.secondary}
                     />
-                    <Text style={styles.logStatNumber}>{log.treesPlanted}</Text>
-                    <Text style={styles.logStatLabel}>Trees</Text>
+                    <Text style={[styles.logStatNumber, { color: colors.text }]}>
+                      {log.totalTrees}
+                    </Text>
+                    <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
+                      Trees
+                    </Text>
                   </View>
 
                   <View style={styles.logStat}>
                     <IconSymbol
-                      ios_icon_name="tree.fill"
-                      android_material_icon_name="park"
+                      ios_icon_name="clock.fill"
+                      android_material_icon_name="schedule"
                       size={20}
                       color={colors.primary}
                     />
-                    <Text style={styles.logStatLabel}>{log.species}</Text>
+                    <Text style={[styles.logStatNumber, { color: colors.text }]}>
+                      {log.hourlyLogs.length}
+                    </Text>
+                    <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
+                      Hours
+                    </Text>
                   </View>
 
-                  <View style={styles.logStat}>
-                    <IconSymbol
-                      ios_icon_name="cloud.sun.fill"
-                      android_material_icon_name="wb-sunny"
-                      size={20}
-                      color={colors.accent}
-                    />
-                    <Text style={styles.logStatLabel}>{log.weatherCondition}</Text>
-                  </View>
+                  {log.dayRating && (
+                    <View style={styles.logStat}>
+                      <IconSymbol
+                        ios_icon_name="star.fill"
+                        android_material_icon_name="star"
+                        size={20}
+                        color={colors.accent}
+                      />
+                      <Text style={[styles.logStatNumber, { color: colors.text }]}>
+                        {log.dayRating}/5
+                      </Text>
+                      <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
+                        Rating
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 {log.notes && (
-                  <View style={styles.logNotes}>
-                    <Text style={styles.logNotesText}>{log.notes}</Text>
+                  <View style={[styles.logNotes, { backgroundColor: colors.highlight }]}>
+                    <Text style={[styles.logNotesText, { color: colors.text }]}>
+                      {log.notes}
+                    </Text>
                   </View>
                 )}
               </View>
             ))
-          )}
-        </ScrollView>
+        )}
 
-        <Modal
-          visible={showAddModal}
-          animationType="slide"
-          presentationStyle="pageSheet"
-        >
-          <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Planting Log</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <IconSymbol
-                  ios_icon_name="xmark.circle.fill"
-                  android_material_icon_name="close"
-                  size={32}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-            </View>
+        <View style={styles.bottomPadding} />
+      </ScrollView>
 
-            <ScrollView style={styles.modalContent}>
-              <Text style={styles.label}>Number of Trees Planted *</Text>
-              <TextInput
-                style={commonStyles.input}
-                placeholder="e.g., 500"
-                keyboardType="numeric"
-                value={treesPlanted}
-                onChangeText={setTreesPlanted}
-                placeholderTextColor={colors.textSecondary}
+      <Modal
+        visible={showAddHourlyModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Hourly Log</Text>
+            <TouchableOpacity onPress={() => setShowAddHourlyModal(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={32}
+                color={colors.text}
               />
-
-              <Text style={styles.label}>Tree Species *</Text>
-              <TouchableOpacity
-                style={styles.pickerButton}
-                onPress={() => setShowSpeciesPicker(true)}
-              >
-                <Text style={styles.pickerButtonText}>{selectedSpecies}</Text>
-                <IconSymbol
-                  ios_icon_name="chevron.down"
-                  android_material_icon_name="arrow-drop-down"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-
-              <Text style={styles.label}>Province *</Text>
-              <TouchableOpacity
-                style={styles.pickerButton}
-                onPress={() => setShowProvincePicker(true)}
-              >
-                <Text style={styles.pickerButtonText}>{selectedProvince}</Text>
-                <IconSymbol
-                  ios_icon_name="chevron.down"
-                  android_material_icon_name="arrow-drop-down"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-
-              <Text style={styles.label}>Weather Condition *</Text>
-              <TouchableOpacity
-                style={styles.pickerButton}
-                onPress={() => setShowWeatherPicker(true)}
-              >
-                <Text style={styles.pickerButtonText}>{selectedWeather}</Text>
-                <IconSymbol
-                  ios_icon_name="chevron.down"
-                  android_material_icon_name="arrow-drop-down"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-
-              <Text style={styles.label}>Notes (Optional)</Text>
-              <TextInput
-                style={[commonStyles.input, styles.notesInput]}
-                placeholder="Add any additional notes..."
-                multiline
-                numberOfLines={4}
-                value={notes}
-                onChangeText={setNotes}
-                placeholderTextColor={colors.textSecondary}
-              />
-
-              <TouchableOpacity
-                style={[buttonStyles.primaryButton, styles.submitButton]}
-                onPress={handleAddLog}
-              >
-                <Text style={buttonStyles.buttonText}>Save Log</Text>
-              </TouchableOpacity>
-            </ScrollView>
+            </TouchableOpacity>
           </View>
-        </Modal>
 
-        {renderPicker(
-          showSpeciesPicker,
-          () => setShowSpeciesPicker(false),
-          TREE_SPECIES,
-          selectedSpecies,
-          setSelectedSpecies,
-          'Select Tree Species'
-        )}
+          <ScrollView style={styles.modalContent}>
+            {!currentDayLog && (
+              <>
+                <Text style={[styles.label, { color: colors.text }]}>Tree Species *</Text>
+                <TouchableOpacity
+                  style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={() => setShowSpeciesPicker(true)}
+                >
+                  <Text style={[styles.pickerButtonText, { color: colors.text }]}>
+                    {selectedSpecies}
+                  </Text>
+                  <IconSymbol
+                    ios_icon_name="chevron.down"
+                    android_material_icon_name="arrow-drop-down"
+                    size={24}
+                    color={colors.text}
+                  />
+                </TouchableOpacity>
 
-        {renderPicker(
-          showProvincePicker,
-          () => setShowProvincePicker(false),
-          PROVINCES,
-          selectedProvince,
-          setSelectedProvince,
-          'Select Province'
-        )}
+                <Text style={[styles.label, { color: colors.text }]}>Province *</Text>
+                <TouchableOpacity
+                  style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={() => setShowProvincePicker(true)}
+                >
+                  <Text style={[styles.pickerButtonText, { color: colors.text }]}>
+                    {selectedProvince}
+                  </Text>
+                  <IconSymbol
+                    ios_icon_name="chevron.down"
+                    android_material_icon_name="arrow-drop-down"
+                    size={24}
+                    color={colors.text}
+                  />
+                </TouchableOpacity>
 
-        {renderPicker(
-          showWeatherPicker,
-          () => setShowWeatherPicker(false),
-          WEATHER_CONDITIONS,
-          selectedWeather,
-          setSelectedWeather,
-          'Select Weather'
-        )}
-      </View>
-    </>
+                <Text style={[styles.label, { color: colors.text }]}>Weather *</Text>
+                <TouchableOpacity
+                  style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={() => setShowWeatherPicker(true)}
+                >
+                  <Text style={[styles.pickerButtonText, { color: colors.text }]}>
+                    {selectedWeather}
+                  </Text>
+                  <IconSymbol
+                    ios_icon_name="chevron.down"
+                    android_material_icon_name="arrow-drop-down"
+                    size={24}
+                    color={colors.text}
+                  />
+                </TouchableOpacity>
+              </>
+            )}
+
+            <Text style={[styles.label, { color: colors.text }]}>Start Time *</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+              placeholder="e.g., 8:00 AM"
+              value={startTime}
+              onChangeText={setStartTime}
+              placeholderTextColor={colors.textSecondary}
+            />
+
+            <Text style={[styles.label, { color: colors.text }]}>End Time *</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+              placeholder="e.g., 9:00 AM"
+              value={endTime}
+              onChangeText={setEndTime}
+              placeholderTextColor={colors.textSecondary}
+            />
+
+            <Text style={[styles.label, { color: colors.text }]}>Trees Planted *</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+              placeholder="e.g., 600"
+              keyboardType="numeric"
+              value={treesPlanted}
+              onChangeText={setTreesPlanted}
+              placeholderTextColor={colors.textSecondary}
+            />
+
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: colors.primary }]}
+              onPress={handleAddHourlyLog}
+            >
+              <Text style={styles.submitButtonText}>Save Hourly Log</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showEndDayModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>End Day Summary</Text>
+            <TouchableOpacity onPress={() => setShowEndDayModal(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={32}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {currentDayLog && (
+              <>
+                <View style={[styles.summaryCard, { backgroundColor: colors.card }]}>
+                  <Text style={[styles.summaryTitle, { color: colors.text }]}>
+                    Today&apos;s Summary
+                  </Text>
+                  <View style={styles.summaryStats}>
+                    <View style={styles.summaryStat}>
+                      <Text style={[styles.summaryStatLabel, { color: colors.textSecondary }]}>
+                        Total Trees
+                      </Text>
+                      <Text style={[styles.summaryStatValue, { color: colors.secondary }]}>
+                        {currentDayLog.totalTrees}
+                      </Text>
+                    </View>
+                    <View style={styles.summaryStat}>
+                      <Text style={[styles.summaryStatLabel, { color: colors.textSecondary }]}>
+                        Hours Worked
+                      </Text>
+                      <Text style={[styles.summaryStatValue, { color: colors.primary }]}>
+                        {currentDayLog.hourlyLogs.length}
+                      </Text>
+                    </View>
+                    <View style={styles.summaryStat}>
+                      <Text style={[styles.summaryStatLabel, { color: colors.textSecondary }]}>
+                        Avg Rate
+                      </Text>
+                      <Text style={[styles.summaryStatValue, { color: colors.accent }]}>
+                        {(currentDayLog.totalTrees / currentDayLog.hourlyLogs.length).toFixed(0)}/hr
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <Text style={[styles.label, { color: colors.text }]}>Rate Your Day</Text>
+                <View style={styles.ratingContainer}>
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <TouchableOpacity
+                      key={rating}
+                      onPress={() => {
+                        setDayRating(rating);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      style={styles.ratingButton}
+                    >
+                      <IconSymbol
+                        ios_icon_name={rating <= dayRating ? "star.fill" : "star"}
+                        android_material_icon_name={rating <= dayRating ? "star" : "star-border"}
+                        size={40}
+                        color={rating <= dayRating ? colors.accent : colors.border}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={[styles.label, { color: colors.text }]}>Notes (Optional)</Text>
+                <TextInput
+                  style={[styles.notesInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                  placeholder="How was your day? Any challenges or achievements?"
+                  multiline
+                  numberOfLines={4}
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholderTextColor={colors.textSecondary}
+                />
+
+                <TouchableOpacity
+                  style={[styles.submitButton, { backgroundColor: colors.accent }]}
+                  onPress={handleEndDay}
+                >
+                  <Text style={styles.submitButtonText}>Complete Day</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {renderPicker(
+        showSpeciesPicker,
+        () => setShowSpeciesPicker(false),
+        TREE_SPECIES,
+        selectedSpecies,
+        setSelectedSpecies,
+        'Select Tree Species'
+      )}
+
+      {renderPicker(
+        showProvincePicker,
+        () => setShowProvincePicker(false),
+        PROVINCES,
+        selectedProvince,
+        setSelectedProvince,
+        'Select Province'
+      )}
+
+      {renderPicker(
+        showWeatherPicker,
+        () => setShowWeatherPicker(false),
+        WEATHER_CONDITIONS,
+        selectedWeather,
+        setSelectedWeather,
+        'Select Weather'
+      )}
+    </View>
   );
 }
 
@@ -376,26 +697,138 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingVertical: 16,
+    paddingTop: 16,
     paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingBottom: 120,
+  },
+  header: {
+    marginBottom: 24,
+  },
+  headerTitle: {
+    fontSize: 34,
+    fontWeight: '800',
+  },
+  currentDayCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
+    elevation: 4,
+  },
+  currentDayHeader: {
+    marginBottom: 16,
+  },
+  currentDayTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  currentDayDate: {
+    fontSize: 14,
+  },
+  currentDayStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+    paddingVertical: 16,
+  },
+  currentDayStat: {
+    alignItems: 'center',
+  },
+  currentDayStatNumber: {
+    fontSize: 32,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  currentDayStatLabel: {
+    fontSize: 12,
+  },
+  hourlyLogsList: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  hourlyLogItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+  },
+  hourlyLogInfo: {
+    flex: 1,
+  },
+  hourlyLogTime: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  hourlyLogTrees: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  currentDayActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  startDayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 24,
+    gap: 12,
+    boxShadow: '0px 4px 12px rgba(52, 152, 219, 0.3)',
+    elevation: 4,
+  },
+  startDayButtonText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
   },
   emptyCard: {
     alignItems: 'center',
     paddingVertical: 48,
+    borderRadius: 16,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 3,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 32,
+  },
+  logCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 3,
   },
   logHeader: {
     flexDirection: 'row',
@@ -409,19 +842,16 @@ const styles = StyleSheet.create({
   logDate: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.text,
     marginBottom: 4,
   },
   logProvince: {
     fontSize: 14,
-    color: colors.textSecondary,
   },
   logStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   logStat: {
     alignItems: 'center',
@@ -430,22 +860,21 @@ const styles = StyleSheet.create({
   logStatNumber: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
   },
   logStatLabel: {
     fontSize: 12,
-    color: colors.textSecondary,
   },
   logNotes: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: colors.highlight,
     borderRadius: 8,
   },
   logNotesText: {
     fontSize: 14,
-    color: colors.text,
     lineHeight: 20,
+  },
+  bottomPadding: {
+    height: 20,
   },
   modalContainer: {
     flex: 1,
@@ -458,12 +887,10 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.text,
   },
   modalContent: {
     flex: 1,
@@ -473,16 +900,21 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
     marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 16,
   },
   pickerButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -490,16 +922,30 @@ const styles = StyleSheet.create({
   },
   pickerButtonText: {
     fontSize: 16,
-    color: colors.text,
   },
   notesInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 16,
     height: 100,
     textAlignVertical: 'top',
-    paddingTop: 12,
   },
   submitButton: {
-    marginTop: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
     marginBottom: 48,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -507,7 +953,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   pickerModal: {
-    backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
@@ -518,12 +963,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   pickerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
   },
   pickerItem: {
     flexDirection: 'row',
@@ -532,17 +975,44 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  pickerItemSelected: {
-    backgroundColor: colors.highlight,
   },
   pickerItemText: {
     fontSize: 16,
-    color: colors.text,
   },
-  pickerItemTextSelected: {
-    fontWeight: '600',
-    color: colors.primary,
+  summaryCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 3,
+  },
+  summaryTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  summaryStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  summaryStat: {
+    alignItems: 'center',
+  },
+  summaryStatLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  summaryStatValue: {
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 24,
+  },
+  ratingButton: {
+    padding: 4,
   },
 });
