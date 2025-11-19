@@ -13,7 +13,7 @@ import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
 import { TreePlantingLog, EarningsLog } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
-import { PieChart } from 'react-native-chart-kit';
+import { PieChart, LineChart } from 'react-native-chart-kit';
 
 export default function HomeScreen() {
   const { colors, isDark } = useThemeContext();
@@ -68,7 +68,92 @@ export default function HomeScreen() {
     legendFontSize: 12,
   }));
 
+  const getEarningsChartData = () => {
+    const sortedLogs = [...earningsLogs].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    const last7 = sortedLogs.slice(-7);
+    
+    return {
+      labels: last7.length > 0 
+        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        : ['No Data'],
+      datasets: [{
+        data: last7.length > 0 ? last7.map(log => log.amount) : [0],
+      }],
+    };
+  };
+
+  const getTreesChartData = () => {
+    const sortedLogs = [...treeLogs].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    const last7 = sortedLogs.slice(-7);
+    
+    return {
+      labels: last7.length > 0 
+        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        : ['No Data'],
+      datasets: [{
+        data: last7.length > 0 ? last7.map(log => log.totalTrees) : [0],
+      }],
+    };
+  };
+
+  const getDailyRateChartData = () => {
+    const sortedLogs = [...treeLogs].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    const last7 = sortedLogs.slice(-7);
+    
+    return {
+      labels: last7.length > 0 
+        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        : ['No Data'],
+      datasets: [{
+        data: last7.length > 0 ? last7.map(log => log.averageRate || 0) : [0],
+      }],
+    };
+  };
+
   const screenWidth = Dimensions.get('window').width;
+
+  const chartConfig = {
+    backgroundColor: colors.card,
+    backgroundGradientFrom: colors.card,
+    backgroundGradientTo: colors.card,
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
+    labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(45, 52, 54, ${opacity})`,
+    style: {
+      borderRadius: 16,
+    },
+    propsForDots: {
+      r: '5',
+      strokeWidth: '2',
+      stroke: colors.primary,
+    },
+  };
+
+  const earningsChartConfig = {
+    ...chartConfig,
+    color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
+    propsForDots: {
+      r: '5',
+      strokeWidth: '2',
+      stroke: colors.secondary,
+    },
+  };
+
+  const rateChartConfig = {
+    ...chartConfig,
+    color: (opacity = 1) => `rgba(243, 156, 18, ${opacity})`,
+    propsForDots: {
+      r: '5',
+      strokeWidth: '2',
+      stroke: colors.accent,
+    },
+  };
 
   console.log('Rendering HomeScreen with colors:', colors);
 
@@ -127,6 +212,51 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Planting Days</Text>
           </View>
         </View>
+
+        {earningsLogs.length >= 2 && (
+          <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>💰 Earnings Trend (Last 7 Days)</Text>
+            <LineChart
+              data={getEarningsChartData()}
+              width={screenWidth - 64}
+              height={200}
+              chartConfig={earningsChartConfig}
+              bezier
+              style={styles.chart}
+            />
+          </View>
+        )}
+
+        {treeLogs.length >= 2 && (
+          <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>🌳 Total Trees Planted (Last 7 Days)</Text>
+            <LineChart
+              data={getTreesChartData()}
+              width={screenWidth - 64}
+              height={200}
+              chartConfig={chartConfig}
+              bezier
+              style={styles.chart}
+            />
+          </View>
+        )}
+
+        {treeLogs.length >= 2 && treeLogs.some(log => log.averageRate) && (
+          <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>⚡ Daily Planting Rate (Last 7 Days)</Text>
+            <LineChart
+              data={getDailyRateChartData()}
+              width={screenWidth - 64}
+              height={200}
+              chartConfig={rateChartConfig}
+              bezier
+              style={styles.chart}
+            />
+            <Text style={[styles.chartSubtitle, { color: colors.textSecondary }]}>
+              Trees per hour
+            </Text>
+          </View>
+        )}
 
         {pieChartData.length > 0 && (
           <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
@@ -263,6 +393,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 12,
+  },
+  chartSubtitle: {
+    fontSize: 13,
+    marginTop: 8,
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
   },
   emptyCard: {
     alignItems: 'center',

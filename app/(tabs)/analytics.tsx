@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
-import { TreePlantingLog, EarningsLog, Achievement } from '@/types/TreePlanting';
+import { TreePlantingLog, EarningsLog, ExpenseLog, Achievement } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { checkAchievements } from '@/utils/achievements';
@@ -20,6 +20,7 @@ export default function AnalyticsScreen() {
   const { colors, isDark } = useThemeContext();
   const [treeLogs, setTreeLogs] = useState<TreePlantingLog[]>([]);
   const [earningsLogs, setEarningsLogs] = useState<EarningsLog[]>([]);
+  const [expenseLogs, setExpenseLogs] = useState<ExpenseLog[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
 
   useEffect(() => {
@@ -27,13 +28,15 @@ export default function AnalyticsScreen() {
   }, []);
 
   const loadData = async () => {
-    const [trees, earnings, savedAchievements] = await Promise.all([
+    const [trees, earnings, expenses, savedAchievements] = await Promise.all([
       StorageService.getTreeLogs(),
       StorageService.getEarningsLogs(),
+      StorageService.getExpenseLogs(),
       StorageService.getAchievements(),
     ]);
     setTreeLogs(trees);
     setEarningsLogs(earnings);
+    setExpenseLogs(expenses);
     
     const updatedAchievements = checkAchievements(trees, earnings, savedAchievements);
     setAchievements(updatedAchievements);
@@ -42,9 +45,35 @@ export default function AnalyticsScreen() {
 
   const totalTrees = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
   const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
-  const averageTreesPerDay = treeLogs.length > 0 ? totalTrees / treeLogs.length : 0;
+  const totalExpenses = expenseLogs.reduce((sum, log) => sum + log.amount, 0);
+  const totalDays = treeLogs.length;
+  const averageTreesPerDay = totalDays > 0 ? totalTrees / totalDays : 0;
   const averageEarningsPerDay = earningsLogs.length > 0 ? totalEarnings / earningsLogs.length : 0;
   const unlockedAchievements = achievements.filter(a => a.progress >= a.target);
+
+  // Calculate trees per hour and per minute
+  const totalHours = treeLogs.reduce((sum, log) => {
+    return sum + log.hourlyLogs.reduce((hourSum, hourLog) => {
+      const start = new Date(`2000-01-01T${hourLog.startTime}`);
+      const end = new Date(`2000-01-01T${hourLog.endTime}`);
+      return hourSum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    }, 0);
+  }, 0);
+  
+  const treesPerHour = totalHours > 0 ? totalTrees / totalHours : 0;
+  const treesPerMinute = treesPerHour / 60;
+
+  // Calculate percentage improvement (comparing first half to second half of logs)
+  const midPoint = Math.floor(treeLogs.length / 2);
+  const firstHalfAvg = midPoint > 0 
+    ? treeLogs.slice(0, midPoint).reduce((sum, log) => sum + log.totalTrees, 0) / midPoint
+    : 0;
+  const secondHalfAvg = treeLogs.length > midPoint
+    ? treeLogs.slice(midPoint).reduce((sum, log) => sum + log.totalTrees, 0) / (treeLogs.length - midPoint)
+    : 0;
+  const percentageImprovement = firstHalfAvg > 0 
+    ? ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100
+    : 0;
 
   const getTreesChartData = () => {
     const sortedLogs = [...treeLogs].sort((a, b) => 
@@ -78,6 +107,22 @@ export default function AnalyticsScreen() {
     };
   };
 
+  const getRateChartData = () => {
+    const sortedLogs = [...treeLogs].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    const last7 = sortedLogs.slice(-7);
+    
+    return {
+      labels: last7.length > 0 
+        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        : ['No Data'],
+      datasets: [{
+        data: last7.length > 0 ? last7.map(log => log.averageRate || 0) : [0],
+      }],
+    };
+  };
+
   const screenWidth = Dimensions.get('window').width;
 
   const chartConfig = {
@@ -94,6 +139,26 @@ export default function AnalyticsScreen() {
       r: '5',
       strokeWidth: '2',
       stroke: colors.primary,
+    },
+  };
+
+  const earningsChartConfig = {
+    ...chartConfig,
+    color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
+    propsForDots: {
+      r: '5',
+      strokeWidth: '2',
+      stroke: colors.secondary,
+    },
+  };
+
+  const rateChartConfig = {
+    ...chartConfig,
+    color: (opacity = 1) => `rgba(243, 156, 18, ${opacity})`,
+    propsForDots: {
+      r: '5',
+      strokeWidth: '2',
+      stroke: colors.accent,
     },
   };
 
@@ -118,72 +183,123 @@ export default function AnalyticsScreen() {
           </Text>
         </View>
 
-        <View style={styles.statsGrid}>
-          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <IconSymbol
-              ios_icon_name="leaf.fill"
-              android_material_icon_name="eco"
-              size={24}
-              color={colors.secondary}
-            />
-            <Text style={[styles.statNumber, { color: colors.text }]}>
-              {totalTrees.toLocaleString()}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              Total Trees
-            </Text>
-          </View>
+        <View style={[styles.overviewCard, { backgroundColor: colors.card }]}>
+          <Text style={[styles.overviewTitle, { color: colors.text }]}>📈 Performance Overview</Text>
+          
+          <View style={styles.overviewGrid}>
+            <View style={styles.overviewItem}>
+              <IconSymbol
+                ios_icon_name="leaf.fill"
+                android_material_icon_name="eco"
+                size={20}
+                color={colors.secondary}
+              />
+              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Total Trees</Text>
+              <Text style={[styles.overviewValue, { color: colors.text }]}>
+                {totalTrees.toLocaleString()}
+              </Text>
+            </View>
 
-          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <IconSymbol
-              ios_icon_name="dollarsign.circle.fill"
-              android_material_icon_name="attach-money"
-              size={24}
-              color={colors.primary}
-            />
-            <Text style={[styles.statNumber, { color: colors.text }]}>
-              ${totalEarnings.toFixed(0)}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              Total Earned
-            </Text>
-          </View>
+            <View style={styles.overviewItem}>
+              <IconSymbol
+                ios_icon_name="calendar"
+                android_material_icon_name="calendar-today"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Planting Days</Text>
+              <Text style={[styles.overviewValue, { color: colors.text }]}>
+                {totalDays}
+              </Text>
+            </View>
 
-          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <IconSymbol
-              ios_icon_name="chart.line.uptrend.xyaxis"
-              android_material_icon_name="trending-up"
-              size={24}
-              color={colors.accent}
-            />
-            <Text style={[styles.statNumber, { color: colors.text }]}>
-              {averageTreesPerDay.toFixed(0)}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              Avg Trees/Day
-            </Text>
-          </View>
+            <View style={styles.overviewItem}>
+              <IconSymbol
+                ios_icon_name="dollarsign.circle.fill"
+                android_material_icon_name="attach-money"
+                size={20}
+                color={colors.secondary}
+              />
+              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Total Earnings</Text>
+              <Text style={[styles.overviewValue, { color: colors.text }]}>
+                ${totalEarnings.toFixed(2)}
+              </Text>
+            </View>
 
-          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <IconSymbol
-              ios_icon_name="trophy.fill"
-              android_material_icon_name="emoji-events"
-              size={24}
-              color={colors.gold}
-            />
-            <Text style={[styles.statNumber, { color: colors.text }]}>
-              {unlockedAchievements.length}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              Badges Earned
-            </Text>
+            <View style={styles.overviewItem}>
+              <IconSymbol
+                ios_icon_name="cart.fill"
+                android_material_icon_name="shopping-cart"
+                size={20}
+                color={colors.error}
+              />
+              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Total Expenses</Text>
+              <Text style={[styles.overviewValue, { color: colors.text }]}>
+                ${totalExpenses.toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.overviewItem}>
+              <IconSymbol
+                ios_icon_name="clock.fill"
+                android_material_icon_name="schedule"
+                size={20}
+                color={colors.accent}
+              />
+              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Trees/Hour</Text>
+              <Text style={[styles.overviewValue, { color: colors.text }]}>
+                {treesPerHour.toFixed(0)}
+              </Text>
+            </View>
+
+            <View style={styles.overviewItem}>
+              <IconSymbol
+                ios_icon_name="timer"
+                android_material_icon_name="timer"
+                size={20}
+                color={colors.warning}
+              />
+              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Trees/Minute</Text>
+              <Text style={[styles.overviewValue, { color: colors.text }]}>
+                {treesPerMinute.toFixed(1)}
+              </Text>
+            </View>
+
+            <View style={styles.overviewItem}>
+              <IconSymbol
+                ios_icon_name="chart.line.uptrend.xyaxis"
+                android_material_icon_name="trending-up"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Avg Trees/Day</Text>
+              <Text style={[styles.overviewValue, { color: colors.text }]}>
+                {averageTreesPerDay.toFixed(0)}
+              </Text>
+            </View>
+
+            <View style={styles.overviewItem}>
+              <IconSymbol
+                ios_icon_name="percent"
+                android_material_icon_name="trending-up"
+                size={20}
+                color={percentageImprovement >= 0 ? colors.secondary : colors.error}
+              />
+              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Improvement</Text>
+              <Text style={[
+                styles.overviewValue, 
+                { color: percentageImprovement >= 0 ? colors.secondary : colors.error }
+              ]}>
+                {percentageImprovement >= 0 ? '+' : ''}{percentageImprovement.toFixed(1)}%
+              </Text>
+            </View>
           </View>
         </View>
 
         {treeLogs.length >= 2 && (
           <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.chartTitle, { color: colors.text }]}>
-              Trees Planted (Last 7 Days)
+              🌳 Trees Planted (Last 7 Days)
             </Text>
             <LineChart
               data={getTreesChartData()}
@@ -199,20 +315,36 @@ export default function AnalyticsScreen() {
         {earningsLogs.length >= 2 && (
           <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.chartTitle, { color: colors.text }]}>
-              Earnings (Last 7 Days)
+              💰 Earnings (Last 7 Days)
             </Text>
             <BarChart
               data={getEarningsChartData()}
               width={screenWidth - 64}
               height={220}
-              chartConfig={{
-                ...chartConfig,
-                color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
-              }}
+              chartConfig={earningsChartConfig}
               style={styles.chart}
               yAxisLabel="$"
               yAxisSuffix=""
             />
+          </View>
+        )}
+
+        {treeLogs.length >= 2 && treeLogs.some(log => log.averageRate) && (
+          <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>
+              ⚡ Planting Rate (Last 7 Days)
+            </Text>
+            <LineChart
+              data={getRateChartData()}
+              width={screenWidth - 64}
+              height={220}
+              chartConfig={rateChartConfig}
+              bezier
+              style={styles.chart}
+            />
+            <Text style={[styles.chartSubtitle, { color: colors.textSecondary }]}>
+              Trees per hour
+            </Text>
           </View>
         )}
 
@@ -229,6 +361,12 @@ export default function AnalyticsScreen() {
             </Text>
           </View>
           
+          <View style={[styles.achievementsSummary, { backgroundColor: colors.highlight }]}>
+            <Text style={[styles.achievementsSummaryText, { color: colors.text }]}>
+              🏆 {unlockedAchievements.length} of {achievements.length} unlocked
+            </Text>
+          </View>
+
           {achievements.length === 0 ? (
             <Text style={[styles.achievementsEmpty, { color: colors.textSecondary }]}>
               Start planting trees to unlock achievements!
@@ -363,7 +501,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 60 : 16,
+    paddingTop: Platform.OS === 'android' ? 60 : 80,
     paddingHorizontal: 16,
     paddingBottom: 120,
   },
@@ -379,29 +517,37 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
   },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
-  },
-  statCard: {
-    width: (Dimensions.get('window').width - 44) / 2,
+  overviewCard: {
     borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
+    padding: 20,
+    marginBottom: 16,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
     elevation: 3,
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '800',
-    marginTop: 8,
+  overviewTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
   },
-  statLabel: {
+  overviewGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  overviewItem: {
+    width: (Dimensions.get('window').width - 76) / 2,
+    alignItems: 'center',
+    padding: 12,
+  },
+  overviewLabel: {
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
     textAlign: 'center',
+  },
+  overviewValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 4,
   },
   chartCard: {
     borderRadius: 16,
@@ -415,6 +561,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 12,
+  },
+  chartSubtitle: {
+    fontSize: 13,
+    marginTop: 8,
   },
   chart: {
     marginVertical: 8,
@@ -430,12 +580,22 @@ const styles = StyleSheet.create({
   achievementsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     gap: 12,
   },
   achievementsTitle: {
     fontSize: 22,
     fontWeight: '700',
+  },
+  achievementsSummary: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  achievementsSummaryText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   achievementsEmpty: {
     fontSize: 15,
