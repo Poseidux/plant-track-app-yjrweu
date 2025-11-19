@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, View, ActivityIndicator } from 'react-native';
 import { StorageService } from '@/utils/storage';
 import { getColors } from '@/styles/commonStyles';
 
@@ -27,11 +27,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const loadThemeMode = async () => {
     try {
       const savedMode = await StorageService.getThemeMode();
+      console.log('Loaded theme mode:', savedMode);
       setThemeModeState(savedMode);
-      setIsLoaded(true);
     } catch (error) {
       console.error('Error loading theme mode:', error);
       setThemeModeState('light');
+    } finally {
       setIsLoaded(true);
     }
   };
@@ -41,6 +42,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setThemeModeState(mode);
       const actualMode = mode === 'auto' ? (systemColorScheme || 'light') : mode;
       await StorageService.saveThemeMode(actualMode);
+      console.log('Saved theme mode:', actualMode);
     } catch (error) {
       console.error('Error saving theme mode:', error);
     }
@@ -49,8 +51,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const isDark = themeMode === 'dark' || (themeMode === 'auto' && systemColorScheme === 'dark');
   const colors = getColors(isDark);
 
+  // Show a simple loading indicator while theme is loading
   if (!isLoaded) {
-    return null;
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F0F4F7' }}>
+        <ActivityIndicator size="large" color="#3498DB" />
+      </View>
+    );
   }
 
   return (
