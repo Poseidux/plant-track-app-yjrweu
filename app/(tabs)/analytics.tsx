@@ -241,7 +241,7 @@ export default function AnalyticsScreen() {
           
           <View style={styles.overviewGrid}>
             {performanceItems.map((item, index) => (
-              <View key={`perf-item-${index}`} style={styles.overviewItem}>
+              <View key={`perf-item-${item.label}-${index}`} style={styles.overviewItem}>
                 <IconSymbol
                   ios_icon_name={item.icon}
                   android_material_icon_name={item.androidIcon}
@@ -473,16 +473,19 @@ const styles = StyleSheet.create({
   overviewGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   overviewItem: {
-    width: (Dimensions.get('window').width - 76) / 2,
+    width: '48%',
     alignItems: 'center',
-    padding: 12,
+    padding: 16,
+    marginBottom: 12,
+    backgroundColor: 'rgba(52, 152, 219, 0.05)',
+    borderRadius: 12,
   },
   overviewLabel: {
     fontSize: 12,
-    marginTop: 6,
+    marginTop: 8,
     textAlign: 'center',
   },
   overviewValue: {

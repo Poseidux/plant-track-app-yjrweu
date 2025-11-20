@@ -20,6 +20,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { PieChart, LineChart } from 'react-native-chart-kit';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { formatLargeNumber } from '@/utils/formatNumber';
 
 export default function HomeScreen() {
   const { colors, isDark } = useThemeContext();
@@ -245,7 +246,7 @@ export default function HomeScreen() {
               size={28}
               color="#FFFFFF"
             />
-            <Text style={styles.statNumber}>{totalTrees.toLocaleString()}</Text>
+            <Text style={styles.statNumber}>{formatLargeNumber(totalTrees)}</Text>
             <Text style={styles.statLabel}>Trees Planted</Text>
           </TouchableOpacity>
 
@@ -262,7 +263,9 @@ export default function HomeScreen() {
               size={28}
               color="#FFFFFF"
             />
-            <Text style={styles.statNumber}>${totalEarnings.toFixed(2)}</Text>
+            <Text style={styles.statNumber}>
+              {totalEarnings >= 100000 ? `$${formatLargeNumber(totalEarnings)}` : `$${totalEarnings.toFixed(2)}`}
+            </Text>
             <Text style={styles.statLabel}>Total Earnings</Text>
           </TouchableOpacity>
 

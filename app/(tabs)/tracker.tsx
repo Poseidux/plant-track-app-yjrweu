@@ -696,22 +696,45 @@ export default function TrackerScreen() {
               What species did you plant?
             </Text>
 
-            <TouchableOpacity
-              style={[styles.pickerButton, { backgroundColor: colors.background, borderColor: colors.border }]}
-              onPress={() => setShowSpeciesPicker(true)}
-            >
-              <Text style={[styles.pickerButtonText, { color: colors.text }]}>
-                {selectedSpecies}
-              </Text>
-              <IconSymbol
-                ios_icon_name="chevron.down"
-                android_material_icon_name="arrow-drop-down"
-                size={24}
-                color={colors.text}
-              />
-            </TouchableOpacity>
+            <ScrollView style={styles.speciesScrollView} showsVerticalScrollIndicator={true}>
+              {TREE_SPECIES.map((species, speciesIndex) => (
+                <TouchableOpacity
+                  key={`species-option-${species}-${speciesIndex}`}
+                  style={[
+                    styles.speciesOptionButton,
+                    { borderColor: colors.border },
+                    selectedSpecies === species && { 
+                      borderColor: colors.primary, 
+                      backgroundColor: colors.highlight 
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedSpecies(species);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.speciesOptionText,
+                      { color: colors.text },
+                      selectedSpecies === species && { color: colors.primary, fontWeight: '600' },
+                    ]}
+                  >
+                    {species}
+                  </Text>
+                  {selectedSpecies === species && (
+                    <IconSymbol
+                      ios_icon_name="checkmark.circle.fill"
+                      android_material_icon_name="check-circle"
+                      size={24}
+                      color={colors.primary}
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
-            <Text style={[styles.label, { color: colors.text }]}>Land Type</Text>
+            <Text style={[styles.label, { color: colors.text, marginTop: 16 }]}>Land Type</Text>
             <View style={styles.landTypeContainer}>
               <TouchableOpacity
                 style={[
@@ -1283,6 +1306,7 @@ const styles = StyleSheet.create({
   popupContainer: {
     width: '100%',
     maxWidth: 400,
+    maxHeight: '80%',
     borderRadius: 20,
     padding: 24,
     boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.3)',
@@ -1298,6 +1322,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginBottom: 20,
     textAlign: 'center',
+  },
+  speciesScrollView: {
+    maxHeight: 300,
+    marginBottom: 8,
+  },
+  speciesOptionButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    marginBottom: 8,
+  },
+  speciesOptionText: {
+    fontSize: 16,
   },
   popupButtons: {
     marginTop: 8,
