@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
-import { TreePlantingLog, HourlyLog, PROVINCES, TREE_SPECIES, WEATHER_CONDITIONS } from '@/types/TreePlanting';
+import { TreePlantingLog, HourlyLog, PROVINCES, TREE_SPECIES, WEATHER_CONDITIONS, LAND_TYPES } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as Haptics from 'expo-haptics';
 
@@ -31,12 +31,14 @@ export default function TrackerScreen() {
   const [selectedSpecies, setSelectedSpecies] = useState(TREE_SPECIES[0]);
   const [selectedProvince, setSelectedProvince] = useState(PROVINCES[0]);
   const [selectedWeather, setSelectedWeather] = useState(WEATHER_CONDITIONS[0]);
+  const [selectedLandType, setSelectedLandType] = useState<'prepped' | 'raw'>('prepped');
   const [notes, setNotes] = useState('');
   const [dayRating, setDayRating] = useState(3);
 
   const [showSpeciesPicker, setShowSpeciesPicker] = useState(false);
   const [showProvincePicker, setShowProvincePicker] = useState(false);
   const [showWeatherPicker, setShowWeatherPicker] = useState(false);
+  const [showLandTypePicker, setShowLandTypePicker] = useState(false);
 
   useEffect(() => {
     console.log('TrackerScreen mounted');
@@ -54,6 +56,18 @@ export default function TrackerScreen() {
 
   const startSession = () => {
     setSessionStartTime(new Date());
+    
+    // Set defaults from previous hourly log if available
+    if (currentDayLog && currentDayLog.hourlyLogs.length > 0) {
+      const lastHourlyLog = currentDayLog.hourlyLogs[currentDayLog.hourlyLogs.length - 1];
+      if (lastHourlyLog.species) {
+        setSelectedSpecies(lastHourlyLog.species);
+      }
+      if (lastHourlyLog.landType) {
+        setSelectedLandType(lastHourlyLog.landType);
+      }
+    }
+    
     setShowAddHourlyModal(true);
   };
 
@@ -88,6 +102,8 @@ export default function TrackerScreen() {
       startTime: startTimeStr,
       endTime: endTimeStr,
       treesPlanted: parseInt(treesPlanted),
+      species: selectedSpecies,
+      landType: selectedLandType,
     };
 
     let updatedLog: TreePlantingLog;
@@ -265,7 +281,7 @@ export default function TrackerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>🌱 Daily Tracker</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Daily Tracker</Text>
         </View>
 
         {currentDayLog && (
@@ -315,6 +331,11 @@ export default function TrackerScreen() {
                     <Text style={[styles.hourlyLogTrees, { color: colors.secondary }]}>
                       {hourlyLog.treesPlanted} trees
                     </Text>
+                    {hourlyLog.species && (
+                      <Text style={[styles.hourlyLogDetail, { color: colors.textSecondary }]}>
+                        {hourlyLog.species} • {hourlyLog.landType === 'prepped' ? 'Prepped' : 'Raw'} land
+                      </Text>
+                    )}
                   </View>
                   <TouchableOpacity 
                     onPress={() => handleDeleteHourlyLog(currentDayLog.id, hourlyLog.id)}
@@ -522,24 +543,70 @@ export default function TrackerScreen() {
               </View>
             )}
 
+            <Text style={[styles.label, { color: colors.text }]}>Tree Species *</Text>
+            <TouchableOpacity
+              style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setShowSpeciesPicker(true)}
+            >
+              <Text style={[styles.pickerButtonText, { color: colors.text }]}>
+                {selectedSpecies}
+              </Text>
+              <IconSymbol
+                ios_icon_name="chevron.down"
+                android_material_icon_name="arrow-drop-down"
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+
+            <Text style={[styles.label, { color: colors.text }]}>Land Type *</Text>
+            <View style={styles.landTypeContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.landTypeButton,
+                  { borderColor: colors.border },
+                  selectedLandType === 'prepped' && { 
+                    borderColor: colors.primary, 
+                    backgroundColor: colors.highlight 
+                  },
+                ]}
+                onPress={() => setSelectedLandType('prepped')}
+              >
+                <Text
+                  style={[
+                    styles.landTypeText,
+                    { color: colors.textSecondary },
+                    selectedLandType === 'prepped' && { color: colors.primary, fontWeight: '600' },
+                  ]}
+                >
+                  Prepped
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.landTypeButton,
+                  { borderColor: colors.border },
+                  selectedLandType === 'raw' && { 
+                    borderColor: colors.primary, 
+                    backgroundColor: colors.highlight 
+                  },
+                ]}
+                onPress={() => setSelectedLandType('raw')}
+              >
+                <Text
+                  style={[
+                    styles.landTypeText,
+                    { color: colors.textSecondary },
+                    selectedLandType === 'raw' && { color: colors.primary, fontWeight: '600' },
+                  ]}
+                >
+                  Raw
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {!currentDayLog && (
               <>
-                <Text style={[styles.label, { color: colors.text }]}>Tree Species *</Text>
-                <TouchableOpacity
-                  style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  onPress={() => setShowSpeciesPicker(true)}
-                >
-                  <Text style={[styles.pickerButtonText, { color: colors.text }]}>
-                    {selectedSpecies}
-                  </Text>
-                  <IconSymbol
-                    ios_icon_name="chevron.down"
-                    android_material_icon_name="arrow-drop-down"
-                    size={24}
-                    color={colors.text}
-                  />
-                </TouchableOpacity>
-
                 <Text style={[styles.label, { color: colors.text }]}>Province *</Text>
                 <TouchableOpacity
                   style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -743,6 +810,7 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 24,
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 28,
@@ -805,6 +873,10 @@ const styles = StyleSheet.create({
   hourlyLogTrees: {
     fontSize: 16,
     fontWeight: '700',
+    marginBottom: 2,
+  },
+  hourlyLogDetail: {
+    fontSize: 12,
   },
   currentDayActions: {
     flexDirection: 'row',
@@ -973,6 +1045,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   pickerButtonText: {
+    fontSize: 16,
+  },
+  landTypeContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  landTypeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  landTypeText: {
     fontSize: 16,
   },
   notesInput: {

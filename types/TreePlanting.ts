@@ -4,6 +4,8 @@ export interface HourlyLog {
   startTime: string;
   endTime: string;
   treesPlanted: number;
+  species?: string;
+  landType?: 'prepped' | 'raw';
 }
 
 export interface TreePlantingLog {
@@ -114,3 +116,5 @@ export const EXPENSE_CATEGORIES = [
   'Equipment',
   'Other',
 ];
+
+export const LAND_TYPES: Array<'prepped' | 'raw'> = ['prepped', 'raw'];

@@ -48,7 +48,6 @@ export default function AnalyticsScreen() {
   const totalExpenses = expenseLogs.reduce((sum, log) => sum + log.amount, 0);
   const totalDays = treeLogs.length;
   const averageTreesPerDay = totalDays > 0 ? totalTrees / totalDays : 0;
-  const averageEarningsPerDay = earningsLogs.length > 0 ? totalEarnings / earningsLogs.length : 0;
   const unlockedAchievements = achievements.filter(a => a.progress >= a.target);
 
   // Calculate trees per hour and per minute
@@ -177,14 +176,11 @@ export default function AnalyticsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>📊 Analytics & Achievements</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            Track your performance and unlock badges
-          </Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Analytics and Achievements</Text>
         </View>
 
         <View style={[styles.overviewCard, { backgroundColor: colors.card }]}>
-          <Text style={[styles.overviewTitle, { color: colors.text }]}>📈 Performance Overview</Text>
+          <Text style={[styles.overviewTitle, { color: colors.text }]}>Performance Overview</Text>
           
           <View style={styles.overviewGrid}>
             <View style={styles.overviewItem}>
@@ -299,7 +295,7 @@ export default function AnalyticsScreen() {
         {treeLogs.length >= 2 && (
           <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.chartTitle, { color: colors.text }]}>
-              🌳 Trees Planted (Last 7 Days)
+              Trees Planted (Last 7 Days)
             </Text>
             <LineChart
               data={getTreesChartData()}
@@ -315,7 +311,7 @@ export default function AnalyticsScreen() {
         {earningsLogs.length >= 2 && (
           <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.chartTitle, { color: colors.text }]}>
-              💰 Earnings (Last 7 Days)
+              Earnings (Last 7 Days)
             </Text>
             <BarChart
               data={getEarningsChartData()}
@@ -332,7 +328,7 @@ export default function AnalyticsScreen() {
         {treeLogs.length >= 2 && treeLogs.some(log => log.averageRate) && (
           <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.chartTitle, { color: colors.text }]}>
-              ⚡ Planting Rate (Last 7 Days)
+              Planting Rate (Last 7 Days)
             </Text>
             <LineChart
               data={getRateChartData()}
@@ -363,7 +359,7 @@ export default function AnalyticsScreen() {
           
           <View style={[styles.achievementsSummary, { backgroundColor: colors.highlight }]}>
             <Text style={[styles.achievementsSummaryText, { color: colors.text }]}>
-              🏆 {unlockedAchievements.length} of {achievements.length} unlocked
+              {unlockedAchievements.length} of {achievements.length} unlocked
             </Text>
           </View>
 
@@ -510,12 +506,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
+    textAlign: 'center',
   },
   overviewCard: {
     borderRadius: 16,
@@ -528,6 +521,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 16,
+    textAlign: 'center',
   },
   overviewGrid: {
     flexDirection: 'row',
