@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
-import { TreePlantingLog, EarningsLog, PROVINCES, TREE_SPECIES, LAND_TYPES } from '@/types/TreePlanting';
+import { TreePlantingLog, EarningsLog, PROVINCES, TREE_SPECIES } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import { PieChart, LineChart } from 'react-native-chart-kit';
 import { useRouter } from 'expo-router';
@@ -236,7 +236,7 @@ export default function HomeScreen() {
             style={[styles.statCard, { backgroundColor: colors.primary }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              console.log('Navigate to trees summary');
+              router.push('/(tabs)/(home)/trees-summary');
             }}
           >
             <IconSymbol
@@ -253,7 +253,7 @@ export default function HomeScreen() {
             style={[styles.statCard, { backgroundColor: colors.secondary }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              console.log('Navigate to earnings summary');
+              router.push('/(tabs)/(home)/earnings-summary');
             }}
           >
             <IconSymbol
@@ -270,7 +270,7 @@ export default function HomeScreen() {
             style={[styles.statCard, { backgroundColor: colors.accent }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              console.log('Navigate to planting days calendar');
+              router.push('/(tabs)/(home)/planting-days');
             }}
           >
             <IconSymbol
@@ -346,7 +346,7 @@ export default function HomeScreen() {
             />
             <View style={styles.speciesLegend}>
               {speciesData.map(([species, count], index) => (
-                <View key={`species-${index}`} style={styles.speciesLegendItem}>
+                <View key={`species-legend-${species}-${index}`} style={styles.speciesLegendItem}>
                   <View style={[styles.speciesLegendColor, { backgroundColor: chartColors[index % chartColors.length] }]} />
                   <Text style={[styles.speciesLegendText, { color: colors.text }]} numberOfLines={1}>
                     {species}: {count}
@@ -440,9 +440,9 @@ export default function HomeScreen() {
 
             <Text style={[styles.label, { color: colors.text }]}>Species *</Text>
             <View style={styles.speciesContainer}>
-              {TREE_SPECIES.map((species) => (
+              {TREE_SPECIES.map((species, speciesIndex) => (
                 <TouchableOpacity
-                  key={`edit-species-${species}`}
+                  key={`edit-species-${species}-${speciesIndex}`}
                   style={[
                     styles.speciesButton,
                     { borderColor: colors.border },
@@ -468,9 +468,9 @@ export default function HomeScreen() {
 
             <Text style={[styles.label, { color: colors.text }]}>Province *</Text>
             <View style={styles.provinceContainer}>
-              {PROVINCES.map((province) => (
+              {PROVINCES.map((province, provinceIndex) => (
                 <TouchableOpacity
-                  key={`edit-province-${province}`}
+                  key={`edit-province-${province}-${provinceIndex}`}
                   style={[
                     styles.provinceButton,
                     { borderColor: colors.border },

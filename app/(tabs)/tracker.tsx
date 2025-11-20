@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ export default function TrackerScreen() {
   const [showAddHourlyModal, setShowAddHourlyModal] = useState(false);
   const [showEndDayModal, setShowEndDayModal] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   const [treesPlanted, setTreesPlanted] = useState('');
   const [selectedSpecies, setSelectedSpecies] = useState(TREE_SPECIES[0]);
@@ -38,26 +39,25 @@ export default function TrackerScreen() {
   const [showSpeciesPicker, setShowSpeciesPicker] = useState(false);
   const [showProvincePicker, setShowProvincePicker] = useState(false);
   const [showWeatherPicker, setShowWeatherPicker] = useState(false);
-  const [showLandTypePicker, setShowLandTypePicker] = useState(false);
 
   useEffect(() => {
     console.log('TrackerScreen mounted');
     loadLogs();
   }, []);
 
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     const logs = await StorageService.getTreeLogs();
     setTreeLogs(logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     
     const today = new Date().toISOString().split('T')[0];
     const todayLog = logs.find(log => log.date === today);
     setCurrentDayLog(todayLog || null);
-  };
+    setRefreshKey(prev => prev + 1);
+  }, []);
 
   const startSession = () => {
     setSessionStartTime(new Date());
     
-    // Set defaults from previous hourly log if available
     if (currentDayLog && currentDayLog.hourlyLogs.length > 0) {
       const lastHourlyLog = currentDayLog.hourlyLogs[currentDayLog.hourlyLogs.length - 1];
       if (lastHourlyLog.species) {
@@ -128,11 +128,13 @@ export default function TrackerScreen() {
     }
 
     await StorageService.saveTreeLog(updatedLog);
-    await loadLogs();
     
     setTreesPlanted('');
     setSessionStartTime(null);
     setShowAddHourlyModal(false);
+    
+    await loadLogs();
+    
     Alert.alert('Success', 'Hourly log added successfully!');
   };
 
@@ -155,11 +157,12 @@ export default function TrackerScreen() {
     };
 
     await StorageService.saveTreeLog(updatedLog);
-    await loadLogs();
     
     setNotes('');
     setDayRating(3);
     setShowEndDayModal(false);
+    
+    await loadLogs();
     
     Alert.alert(
       'Day Complete! 🎉',
@@ -213,8 +216,16 @@ export default function TrackerScreen() {
     title: string
   ) => (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
+      <TouchableOpacity 
+        style={styles.modalOverlay} 
+        activeOpacity={1} 
+        onPress={onClose}
+      >
+        <TouchableOpacity 
+          activeOpacity={1} 
+          style={[styles.pickerModal, { backgroundColor: colors.card }]}
+          onPress={(e) => e.stopPropagation()}
+        >
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>{title}</Text>
             <TouchableOpacity onPress={onClose}>
@@ -228,7 +239,7 @@ export default function TrackerScreen() {
           </View>
           <FlatList
             data={items}
-            keyExtractor={(item) => item}
+            keyExtractor={(item, index) => `picker-item-${item}-${index}`}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[
@@ -261,13 +272,13 @@ export default function TrackerScreen() {
               </TouchableOpacity>
             )}
           />
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]} key={`tracker-${refreshKey}`}>
       <ImageBackground
         source={{ uri: 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?w=800&q=80' }}
         style={styles.backgroundImage}
@@ -321,7 +332,7 @@ export default function TrackerScreen() {
             <View style={styles.hourlyLogsList}>
               {currentDayLog.hourlyLogs.map((hourlyLog, index) => (
                 <View 
-                  key={index} 
+                  key={`hourly-${hourlyLog.id}-${index}`}
                   style={[styles.hourlyLogItem, { backgroundColor: colors.highlight }]}
                 >
                   <View style={styles.hourlyLogInfo}>
@@ -414,8 +425,8 @@ export default function TrackerScreen() {
         ) : (
           treeLogs
             .filter(log => log.date !== new Date().toISOString().split('T')[0])
-            .map((log) => (
-              <View key={log.id} style={[styles.logCard, { backgroundColor: colors.card }]}>
+            .map((log, logIndex) => (
+              <View key={`log-${log.id}-${logIndex}`} style={[styles.logCard, { backgroundColor: colors.card }]}>
                 <View style={styles.logHeader}>
                   <View style={styles.logHeaderLeft}>
                     <Text style={[styles.logDate, { color: colors.text }]}>
@@ -718,7 +729,7 @@ export default function TrackerScreen() {
                 <View style={styles.ratingContainer}>
                   {[1, 2, 3, 4, 5].map((rating) => (
                     <TouchableOpacity
-                      key={rating}
+                      key={`rating-${rating}`}
                       onPress={() => {
                         setDayRating(rating);
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

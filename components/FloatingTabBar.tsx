@@ -47,13 +47,13 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
-      {tabs.map((tab) => {
+      {tabs.map((tab, index) => {
         const active = isActive(tab.route);
         const iconNames = getIconName(tab.icon);
         
         return (
           <TouchableOpacity
-            key={tab.name}
+            key={`tab-${tab.name}-${index}`}
             style={styles.tab}
             onPress={() => {
               console.log('Tab pressed:', tab.route);
