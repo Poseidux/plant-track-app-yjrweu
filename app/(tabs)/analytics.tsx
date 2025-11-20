@@ -159,6 +159,65 @@ export default function AnalyticsScreen() {
     },
   };
 
+  const performanceItems = [
+    {
+      icon: 'leaf.fill',
+      androidIcon: 'eco',
+      color: colors.secondary,
+      label: 'Total Trees',
+      value: totalTrees.toLocaleString(),
+    },
+    {
+      icon: 'calendar',
+      androidIcon: 'calendar-today',
+      color: colors.primary,
+      label: 'Planting Days',
+      value: totalDays.toString(),
+    },
+    {
+      icon: 'dollarsign.circle.fill',
+      androidIcon: 'attach-money',
+      color: colors.secondary,
+      label: 'Total Earnings',
+      value: `$${totalEarnings.toFixed(2)}`,
+    },
+    {
+      icon: 'cart.fill',
+      androidIcon: 'shopping-cart',
+      color: colors.error,
+      label: 'Total Expenses',
+      value: `$${totalExpenses.toFixed(2)}`,
+    },
+    {
+      icon: 'clock.fill',
+      androidIcon: 'schedule',
+      color: colors.accent,
+      label: 'Trees/Hour',
+      value: treesPerHour.toFixed(0),
+    },
+    {
+      icon: 'timer',
+      androidIcon: 'timer',
+      color: colors.warning,
+      label: 'Trees/Minute',
+      value: treesPerMinute.toFixed(1),
+    },
+    {
+      icon: 'chart.line.uptrend.xyaxis',
+      androidIcon: 'trending-up',
+      color: colors.primary,
+      label: 'Avg Trees/Day',
+      value: averageTreesPerDay.toFixed(0),
+    },
+    {
+      icon: 'percent',
+      androidIcon: 'trending-up',
+      color: percentageImprovement >= 0 ? colors.secondary : colors.error,
+      label: 'Improvement',
+      value: `${percentageImprovement >= 0 ? '+' : ''}${percentageImprovement.toFixed(1)}%`,
+    },
+  ];
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ImageBackground
@@ -181,112 +240,22 @@ export default function AnalyticsScreen() {
           <Text style={[styles.overviewTitle, { color: colors.text }]}>Performance Overview</Text>
           
           <View style={styles.overviewGrid}>
-            <View style={styles.overviewItem}>
-              <IconSymbol
-                ios_icon_name="leaf.fill"
-                android_material_icon_name="eco"
-                size={20}
-                color={colors.secondary}
-              />
-              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Total Trees</Text>
-              <Text style={[styles.overviewValue, { color: colors.text }]}>
-                {totalTrees.toLocaleString()}
-              </Text>
-            </View>
-
-            <View style={styles.overviewItem}>
-              <IconSymbol
-                ios_icon_name="calendar"
-                android_material_icon_name="calendar-today"
-                size={20}
-                color={colors.primary}
-              />
-              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Planting Days</Text>
-              <Text style={[styles.overviewValue, { color: colors.text }]}>
-                {totalDays}
-              </Text>
-            </View>
-
-            <View style={styles.overviewItem}>
-              <IconSymbol
-                ios_icon_name="dollarsign.circle.fill"
-                android_material_icon_name="attach-money"
-                size={20}
-                color={colors.secondary}
-              />
-              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Total Earnings</Text>
-              <Text style={[styles.overviewValue, { color: colors.text }]}>
-                ${totalEarnings.toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={styles.overviewItem}>
-              <IconSymbol
-                ios_icon_name="cart.fill"
-                android_material_icon_name="shopping-cart"
-                size={20}
-                color={colors.error}
-              />
-              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Total Expenses</Text>
-              <Text style={[styles.overviewValue, { color: colors.text }]}>
-                ${totalExpenses.toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={styles.overviewItem}>
-              <IconSymbol
-                ios_icon_name="clock.fill"
-                android_material_icon_name="schedule"
-                size={20}
-                color={colors.accent}
-              />
-              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Trees/Hour</Text>
-              <Text style={[styles.overviewValue, { color: colors.text }]}>
-                {treesPerHour.toFixed(0)}
-              </Text>
-            </View>
-
-            <View style={styles.overviewItem}>
-              <IconSymbol
-                ios_icon_name="timer"
-                android_material_icon_name="timer"
-                size={20}
-                color={colors.warning}
-              />
-              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Trees/Minute</Text>
-              <Text style={[styles.overviewValue, { color: colors.text }]}>
-                {treesPerMinute.toFixed(1)}
-              </Text>
-            </View>
-
-            <View style={styles.overviewItem}>
-              <IconSymbol
-                ios_icon_name="chart.line.uptrend.xyaxis"
-                android_material_icon_name="trending-up"
-                size={20}
-                color={colors.primary}
-              />
-              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Avg Trees/Day</Text>
-              <Text style={[styles.overviewValue, { color: colors.text }]}>
-                {averageTreesPerDay.toFixed(0)}
-              </Text>
-            </View>
-
-            <View style={styles.overviewItem}>
-              <IconSymbol
-                ios_icon_name="percent"
-                android_material_icon_name="trending-up"
-                size={20}
-                color={percentageImprovement >= 0 ? colors.secondary : colors.error}
-              />
-              <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>Improvement</Text>
-              <Text style={[
-                styles.overviewValue, 
-                { color: percentageImprovement >= 0 ? colors.secondary : colors.error }
-              ]}>
-                {percentageImprovement >= 0 ? '+' : ''}{percentageImprovement.toFixed(1)}%
-              </Text>
-            </View>
+            {performanceItems.map((item, index) => (
+              <View key={`perf-item-${index}`} style={styles.overviewItem}>
+                <IconSymbol
+                  ios_icon_name={item.icon}
+                  android_material_icon_name={item.androidIcon}
+                  size={20}
+                  color={item.color}
+                />
+                <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>
+                  {item.label}
+                </Text>
+                <Text style={[styles.overviewValue, { color: colors.text }]}>
+                  {item.value}
+                </Text>
+              </View>
+            ))}
           </View>
         </View>
 

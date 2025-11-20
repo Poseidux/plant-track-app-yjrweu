@@ -12,12 +12,16 @@ import {
   FlatList,
   Platform,
   ImageBackground,
+  Switch,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
 import { TreePlantingLog, HourlyLog, PROVINCES, TREE_SPECIES, WEATHER_CONDITIONS, LAND_TYPES } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const DONT_ASK_SPECIES_KEY = '@dont_ask_species';
 
 export default function TrackerScreen() {
   const { colors, isDark } = useThemeContext();
@@ -25,8 +29,10 @@ export default function TrackerScreen() {
   const [currentDayLog, setCurrentDayLog] = useState<TreePlantingLog | null>(null);
   const [showAddHourlyModal, setShowAddHourlyModal] = useState(false);
   const [showEndDayModal, setShowEndDayModal] = useState(false);
+  const [showSpeciesPopup, setShowSpeciesPopup] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [dontAskSpecies, setDontAskSpecies] = useState(false);
   
   const [treesPlanted, setTreesPlanted] = useState('');
   const [selectedSpecies, setSelectedSpecies] = useState(TREE_SPECIES[0]);
@@ -36,14 +42,39 @@ export default function TrackerScreen() {
   const [notes, setNotes] = useState('');
   const [dayRating, setDayRating] = useState(3);
 
-  const [showSpeciesPicker, setShowSpeciesPicker] = useState(false);
+  const [tempTreesPlanted, setTempTreesPlanted] = useState(0);
+  const [tempStartTime, setTempStartTime] = useState('');
+  const [tempEndTime, setTempEndTime] = useState('');
+
   const [showProvincePicker, setShowProvincePicker] = useState(false);
   const [showWeatherPicker, setShowWeatherPicker] = useState(false);
+  const [showSpeciesPicker, setShowSpeciesPicker] = useState(false);
 
   useEffect(() => {
     console.log('TrackerScreen mounted');
     loadLogs();
+    loadDontAskPreference();
   }, []);
+
+  const loadDontAskPreference = async () => {
+    try {
+      const value = await AsyncStorage.getItem(DONT_ASK_SPECIES_KEY);
+      if (value !== null) {
+        setDontAskSpecies(value === 'true');
+      }
+    } catch (error) {
+      console.error('Error loading dont ask preference:', error);
+    }
+  };
+
+  const saveDontAskPreference = async (value: boolean) => {
+    try {
+      await AsyncStorage.setItem(DONT_ASK_SPECIES_KEY, value.toString());
+      setDontAskSpecies(value);
+    } catch (error) {
+      console.error('Error saving dont ask preference:', error);
+    }
+  };
 
   const loadLogs = useCallback(async () => {
     const logs = await StorageService.getTreeLogs();
@@ -96,13 +127,29 @@ export default function TrackerScreen() {
       hour12: true 
     });
 
+    setTempTreesPlanted(parseInt(treesPlanted));
+    setTempStartTime(startTimeStr);
+    setTempEndTime(endTimeStr);
+
+    setTreesPlanted('');
+    setSessionStartTime(null);
+    setShowAddHourlyModal(false);
+
+    if (!dontAskSpecies) {
+      setShowSpeciesPopup(true);
+    } else {
+      await saveHourlyLogWithSpecies(startTimeStr, endTimeStr, parseInt(treesPlanted), selectedSpecies);
+    }
+  };
+
+  const saveHourlyLogWithSpecies = async (startTimeStr: string, endTimeStr: string, trees: number, species: string) => {
     const today = new Date().toISOString().split('T')[0];
     const newHourlyLog: HourlyLog = {
       id: Date.now().toString(),
       startTime: startTimeStr,
       endTime: endTimeStr,
-      treesPlanted: parseInt(treesPlanted),
-      species: selectedSpecies,
+      treesPlanted: trees,
+      species: species,
       landType: selectedLandType,
     };
 
@@ -112,15 +159,15 @@ export default function TrackerScreen() {
       updatedLog = {
         ...currentDayLog,
         hourlyLogs: [...currentDayLog.hourlyLogs, newHourlyLog],
-        totalTrees: currentDayLog.totalTrees + parseInt(treesPlanted),
+        totalTrees: currentDayLog.totalTrees + trees,
       };
     } else {
       updatedLog = {
         id: Date.now().toString(),
         date: today,
         hourlyLogs: [newHourlyLog],
-        totalTrees: parseInt(treesPlanted),
-        species: selectedSpecies,
+        totalTrees: trees,
+        species: species,
         province: selectedProvince,
         weatherCondition: selectedWeather,
         notes: '',
@@ -128,14 +175,14 @@ export default function TrackerScreen() {
     }
 
     await StorageService.saveTreeLog(updatedLog);
-    
-    setTreesPlanted('');
-    setSessionStartTime(null);
-    setShowAddHourlyModal(false);
-    
     await loadLogs();
     
     Alert.alert('Success', 'Hourly log added successfully!');
+  };
+
+  const handleSpeciesPopupConfirm = async () => {
+    await saveHourlyLogWithSpecies(tempStartTime, tempEndTime, tempTreesPlanted, selectedSpecies);
+    setShowSpeciesPopup(false);
   };
 
   const handleEndDay = async () => {
@@ -239,7 +286,7 @@ export default function TrackerScreen() {
           </View>
           <FlatList
             data={items}
-            keyExtractor={(item, index) => `picker-item-${item}-${index}`}
+            keyExtractor={(item, index) => `picker-item-${title}-${item}-${index}`}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[
@@ -292,7 +339,34 @@ export default function TrackerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Daily Tracker</Text>
+          <View style={styles.headerRow}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Daily Tracker</Text>
+            <TouchableOpacity
+              style={[styles.settingsButton, { backgroundColor: colors.card }]}
+              onPress={() => {
+                Alert.alert(
+                  'Species Prompt',
+                  dontAskSpecies 
+                    ? 'Enable species prompt after logging?' 
+                    : 'Disable species prompt after logging?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: dontAskSpecies ? 'Enable' : 'Disable',
+                      onPress: () => saveDontAskPreference(!dontAskSpecies),
+                    },
+                  ]
+                );
+              }}
+            >
+              <IconSymbol
+                ios_icon_name={dontAskSpecies ? "bell.slash.fill" : "bell.fill"}
+                android_material_icon_name={dontAskSpecies ? "notifications-off" : "notifications"}
+                size={20}
+                color={dontAskSpecies ? colors.textSecondary : colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {currentDayLog && (
@@ -554,68 +628,6 @@ export default function TrackerScreen() {
               </View>
             )}
 
-            <Text style={[styles.label, { color: colors.text }]}>Tree Species *</Text>
-            <TouchableOpacity
-              style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => setShowSpeciesPicker(true)}
-            >
-              <Text style={[styles.pickerButtonText, { color: colors.text }]}>
-                {selectedSpecies}
-              </Text>
-              <IconSymbol
-                ios_icon_name="chevron.down"
-                android_material_icon_name="arrow-drop-down"
-                size={24}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-
-            <Text style={[styles.label, { color: colors.text }]}>Land Type *</Text>
-            <View style={styles.landTypeContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.landTypeButton,
-                  { borderColor: colors.border },
-                  selectedLandType === 'prepped' && { 
-                    borderColor: colors.primary, 
-                    backgroundColor: colors.highlight 
-                  },
-                ]}
-                onPress={() => setSelectedLandType('prepped')}
-              >
-                <Text
-                  style={[
-                    styles.landTypeText,
-                    { color: colors.textSecondary },
-                    selectedLandType === 'prepped' && { color: colors.primary, fontWeight: '600' },
-                  ]}
-                >
-                  Prepped
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.landTypeButton,
-                  { borderColor: colors.border },
-                  selectedLandType === 'raw' && { 
-                    borderColor: colors.primary, 
-                    backgroundColor: colors.highlight 
-                  },
-                ]}
-                onPress={() => setSelectedLandType('raw')}
-              >
-                <Text
-                  style={[
-                    styles.landTypeText,
-                    { color: colors.textSecondary },
-                    selectedLandType === 'raw' && { color: colors.primary, fontWeight: '600' },
-                  ]}
-                >
-                  Raw
-                </Text>
-              </TouchableOpacity>
-            </View>
-
             {!currentDayLog && (
               <>
                 <Text style={[styles.label, { color: colors.text }]}>Province *</Text>
@@ -669,6 +681,91 @@ export default function TrackerScreen() {
               <Text style={styles.submitButtonText}>Save Hourly Log</Text>
             </TouchableOpacity>
           </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showSpeciesPopup}
+        transparent
+        animationType="fade"
+      >
+        <View style={styles.popupOverlay}>
+          <View style={[styles.popupContainer, { backgroundColor: colors.card }]}>
+            <Text style={[styles.popupTitle, { color: colors.text }]}>Select Tree Species</Text>
+            <Text style={[styles.popupSubtitle, { color: colors.textSecondary }]}>
+              What species did you plant?
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.pickerButton, { backgroundColor: colors.background, borderColor: colors.border }]}
+              onPress={() => setShowSpeciesPicker(true)}
+            >
+              <Text style={[styles.pickerButtonText, { color: colors.text }]}>
+                {selectedSpecies}
+              </Text>
+              <IconSymbol
+                ios_icon_name="chevron.down"
+                android_material_icon_name="arrow-drop-down"
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+
+            <Text style={[styles.label, { color: colors.text }]}>Land Type</Text>
+            <View style={styles.landTypeContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.landTypeButton,
+                  { borderColor: colors.border },
+                  selectedLandType === 'prepped' && { 
+                    borderColor: colors.primary, 
+                    backgroundColor: colors.highlight 
+                  },
+                ]}
+                onPress={() => setSelectedLandType('prepped')}
+              >
+                <Text
+                  style={[
+                    styles.landTypeText,
+                    { color: colors.textSecondary },
+                    selectedLandType === 'prepped' && { color: colors.primary, fontWeight: '600' },
+                  ]}
+                >
+                  Prepped
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.landTypeButton,
+                  { borderColor: colors.border },
+                  selectedLandType === 'raw' && { 
+                    borderColor: colors.primary, 
+                    backgroundColor: colors.highlight 
+                  },
+                ]}
+                onPress={() => setSelectedLandType('raw')}
+              >
+                <Text
+                  style={[
+                    styles.landTypeText,
+                    { color: colors.textSecondary },
+                    selectedLandType === 'raw' && { color: colors.primary, fontWeight: '600' },
+                  ]}
+                >
+                  Raw
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.popupButtons}>
+              <TouchableOpacity
+                style={[styles.popupButton, { backgroundColor: colors.primary }]}
+                onPress={handleSpeciesPopupConfirm}
+              >
+                <Text style={styles.popupButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
 
@@ -821,11 +918,21 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 24,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
+  },
+  settingsButton: {
+    padding: 10,
+    borderRadius: 12,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
   },
   currentDayCard: {
     borderRadius: 16,
@@ -1165,5 +1272,46 @@ const styles = StyleSheet.create({
   },
   ratingButton: {
     padding: 4,
+  },
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  popupContainer: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: 24,
+    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.3)',
+    elevation: 8,
+  },
+  popupTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  popupSubtitle: {
+    fontSize: 15,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  popupButtons: {
+    marginTop: 8,
+  },
+  popupButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  popupButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -53,7 +53,7 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
         
         return (
           <TouchableOpacity
-            key={`tab-${tab.name}-${index}`}
+            key={`tab-${tab.name}-${tab.route}-${index}`}
             style={styles.tab}
             onPress={() => {
               console.log('Tab pressed:', tab.route);
