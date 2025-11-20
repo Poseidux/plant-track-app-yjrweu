@@ -156,6 +156,98 @@ export default function EarningsScreen() {
     };
   };
 
+  const getExpensesChartData = () => {
+    const sortedLogs = [...expenseLogs].sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    const last7 = sortedLogs.slice(-7);
+    
+    return {
+      labels: last7.length > 0 
+        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        : ['No Data'],
+      datasets: [{
+        data: last7.length > 0 ? last7.map(log => log.amount) : [0],
+      }],
+    };
+  };
+
+  const getNetIncomeChartData = () => {
+    const allDates = new Set([
+      ...earningsLogs.map(log => log.date),
+      ...expenseLogs.map(log => log.date)
+    ]);
+    
+    const dateArray = Array.from(allDates).sort();
+    const last7Dates = dateArray.slice(-7);
+    
+    const netIncomeData = last7Dates.map(date => {
+      const dayEarnings = earningsLogs
+        .filter(log => log.date === date)
+        .reduce((sum, log) => sum + log.amount, 0);
+      const dayExpenses = expenseLogs
+        .filter(log => log.date === date)
+        .reduce((sum, log) => sum + log.amount, 0);
+      return dayEarnings - dayExpenses;
+    });
+    
+    return {
+      labels: last7Dates.length > 0 
+        ? last7Dates.map(date => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        : ['No Data'],
+      datasets: [{
+        data: netIncomeData.length > 0 ? netIncomeData : [0],
+      }],
+    };
+  };
+
+  const getCombinedChartData = () => {
+    const allDates = new Set([
+      ...earningsLogs.map(log => log.date),
+      ...expenseLogs.map(log => log.date)
+    ]);
+    
+    const dateArray = Array.from(allDates).sort();
+    const last7Dates = dateArray.slice(-7);
+    
+    const earningsData = last7Dates.map(date => 
+      earningsLogs
+        .filter(log => log.date === date)
+        .reduce((sum, log) => sum + log.amount, 0)
+    );
+    
+    const expensesData = last7Dates.map(date => 
+      expenseLogs
+        .filter(log => log.date === date)
+        .reduce((sum, log) => sum + log.amount, 0)
+    );
+    
+    const netIncomeData = last7Dates.map((date, index) => 
+      earningsData[index] - expensesData[index]
+    );
+    
+    return {
+      labels: last7Dates.length > 0 
+        ? last7Dates.map(date => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        : ['No Data'],
+      datasets: [
+        {
+          data: earningsData.length > 0 ? earningsData : [0],
+          color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
+        },
+        {
+          data: expensesData.length > 0 ? expensesData : [0],
+          color: (opacity = 1) => `rgba(231, 76, 60, ${opacity})`,
+        },
+        {
+          data: netIncomeData.length > 0 ? netIncomeData : [0],
+          color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
+        },
+      ],
+      legend: ['Earnings', 'Expenses', 'Net Income'],
+    };
+  };
+
   const screenWidth = Dimensions.get('window').width;
 
   const chartConfig = {
@@ -175,6 +267,38 @@ export default function EarningsScreen() {
     },
   };
 
+  const expenseChartConfig = {
+    ...chartConfig,
+    color: (opacity = 1) => `rgba(231, 76, 60, ${opacity})`,
+    propsForDots: {
+      r: '5',
+      strokeWidth: '2',
+      stroke: colors.error,
+    },
+  };
+
+  const netIncomeChartConfig = {
+    ...chartConfig,
+    color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
+    propsForDots: {
+      r: '5',
+      strokeWidth: '2',
+      stroke: colors.primary,
+    },
+  };
+
+  const combinedChartConfig = {
+    backgroundColor: colors.card,
+    backgroundGradientFrom: colors.card,
+    backgroundGradientTo: colors.card,
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
+    labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(45, 52, 54, ${opacity})`,
+    style: {
+      borderRadius: 16,
+    },
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ImageBackground
@@ -190,7 +314,7 @@ export default function EarningsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>💰 Earnings & Expenses</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Earnings & Expenses</Text>
         </View>
 
         <View style={styles.summaryContainer}>
@@ -270,6 +394,62 @@ export default function EarningsScreen() {
           </View>
         )}
 
+        {expenseLogs.length >= 2 && (
+          <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>Expenses Trend (Last 7 Days)</Text>
+            <LineChart
+              data={getExpensesChartData()}
+              width={screenWidth - 64}
+              height={220}
+              chartConfig={expenseChartConfig}
+              bezier
+              style={styles.chart}
+            />
+          </View>
+        )}
+
+        {earningsLogs.length >= 2 && expenseLogs.length >= 2 && (
+          <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>Net Income (Last 7 Days)</Text>
+            <LineChart
+              data={getNetIncomeChartData()}
+              width={screenWidth - 64}
+              height={220}
+              chartConfig={netIncomeChartConfig}
+              bezier
+              style={styles.chart}
+            />
+          </View>
+        )}
+
+        {earningsLogs.length >= 2 && expenseLogs.length >= 2 && (
+          <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>Financial Overview (Last 7 Days)</Text>
+            <LineChart
+              data={getCombinedChartData()}
+              width={screenWidth - 64}
+              height={220}
+              chartConfig={combinedChartConfig}
+              bezier
+              style={styles.chart}
+            />
+            <View style={styles.legendContainer}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: 'rgba(46, 204, 113, 1)' }]} />
+                <Text style={[styles.legendText, { color: colors.text }]}>Earnings</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: 'rgba(231, 76, 60, 1)' }]} />
+                <Text style={[styles.legendText, { color: colors.text }]}>Expenses</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: 'rgba(52, 152, 219, 1)' }]} />
+                <Text style={[styles.legendText, { color: colors.text }]}>Net Income</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Earnings</Text>
         {earningsLogs.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: colors.card }]}>
@@ -285,8 +465,8 @@ export default function EarningsScreen() {
             </Text>
           </View>
         ) : (
-          earningsLogs.slice(0, 10).map((log) => (
-            <View key={log.id} style={[styles.logCard, { backgroundColor: colors.card }]}>
+          earningsLogs.slice(0, 10).map((log, index) => (
+            <View key={`earnings-${log.id}-${index}`} style={[styles.logCard, { backgroundColor: colors.card }]}>
               <View style={styles.logHeader}>
                 <View style={styles.logHeaderLeft}>
                   <Text style={[styles.logAmount, { color: colors.secondary }]}>
@@ -335,8 +515,8 @@ export default function EarningsScreen() {
             </Text>
           </View>
         ) : (
-          expenseLogs.slice(0, 10).map((log) => (
-            <View key={log.id} style={[styles.logCard, { backgroundColor: colors.card }]}>
+          expenseLogs.slice(0, 10).map((log, index) => (
+            <View key={`expense-${log.id}-${index}`} style={[styles.logCard, { backgroundColor: colors.card }]}>
               <View style={styles.logHeader}>
                 <View style={styles.logHeaderLeft}>
                   <Text style={[styles.logAmount, { color: colors.error }]}>
@@ -519,7 +699,7 @@ export default function EarningsScreen() {
             <View style={styles.categoryContainer}>
               {EXPENSE_CATEGORIES.map((category) => (
                 <TouchableOpacity
-                  key={category}
+                  key={`expense-category-${category}`}
                   style={[
                     styles.categoryButton,
                     { borderColor: colors.border },
@@ -599,6 +779,7 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 24,
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 28,
@@ -666,6 +847,27 @@ const styles = StyleSheet.create({
   chart: {
     marginVertical: 8,
     borderRadius: 16,
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 16,
+    marginTop: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendColor: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 20,

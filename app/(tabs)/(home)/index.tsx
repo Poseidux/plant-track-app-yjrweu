@@ -8,18 +8,32 @@ import {
   Dimensions,
   ImageBackground,
   Platform,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
-import { TreePlantingLog, EarningsLog } from '@/types/TreePlanting';
+import { TreePlantingLog, EarningsLog, PROVINCES, TREE_SPECIES, LAND_TYPES } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import { PieChart, LineChart } from 'react-native-chart-kit';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 
 export default function HomeScreen() {
   const { colors, isDark } = useThemeContext();
+  const router = useRouter();
   const [treeLogs, setTreeLogs] = useState<TreePlantingLog[]>([]);
   const [earningsLogs, setEarningsLogs] = useState<EarningsLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingLog, setEditingLog] = useState<TreePlantingLog | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  
+  const [editTrees, setEditTrees] = useState('');
+  const [editSpecies, setEditSpecies] = useState('');
+  const [editProvince, setEditProvince] = useState('');
+  const [editLandType, setEditLandType] = useState<'prepped' | 'raw'>('prepped');
 
   useEffect(() => {
     console.log('HomeScreen mounted');
@@ -47,6 +61,45 @@ export default function HomeScreen() {
   const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
   const totalDays = treeLogs.length;
 
+  const handleEditLog = (log: TreePlantingLog) => {
+    setEditingLog(log);
+    setEditTrees(log.totalTrees.toString());
+    setEditSpecies(log.species);
+    setEditProvince(log.province);
+    setEditLandType(log.hourlyLogs[0]?.landType || 'prepped');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingLog) {
+      return;
+    }
+
+    if (!editTrees || parseInt(editTrees) <= 0) {
+      Alert.alert('Error', 'Please enter a valid number of trees');
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const updatedLog: TreePlantingLog = {
+      ...editingLog,
+      totalTrees: parseInt(editTrees),
+      species: editSpecies,
+      province: editProvince,
+      hourlyLogs: editingLog.hourlyLogs.map(hl => ({
+        ...hl,
+        landType: editLandType,
+      })),
+    };
+
+    await StorageService.saveTreeLog(updatedLog);
+    await loadData();
+    setShowEditModal(false);
+    setEditingLog(null);
+    Alert.alert('Success', 'Log updated successfully!');
+  };
+
   const getSpeciesBreakdown = () => {
     const speciesCount: { [key: string]: number } = {};
     treeLogs.forEach(log => {
@@ -61,11 +114,11 @@ export default function HomeScreen() {
   const chartColors = ['#3498DB', '#2ECC71', '#F39C12', '#E74C3C', '#9B59B6'];
 
   const pieChartData = speciesData.map(([species, count], index) => ({
-    name: species,
+    name: species.length > 12 ? species.substring(0, 10) + '...' : species,
     population: count,
     color: chartColors[index % chartColors.length],
     legendFontColor: colors.text,
-    legendFontSize: 12,
+    legendFontSize: 11,
   }));
 
   const getEarningsChartData = () => {
@@ -179,7 +232,13 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: colors.primary }]}>
+          <TouchableOpacity 
+            style={[styles.statCard, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              console.log('Navigate to trees summary');
+            }}
+          >
             <IconSymbol
               ios_icon_name="leaf.fill"
               android_material_icon_name="eco"
@@ -188,9 +247,15 @@ export default function HomeScreen() {
             />
             <Text style={styles.statNumber}>{totalTrees.toLocaleString()}</Text>
             <Text style={styles.statLabel}>Trees Planted</Text>
-          </View>
+          </TouchableOpacity>
 
-          <View style={[styles.statCard, { backgroundColor: colors.secondary }]}>
+          <TouchableOpacity 
+            style={[styles.statCard, { backgroundColor: colors.secondary }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              console.log('Navigate to earnings summary');
+            }}
+          >
             <IconSymbol
               ios_icon_name="dollarsign.circle.fill"
               android_material_icon_name="attach-money"
@@ -199,9 +264,15 @@ export default function HomeScreen() {
             />
             <Text style={styles.statNumber}>${totalEarnings.toFixed(2)}</Text>
             <Text style={styles.statLabel}>Total Earnings</Text>
-          </View>
+          </TouchableOpacity>
 
-          <View style={[styles.statCard, { backgroundColor: colors.accent }]}>
+          <TouchableOpacity 
+            style={[styles.statCard, { backgroundColor: colors.accent }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              console.log('Navigate to planting days calendar');
+            }}
+          >
             <IconSymbol
               ios_icon_name="calendar.badge.clock"
               android_material_icon_name="event"
@@ -210,7 +281,7 @@ export default function HomeScreen() {
             />
             <Text style={styles.statNumber}>{totalDays}</Text>
             <Text style={styles.statLabel}>Planting Days</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {earningsLogs.length >= 2 && (
@@ -273,6 +344,16 @@ export default function HomeScreen() {
               paddingLeft="15"
               absolute
             />
+            <View style={styles.speciesLegend}>
+              {speciesData.map(([species, count], index) => (
+                <View key={`species-${index}`} style={styles.speciesLegendItem}>
+                  <View style={[styles.speciesLegendColor, { backgroundColor: chartColors[index % chartColors.length] }]} />
+                  <Text style={[styles.speciesLegendText, { color: colors.text }]} numberOfLines={1}>
+                    {species}: {count}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         )}
 
@@ -295,7 +376,7 @@ export default function HomeScreen() {
           <View style={[styles.recentCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.recentTitle, { color: colors.text }]}>Recent Activity</Text>
             {treeLogs.slice(-3).reverse().map((log, index) => (
-              <View key={index} style={[styles.activityItem, { borderBottomColor: colors.border }]}>
+              <View key={`activity-${log.id}-${index}`} style={[styles.activityItem, { borderBottomColor: colors.border }]}>
                 <View style={[styles.activityIcon, { backgroundColor: colors.highlight }]}>
                   <IconSymbol
                     ios_icon_name="leaf.fill"
@@ -312,6 +393,14 @@ export default function HomeScreen() {
                     {new Date(log.date).toLocaleDateString()} • {log.province}
                   </Text>
                 </View>
+                <TouchableOpacity onPress={() => handleEditLog(log)}>
+                  <IconSymbol
+                    ios_icon_name="pencil.circle.fill"
+                    android_material_icon_name="edit"
+                    size={28}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
               </View>
             ))}
           </View>
@@ -319,6 +408,147 @@ export default function HomeScreen() {
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Activity</Text>
+            <TouchableOpacity onPress={() => setShowEditModal(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={32}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <Text style={[styles.label, { color: colors.text }]}>Total Trees *</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+              placeholder="e.g., 2500"
+              keyboardType="numeric"
+              value={editTrees}
+              onChangeText={setEditTrees}
+              placeholderTextColor={colors.textSecondary}
+            />
+
+            <Text style={[styles.label, { color: colors.text }]}>Species *</Text>
+            <View style={styles.speciesContainer}>
+              {TREE_SPECIES.map((species) => (
+                <TouchableOpacity
+                  key={`edit-species-${species}`}
+                  style={[
+                    styles.speciesButton,
+                    { borderColor: colors.border },
+                    editSpecies === species && { 
+                      borderColor: colors.primary, 
+                      backgroundColor: colors.highlight 
+                    },
+                  ]}
+                  onPress={() => setEditSpecies(species)}
+                >
+                  <Text
+                    style={[
+                      styles.speciesText,
+                      { color: colors.textSecondary },
+                      editSpecies === species && { color: colors.primary, fontWeight: '600' },
+                    ]}
+                  >
+                    {species}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.label, { color: colors.text }]}>Province *</Text>
+            <View style={styles.provinceContainer}>
+              {PROVINCES.map((province) => (
+                <TouchableOpacity
+                  key={`edit-province-${province}`}
+                  style={[
+                    styles.provinceButton,
+                    { borderColor: colors.border },
+                    editProvince === province && { 
+                      borderColor: colors.primary, 
+                      backgroundColor: colors.highlight 
+                    },
+                  ]}
+                  onPress={() => setEditProvince(province)}
+                >
+                  <Text
+                    style={[
+                      styles.provinceText,
+                      { color: colors.textSecondary },
+                      editProvince === province && { color: colors.primary, fontWeight: '600' },
+                    ]}
+                  >
+                    {province}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.label, { color: colors.text }]}>Land Type *</Text>
+            <View style={styles.landTypeContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.landTypeButton,
+                  { borderColor: colors.border },
+                  editLandType === 'prepped' && { 
+                    borderColor: colors.primary, 
+                    backgroundColor: colors.highlight 
+                  },
+                ]}
+                onPress={() => setEditLandType('prepped')}
+              >
+                <Text
+                  style={[
+                    styles.landTypeText,
+                    { color: colors.textSecondary },
+                    editLandType === 'prepped' && { color: colors.primary, fontWeight: '600' },
+                  ]}
+                >
+                  Prepped
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.landTypeButton,
+                  { borderColor: colors.border },
+                  editLandType === 'raw' && { 
+                    borderColor: colors.primary, 
+                    backgroundColor: colors.highlight 
+                  },
+                ]}
+                onPress={() => setEditLandType('raw')}
+              >
+                <Text
+                  style={[
+                    styles.landTypeText,
+                    { color: colors.textSecondary },
+                    editLandType === 'raw' && { color: colors.primary, fontWeight: '600' },
+                  ]}
+                >
+                  Raw
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: colors.primary }]}
+              onPress={handleSaveEdit}
+            >
+              <Text style={styles.submitButtonText}>Save Changes</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -402,6 +632,25 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 16,
   },
+  speciesLegend: {
+    marginTop: 16,
+    width: '100%',
+  },
+  speciesLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  speciesLegendColor: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  speciesLegendText: {
+    fontSize: 13,
+    flex: 1,
+  },
   emptyCard: {
     alignItems: 'center',
     paddingVertical: 48,
@@ -460,5 +709,99 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 20,
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  speciesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  speciesButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 2,
+  },
+  speciesText: {
+    fontSize: 14,
+  },
+  provinceContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  provinceButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 2,
+  },
+  provinceText: {
+    fontSize: 14,
+  },
+  landTypeContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  landTypeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  landTypeText: {
+    fontSize: 16,
+  },
+  submitButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 48,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

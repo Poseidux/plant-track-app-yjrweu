@@ -50,7 +50,6 @@ export default function AnalyticsScreen() {
   const averageTreesPerDay = totalDays > 0 ? totalTrees / totalDays : 0;
   const unlockedAchievements = achievements.filter(a => a.progress >= a.target);
 
-  // Calculate trees per hour and per minute
   const totalHours = treeLogs.reduce((sum, log) => {
     return sum + log.hourlyLogs.reduce((hourSum, hourLog) => {
       const start = new Date(`2000-01-01T${hourLog.startTime}`);
@@ -62,7 +61,6 @@ export default function AnalyticsScreen() {
   const treesPerHour = totalHours > 0 ? totalTrees / totalHours : 0;
   const treesPerMinute = treesPerHour / 60;
 
-  // Calculate percentage improvement (comparing first half to second half of logs)
   const midPoint = Math.floor(treeLogs.length / 2);
   const firstHalfAvg = midPoint > 0 
     ? treeLogs.slice(0, midPoint).reduce((sum, log) => sum + log.totalTrees, 0) / midPoint
@@ -176,7 +174,7 @@ export default function AnalyticsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Analytics and Achievements</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Analytics & Achievements</Text>
         </View>
 
         <View style={[styles.overviewCard, { backgroundColor: colors.card }]}>
@@ -373,7 +371,7 @@ export default function AnalyticsScreen() {
                 const isUnlocked = achievement.progress >= achievement.target;
                 return (
                   <View 
-                    key={index} 
+                    key={`achievement-${achievement.id}-${index}`}
                     style={[
                       styles.achievementItem,
                       { backgroundColor: isUnlocked ? colors.highlight : colors.background },
@@ -438,40 +436,20 @@ export default function AnalyticsScreen() {
           </View>
           
           <View style={styles.tipsList}>
-            <View style={styles.tipItem}>
-              <Text style={[styles.tipNumber, { color: colors.primary }]}>1</Text>
-              <Text style={[styles.tipText, { color: colors.text }]}>
-                Plant in the morning when soil is moist and temperatures are cooler
-              </Text>
-            </View>
-            
-            <View style={styles.tipItem}>
-              <Text style={[styles.tipNumber, { color: colors.primary }]}>2</Text>
-              <Text style={[styles.tipText, { color: colors.text }]}>
-                Use proper planting technique: J-root method for better survival rates
-              </Text>
-            </View>
-            
-            <View style={styles.tipItem}>
-              <Text style={[styles.tipNumber, { color: colors.primary }]}>3</Text>
-              <Text style={[styles.tipText, { color: colors.text }]}>
-                Take regular breaks to maintain consistent planting speed
-              </Text>
-            </View>
-            
-            <View style={styles.tipItem}>
-              <Text style={[styles.tipNumber, { color: colors.primary }]}>4</Text>
-              <Text style={[styles.tipText, { color: colors.text }]}>
-                Stay hydrated and bring high-energy snacks for sustained performance
-              </Text>
-            </View>
-            
-            <View style={styles.tipItem}>
-              <Text style={[styles.tipNumber, { color: colors.primary }]}>5</Text>
-              <Text style={[styles.tipText, { color: colors.text }]}>
-                Adjust your technique for different terrain types and soil conditions
-              </Text>
-            </View>
+            {[
+              'Plant in the morning when soil is moist and temperatures are cooler',
+              'Use proper planting technique: J-root method for better survival rates',
+              'Take regular breaks to maintain consistent planting speed',
+              'Stay hydrated and bring high-energy snacks for sustained performance',
+              'Adjust your technique for different terrain types and soil conditions'
+            ].map((tip, index) => (
+              <View key={`tip-${index}`} style={styles.tipItem}>
+                <Text style={[styles.tipNumber, { color: colors.primary }]}>{index + 1}</Text>
+                <Text style={[styles.tipText, { color: colors.text }]}>
+                  {tip}
+                </Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -574,6 +552,7 @@ const styles = StyleSheet.create({
   achievementsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
     gap: 12,
   },
