@@ -227,9 +227,10 @@ export default function TrackerScreen() {
     let updatedLog: TreePlantingLog;
 
     if (currentDayLog) {
+      const existingHourlyLogs = currentDayLog.hourlyLogs || [];
       updatedLog = {
         ...currentDayLog,
-        hourlyLogs: [...(currentDayLog.hourlyLogs || []), newHourlyLog],
+        hourlyLogs: [...existingHourlyLogs, newHourlyLog],
         totalTrees: currentDayLog.totalTrees + trees,
       };
     } else {
@@ -337,7 +338,8 @@ export default function TrackerScreen() {
     const oldTrees = editingHourlyLog.treesPlanted;
     const treeDifference = newTrees - oldTrees;
 
-    const updatedHourlyLogs = (currentDayLog.hourlyLogs || []).map(hl => 
+    const existingHourlyLogs = currentDayLog.hourlyLogs || [];
+    const updatedHourlyLogs = existingHourlyLogs.map(hl => 
       hl.id === editingHourlyLog.id ? { ...hl, treesPlanted: newTrees } : hl
     );
 
@@ -362,7 +364,8 @@ export default function TrackerScreen() {
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    const totalHours = (currentDayLog.hourlyLogs || []).length;
+    const hourlyLogsArray = currentDayLog.hourlyLogs || [];
+    const totalHours = hourlyLogsArray.length;
     const averageRate = totalHours > 0 ? currentDayLog.totalTrees / totalHours : 0;
 
     const updatedLog: TreePlantingLog = {

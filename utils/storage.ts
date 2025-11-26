@@ -26,7 +26,11 @@ export const StorageService = {
   async getTreeLogs(): Promise<TreePlantingLog[]> {
     try {
       const data = await AsyncStorage.getItem(KEYS.TREE_LOGS);
-      return data ? JSON.parse(data) : [];
+      const logs = data ? JSON.parse(data) : [];
+      return logs.map((log: TreePlantingLog) => ({
+        ...log,
+        hourlyLogs: log.hourlyLogs || [],
+      }));
     } catch (error) {
       console.error('Error getting tree logs:', error);
       return [];
@@ -36,11 +40,15 @@ export const StorageService = {
   async saveTreeLog(log: TreePlantingLog): Promise<void> {
     try {
       const logs = await this.getTreeLogs();
-      const existingIndex = logs.findIndex(l => l.id === log.id);
+      const logWithHourlyLogs = {
+        ...log,
+        hourlyLogs: log.hourlyLogs || [],
+      };
+      const existingIndex = logs.findIndex(l => l.id === logWithHourlyLogs.id);
       if (existingIndex >= 0) {
-        logs[existingIndex] = log;
+        logs[existingIndex] = logWithHourlyLogs;
       } else {
-        logs.push(log);
+        logs.push(logWithHourlyLogs);
       }
       await AsyncStorage.setItem(KEYS.TREE_LOGS, JSON.stringify(logs));
     } catch (error) {
@@ -63,7 +71,8 @@ export const StorageService = {
       const logs = await this.getTreeLogs();
       const log = logs.find(l => l.id === logId);
       if (log) {
-        log.hourlyLogs = log.hourlyLogs.filter(hl => hl.id !== hourlyLogId);
+        const hourlyLogsArray = log.hourlyLogs || [];
+        log.hourlyLogs = hourlyLogsArray.filter(hl => hl.id !== hourlyLogId);
         log.totalTrees = log.hourlyLogs.reduce((sum, hl) => sum + hl.treesPlanted, 0);
         await this.saveTreeLog(log);
       }
@@ -328,7 +337,11 @@ export const StorageService = {
   async getSeasonTreeLogs(seasonId: string): Promise<TreePlantingLog[]> {
     try {
       const data = await AsyncStorage.getItem(`${KEYS.SEASON_TREE_LOGS_PREFIX}${seasonId}`);
-      return data ? JSON.parse(data) : [];
+      const logs = data ? JSON.parse(data) : [];
+      return logs.map((log: TreePlantingLog) => ({
+        ...log,
+        hourlyLogs: log.hourlyLogs || [],
+      }));
     } catch (error) {
       console.error('Error getting season tree logs:', error);
       return [];
@@ -338,11 +351,15 @@ export const StorageService = {
   async saveSeasonTreeLog(seasonId: string, log: TreePlantingLog): Promise<void> {
     try {
       const logs = await this.getSeasonTreeLogs(seasonId);
-      const existingIndex = logs.findIndex(l => l.id === log.id);
+      const logWithHourlyLogs = {
+        ...log,
+        hourlyLogs: log.hourlyLogs || [],
+      };
+      const existingIndex = logs.findIndex(l => l.id === logWithHourlyLogs.id);
       if (existingIndex >= 0) {
-        logs[existingIndex] = log;
+        logs[existingIndex] = logWithHourlyLogs;
       } else {
-        logs.push(log);
+        logs.push(logWithHourlyLogs);
       }
       await AsyncStorage.setItem(`${KEYS.SEASON_TREE_LOGS_PREFIX}${seasonId}`, JSON.stringify(logs));
     } catch (error) {
