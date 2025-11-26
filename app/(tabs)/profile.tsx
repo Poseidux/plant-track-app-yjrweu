@@ -119,6 +119,8 @@ export default function ProfileScreen() {
               const newSeason = await StorageService.createNewSeason(newSeasonProvince, year);
               await loadSeasons();
               setShowSeasonModal(false);
+              setNewSeasonProvince(PROVINCES[0]);
+              setNewSeasonYear(new Date().getFullYear().toString());
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert('Success', `New season created for ${newSeasonProvince} ${year}!`);
             } catch (error) {
@@ -283,6 +285,7 @@ export default function ProfileScreen() {
                 onPress={() => {
                   setNewSeasonProvince(item);
                   setShowNewSeasonProvincePicker(false);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
                 <Text
@@ -428,7 +431,11 @@ export default function ProfileScreen() {
               
               <TouchableOpacity 
                 style={[styles.seasonButton, { backgroundColor: colors.primary }]}
-                onPress={() => setShowSeasonModal(true)}
+                onPress={() => {
+                  setNewSeasonProvince(PROVINCES[0]);
+                  setNewSeasonYear(new Date().getFullYear().toString());
+                  setShowSeasonModal(true);
+                }}
               >
                 <IconSymbol
                   ios_icon_name="plus.circle.fill"

@@ -4,7 +4,6 @@ import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { TreePlantingLog } from '@/types/TreePlanting';
 import { IconSymbol } from './IconSymbol';
-import Svg, { Circle, Rect } from 'react-native-svg';
 
 interface MyForestProps {
   treeLogs: TreePlantingLog[];
@@ -12,8 +11,8 @@ interface MyForestProps {
 
 export default function MyForest({ treeLogs }: MyForestProps) {
   const { colors } = useThemeContext();
-  const [seasonForest, setSeasonForest] = useState<number[][]>([]);
-  const [careerForest, setCareerForest] = useState<number[][]>([]);
+  const [seasonTrees, setSeasonTrees] = useState<string[]>([]);
+  const [careerTrees, setCareerTrees] = useState<string[]>([]);
 
   useEffect(() => {
     generateForests();
@@ -21,41 +20,26 @@ export default function MyForest({ treeLogs }: MyForestProps) {
 
   const generateForests = () => {
     const totalTrees = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-    const seasonTrees = Math.min(totalTrees, 100000);
-    const careerTrees = totalTrees;
-
-    const seasonGrid = generateForestGrid(seasonTrees, 20, 15);
-    const careerGrid = generateForestGrid(careerTrees, 30, 25);
-
-    setSeasonForest(seasonGrid);
-    setCareerForest(careerGrid);
-  };
-
-  const generateForestGrid = (totalTrees: number, cols: number, rows: number): number[][] => {
-    const grid: number[][] = [];
-    const treesPerCell = Math.ceil(totalTrees / (cols * rows));
     
-    for (let i = 0; i < rows; i++) {
-      const row: number[] = [];
-      for (let j = 0; j < cols; j++) {
-        const cellIndex = i * cols + j;
-        const treesInCell = Math.min(treesPerCell, Math.max(0, totalTrees - cellIndex * treesPerCell));
-        row.push(treesInCell > 0 ? 1 : 0);
-      }
-      grid.push(row);
+    const seasonTreeCount = Math.floor(totalTrees / 1000);
+    const careerTreeCount = Math.floor(totalTrees / 10000);
+
+    const seasonTreeArray: string[] = [];
+    for (let i = 0; i < Math.min(seasonTreeCount, 100); i++) {
+      seasonTreeArray.push('🌲');
     }
-    
-    return grid;
+
+    const careerTreeArray: string[] = [];
+    for (let i = 0; i < Math.min(careerTreeCount, 100); i++) {
+      careerTreeArray.push('🌲');
+    }
+
+    setSeasonTrees(seasonTreeArray);
+    setCareerTrees(careerTreeArray);
   };
 
-  const getTreeColor = (hasTree: number) => {
-    if (hasTree === 0) return colors.border;
-    return colors.secondary;
-  };
-
-  const renderForestGrid = (grid: number[][], title: string, zoom: number) => {
-    // Check if grid is valid before rendering
-    if (!grid || grid.length === 0 || !grid[0] || grid[0].length === 0) {
+  const renderForestGrid = (trees: string[], title: string, treesPerEmoji: number) => {
+    if (trees.length === 0) {
       return (
         <View style={styles.forestContainer}>
           <Text style={[styles.forestTitle, { color: colors.text }]}>{title}</Text>
@@ -74,50 +58,19 @@ export default function MyForest({ treeLogs }: MyForestProps) {
       );
     }
 
-    const screenWidth = Dimensions.get('window').width - 64;
-    const cellSize = (screenWidth / grid[0].length) * zoom;
-    const gridWidth = grid[0].length * cellSize;
-    const gridHeight = grid.length * cellSize;
-
     return (
       <View style={styles.forestContainer}>
         <Text style={[styles.forestTitle, { color: colors.text }]}>{title}</Text>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.forestScrollContent}
-        >
-          <ScrollView 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.forestScrollContent}
-          >
-            <Svg width={gridWidth} height={gridHeight}>
-              {grid.map((row, rowIndex) => (
-                <React.Fragment key={`row-${rowIndex}`}>
-                  {row.map((cell, colIndex) => (
-                    <Circle
-                      key={`cell-${rowIndex}-${colIndex}`}
-                      cx={colIndex * cellSize + cellSize / 2}
-                      cy={rowIndex * cellSize + cellSize / 2}
-                      r={cellSize / 3}
-                      fill={getTreeColor(cell)}
-                    />
-                  ))}
-                </React.Fragment>
-              ))}
-            </Svg>
-          </ScrollView>
-        </ScrollView>
-        <View style={styles.forestLegend}>
-          <View style={styles.forestLegendItem}>
-            <View style={[styles.forestLegendDot, { backgroundColor: colors.secondary }]} />
-            <Text style={[styles.forestLegendText, { color: colors.textSecondary }]}>Trees Planted</Text>
-          </View>
-          <View style={styles.forestLegendItem}>
-            <View style={[styles.forestLegendDot, { backgroundColor: colors.border }]} />
-            <Text style={[styles.forestLegendText, { color: colors.textSecondary }]}>Empty Space</Text>
-          </View>
+        <View style={[styles.forestGrid, { backgroundColor: colors.highlight }]}>
+          {trees.map((tree, index) => (
+            <Text key={`tree-${index}`} style={styles.treeEmoji}>
+              {tree}
+            </Text>
+          ))}
         </View>
+        <Text style={[styles.forestInfo, { color: colors.textSecondary }]}>
+          Each tree emoji represents {treesPerEmoji.toLocaleString()} trees planted
+        </Text>
       </View>
     );
   };
@@ -135,11 +88,11 @@ export default function MyForest({ treeLogs }: MyForestProps) {
       </View>
       
       <Text style={[styles.description, { color: colors.textSecondary }]}>
-        Watch your forest grow as you plant more trees! Each dot represents trees you&apos;ve planted.
+        Watch your forest grow as you plant more trees! Each tree emoji represents your planting progress.
       </Text>
 
-      {renderForestGrid(seasonForest, 'Your Season Forest', 1)}
-      {renderForestGrid(careerForest, 'Your Career Forest', 0.6)}
+      {renderForestGrid(seasonTrees, 'Your Season Forest', 1000)}
+      {renderForestGrid(careerTrees, 'Your Career Forest', 10000)}
     </View>
   );
 }
@@ -175,27 +128,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 12,
   },
-  forestScrollContent: {
-    paddingVertical: 8,
-  },
-  forestLegend: {
+  forestGrid: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 24,
-    marginTop: 12,
-  },
-  forestLegendItem: {
-    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 12,
+    borderRadius: 12,
+    minHeight: 80,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
   },
-  forestLegendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  treeEmoji: {
+    fontSize: 24,
+    margin: 4,
   },
-  forestLegendText: {
+  forestInfo: {
     fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   emptyForestCard: {
     alignItems: 'center',

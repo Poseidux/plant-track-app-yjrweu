@@ -413,7 +413,7 @@ export default function HomeScreen() {
             />
             <View style={styles.speciesLegend}>
               {speciesData.map(([species, count], index) => (
-                <View key={`species-legend-${species}-${index}`} style={styles.speciesLegendItem}>
+                <View key={`species-legend-${index}-${species}`} style={styles.speciesLegendItem}>
                   <View style={[styles.speciesLegendColor, { backgroundColor: chartColors[index % chartColors.length] }]} />
                   <Text style={[styles.speciesLegendText, { color: colors.text }]} numberOfLines={1}>
                     {species}: {count}
