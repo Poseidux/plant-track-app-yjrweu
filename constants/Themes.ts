@@ -3,6 +3,7 @@ export interface AppTheme {
   id: string;
   name: string;
   description: string;
+  forcedMode?: 'light' | 'dark';
   colors: {
     background: string;
     text: string;
@@ -45,52 +46,10 @@ export const APP_THEMES: AppTheme[] = [
     },
   },
   {
-    id: 'default-dark',
-    name: 'Default Dark',
-    description: 'Clean and modern dark theme',
-    colors: {
-      background: '#1A1A1A',
-      text: '#FFFFFF',
-      textSecondary: '#B0B0B0',
-      primary: '#3498DB',
-      secondary: '#2ECC71',
-      accent: '#F39C12',
-      card: '#2A2A2A',
-      highlight: '#3A3A3A',
-      border: '#404040',
-      error: '#E74C3C',
-      success: '#27AE60',
-      warning: '#F39C12',
-      gold: '#FFD700',
-    },
-  },
-  {
-    id: 'game-mode',
-    name: 'Game Mode',
-    description: 'Retro pixel cubic design',
-    colors: {
-      background: '#1A1A2E',
-      text: '#EAEAEA',
-      textSecondary: '#C0C0C0',
-      primary: '#00FF41',
-      secondary: '#FF6B35',
-      accent: '#FFD23F',
-      card: '#16213E',
-      highlight: '#0F3460',
-      border: '#00FF41',
-      error: '#FF0000',
-      success: '#00FF00',
-      warning: '#FFFF00',
-      gold: '#FFD700',
-    },
-    fontFamily: 'monospace',
-    borderRadius: 0,
-    pixelated: true,
-  },
-  {
     id: 'ocean-breeze',
     name: 'Ocean Breeze',
     description: 'Cool blue tones inspired by the sea',
+    forcedMode: 'light',
     colors: {
       background: '#E8F4F8',
       text: '#1B4965',
@@ -111,10 +70,11 @@ export const APP_THEMES: AppTheme[] = [
     id: 'ocean-breeze-dark',
     name: 'Ocean Breeze Dark',
     description: 'Cool blue tones in dark mode',
+    forcedMode: 'dark',
     colors: {
       background: '#0D1B2A',
       text: '#E8F4F8',
-      textSecondary: '#5FA8D3',
+      textSecondary: '#87CEEB',
       primary: '#62B6CB',
       secondary: '#BEE9E8',
       accent: '#CAE9FF',
@@ -131,6 +91,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'sunset-glow',
     name: 'Sunset Glow',
     description: 'Warm sunset colors',
+    forcedMode: 'light',
     colors: {
       background: '#FFF5E6',
       text: '#5D2E46',
@@ -151,6 +112,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'sunset-glow-dark',
     name: 'Sunset Glow Dark',
     description: 'Warm sunset colors in dark mode',
+    forcedMode: 'dark',
     colors: {
       background: '#2A1A1F',
       text: '#FFE4E1',
@@ -171,6 +133,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'forest-dark',
     name: 'Forest Dark',
     description: 'Deep forest night theme',
+    forcedMode: 'dark',
     colors: {
       background: '#0D1B2A',
       text: '#E0E1DD',
@@ -191,6 +154,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'neon-nights',
     name: 'Neon Nights',
     description: 'Vibrant neon cyberpunk style',
+    forcedMode: 'dark',
     colors: {
       background: '#0A0E27',
       text: '#F0F0F0',
@@ -211,6 +175,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'earthy-tones',
     name: 'Earthy Tones',
     description: 'Natural earth colors',
+    forcedMode: 'light',
     colors: {
       background: '#F5F1E8',
       text: '#3E2723',
@@ -231,6 +196,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'earthy-tones-dark',
     name: 'Earthy Tones Dark',
     description: 'Natural earth colors in dark mode',
+    forcedMode: 'dark',
     colors: {
       background: '#2A1F1A',
       text: '#EFEBE9',
@@ -251,6 +217,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'arctic-frost',
     name: 'Arctic Frost',
     description: 'Cool icy winter theme',
+    forcedMode: 'light',
     colors: {
       background: '#E8F4F8',
       text: '#1C3144',
@@ -271,6 +238,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'arctic-frost-dark',
     name: 'Arctic Frost Dark',
     description: 'Cool icy winter theme in dark mode',
+    forcedMode: 'dark',
     colors: {
       background: '#0F1C2A',
       text: '#F0F8FF',
@@ -291,6 +259,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'cherry-blossom',
     name: 'Cherry Blossom',
     description: 'Soft pink spring theme',
+    forcedMode: 'light',
     colors: {
       background: '#FFF0F5',
       text: '#4A2C2A',
@@ -311,6 +280,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'cherry-blossom-dark',
     name: 'Cherry Blossom Dark',
     description: 'Soft pink spring theme in dark mode',
+    forcedMode: 'dark',
     colors: {
       background: '#2A1A1F',
       text: '#FFE4E1',
@@ -331,6 +301,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'midnight-purple',
     name: 'Midnight Purple',
     description: 'Deep purple night theme',
+    forcedMode: 'dark',
     colors: {
       background: '#1A0B2E',
       text: '#E8DFF5',
@@ -351,6 +322,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'autumn-harvest',
     name: 'Autumn Harvest',
     description: 'Warm autumn colors',
+    forcedMode: 'light',
     colors: {
       background: '#FFF8E7',
       text: '#5D3A1A',
@@ -371,6 +343,7 @@ export const APP_THEMES: AppTheme[] = [
     id: 'autumn-harvest-dark',
     name: 'Autumn Harvest Dark',
     description: 'Warm autumn colors in dark mode',
+    forcedMode: 'dark',
     colors: {
       background: '#2A1F0F',
       text: '#FAEBD7',

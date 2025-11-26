@@ -63,14 +63,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setSelectedThemeState(themeId);
       await StorageService.saveSelectedTheme(themeId);
       console.log('Saved selected theme:', themeId);
+      
+      const theme = APP_THEMES.find(t => t.id === themeId);
+      if (theme && theme.forcedMode) {
+        await setThemeMode(theme.forcedMode);
+      }
     } catch (error) {
       console.error('Error saving selected theme:', error);
     }
   };
 
-  const isDark = themeMode === 'dark' || (themeMode === 'auto' && systemColorScheme === 'dark');
-  
   const currentTheme = APP_THEMES.find(t => t.id === selectedTheme) || APP_THEMES[0];
+  
+  const isDark = currentTheme.forcedMode 
+    ? currentTheme.forcedMode === 'dark'
+    : (themeMode === 'dark' || (themeMode === 'auto' && systemColorScheme === 'dark'));
   
   const colors = selectedTheme === 'default' 
     ? getColors(isDark)

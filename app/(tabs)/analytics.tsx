@@ -17,6 +17,7 @@ import { TreePlantingLog, EarningsLog, ExpenseLog, Achievement, UserProfile } fr
 import { IconSymbol } from '@/components/IconSymbol';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { checkAchievements } from '@/utils/achievements';
+import { formatLargeNumber } from '@/utils/formatNumber';
 
 export default function AnalyticsScreen() {
   const { colors, isDark } = useThemeContext();
@@ -80,7 +81,7 @@ export default function AnalyticsScreen() {
     : 0;
 
   const totalHours = treeLogs.reduce((sum, log) => {
-    return sum + log.hourlyLogs.reduce((hourSum, hourLog) => {
+    return sum + (log.hourlyLogs || []).reduce((hourSum, hourLog) => {
       const start = new Date(`2000-01-01T${hourLog.startTime}`);
       const end = new Date(`2000-01-01T${hourLog.endTime}`);
       return hourSum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
@@ -105,7 +106,7 @@ export default function AnalyticsScreen() {
     const speciesCount: { [key: string]: number } = {};
     
     treeLogs.forEach(log => {
-      log.hourlyLogs.forEach(hourlyLog => {
+      (log.hourlyLogs || []).forEach(hourlyLog => {
         const species = hourlyLog.species || log.species || 'Unknown';
         speciesCount[species] = (speciesCount[species] || 0) + hourlyLog.treesPlanted;
       });
@@ -220,7 +221,7 @@ export default function AnalyticsScreen() {
       androidIcon: 'eco',
       color: colors.secondary,
       label: 'Total Trees',
-      value: totalTrees.toLocaleString(),
+      value: formatLargeNumber(totalTrees),
     },
     {
       icon: 'calendar',
@@ -234,14 +235,14 @@ export default function AnalyticsScreen() {
       androidIcon: 'attach-money',
       color: colors.secondary,
       label: 'Total Earnings',
-      value: `$${totalEarnings.toFixed(2)}`,
+      value: totalEarnings >= 100000 ? `$${formatLargeNumber(totalEarnings)}` : `$${totalEarnings.toFixed(2)}`,
     },
     {
       icon: 'cart.fill',
       androidIcon: 'shopping-cart',
       color: colors.error,
       label: 'Total Expenses',
-      value: `$${totalExpenses.toFixed(2)}`,
+      value: totalExpenses >= 100000 ? `$${formatLargeNumber(totalExpenses)}` : `$${totalExpenses.toFixed(2)}`,
     },
     {
       icon: 'clock.fill',
@@ -566,7 +567,7 @@ export default function AnalyticsScreen() {
                     PB (Personal Best)
                   </Text>
                   <Text style={[styles.performanceCardStatValue, { color: colors.primary }]}>
-                    {personalBest.toLocaleString()}
+                    {formatLargeNumber(personalBest)}
                   </Text>
                   <Text style={[styles.performanceCardStatUnit, { color: colors.textSecondary }]}>
                     trees/day
@@ -580,7 +581,7 @@ export default function AnalyticsScreen() {
                     Avg Rate
                   </Text>
                   <Text style={[styles.performanceCardStatValue, { color: colors.secondary }]}>
-                    {averageTreesPerDay.toFixed(0)}
+                    {formatLargeNumber(Math.round(averageTreesPerDay))}
                   </Text>
                   <Text style={[styles.performanceCardStatUnit, { color: colors.textSecondary }]}>
                     trees/day
@@ -594,7 +595,7 @@ export default function AnalyticsScreen() {
                     Total Trees
                   </Text>
                   <Text style={[styles.performanceCardStatValue, { color: colors.accent }]}>
-                    {totalTrees.toLocaleString()}
+                    {formatLargeNumber(totalTrees)}
                   </Text>
                   <Text style={[styles.performanceCardStatUnit, { color: colors.textSecondary }]}>
                     planted

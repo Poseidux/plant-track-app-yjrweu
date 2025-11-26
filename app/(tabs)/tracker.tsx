@@ -128,7 +128,7 @@ export default function TrackerScreen() {
   const startSession = () => {
     setSessionStartTime(new Date());
     
-    if (currentDayLog && currentDayLog.hourlyLogs.length > 0) {
+    if (currentDayLog && currentDayLog.hourlyLogs && currentDayLog.hourlyLogs.length > 0) {
       const lastHourlyLog = currentDayLog.hourlyLogs[currentDayLog.hourlyLogs.length - 1];
       if (lastHourlyLog.species) {
         setSelectedSpecies(lastHourlyLog.species);
@@ -229,7 +229,7 @@ export default function TrackerScreen() {
     if (currentDayLog) {
       updatedLog = {
         ...currentDayLog,
-        hourlyLogs: [...currentDayLog.hourlyLogs, newHourlyLog],
+        hourlyLogs: [...(currentDayLog.hourlyLogs || []), newHourlyLog],
         totalTrees: currentDayLog.totalTrees + trees,
       };
     } else {
@@ -337,7 +337,7 @@ export default function TrackerScreen() {
     const oldTrees = editingHourlyLog.treesPlanted;
     const treeDifference = newTrees - oldTrees;
 
-    const updatedHourlyLogs = currentDayLog.hourlyLogs.map(hl => 
+    const updatedHourlyLogs = (currentDayLog.hourlyLogs || []).map(hl => 
       hl.id === editingHourlyLog.id ? { ...hl, treesPlanted: newTrees } : hl
     );
 
@@ -362,7 +362,7 @@ export default function TrackerScreen() {
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    const totalHours = currentDayLog.hourlyLogs.length;
+    const totalHours = (currentDayLog.hourlyLogs || []).length;
     const averageRate = totalHours > 0 ? currentDayLog.totalTrees / totalHours : 0;
 
     const updatedLog: TreePlantingLog = {
@@ -576,7 +576,7 @@ export default function TrackerScreen() {
               </View>
               <View style={styles.currentDayStat}>
                 <Text style={[styles.currentDayStatNumber, { color: colors.primary }]}>
-                  {currentDayLog.hourlyLogs.length}
+                  {(currentDayLog.hourlyLogs || []).length}
                 </Text>
                 <Text style={[styles.currentDayStatLabel, { color: colors.textSecondary }]}>
                   Hours Logged
@@ -585,7 +585,7 @@ export default function TrackerScreen() {
             </View>
 
             <View style={styles.hourlyLogsList}>
-              {currentDayLog.hourlyLogs.map((hourlyLog, index) => (
+              {(currentDayLog.hourlyLogs || []).map((hourlyLog, index) => (
                 <View 
                   key={`hourly-${hourlyLog.id}-${index}`}
                   style={[styles.hourlyLogItem, { backgroundColor: colors.highlight }]}
@@ -808,7 +808,7 @@ export default function TrackerScreen() {
                           color={colors.primary}
                         />
                         <Text style={[styles.logStatNumber, { color: colors.text }]}>
-                          {log.hourlyLogs.length}
+                          {(log.hourlyLogs || []).length}
                         </Text>
                         <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
                           Hours
@@ -1180,7 +1180,7 @@ export default function TrackerScreen() {
                         Hours Worked
                       </Text>
                       <Text style={[styles.summaryStatValue, { color: colors.primary }]}>
-                        {currentDayLog.hourlyLogs.length}
+                        {(currentDayLog.hourlyLogs || []).length}
                       </Text>
                     </View>
                   </View>

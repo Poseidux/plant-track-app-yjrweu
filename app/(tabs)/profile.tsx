@@ -21,7 +21,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import * as Haptics from 'expo-haptics';
 
 export default function ProfileScreen() {
-  const { colors, isDark, setThemeMode, themeMode } = useThemeContext();
+  const { colors, isDark, currentTheme } = useThemeContext();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showSeasonModal, setShowSeasonModal] = useState(false);
@@ -101,13 +101,19 @@ export default function ProfileScreen() {
       return;
     }
 
+    if (!newSeasonProvince) {
+      Alert.alert('Error', 'Please select a province');
+      return;
+    }
+
     Alert.alert(
       'Create New Season',
-      `Are you sure you want to start a new season for ${newSeasonProvince} ${year}? Your current season will be archived.`,
+      `Are you sure you want to start a new season for ${newSeasonProvince} ${year}?\n\n⚠️ WARNING: All your current stats, logs, and analytics will be reset for the new season. Your current season will be archived and can be viewed later.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Create',
+          style: 'destructive',
           onPress: async () => {
             try {
               const newSeason = await StorageService.createNewSeason(newSeasonProvince, year);
@@ -139,12 +145,6 @@ export default function ProfileScreen() {
       `Total Trees: ${totalTrees.toLocaleString()}\nTotal Earnings: $${totalEarnings.toFixed(2)}\nTotal Expenses: $${totalExpenses.toFixed(2)}\nPlanting Days: ${totalDays}\n\nStart Date: ${new Date(season.startDate).toLocaleDateString()}\n${season.endDate ? `End Date: ${new Date(season.endDate).toLocaleDateString()}` : 'Active Season'}`,
       [{ text: 'OK' }]
     );
-  };
-
-  const toggleTheme = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const newMode = isDark ? 'light' : 'dark';
-    await setThemeMode(newMode);
   };
 
   const handleEraseData = () => {
@@ -310,6 +310,8 @@ export default function ProfileScreen() {
     </Modal>
   );
 
+  const canToggleTheme = !currentTheme.forcedMode;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ImageBackground
@@ -451,33 +453,14 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={[styles.card, { backgroundColor: colors.card }]}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Settings</Text>
-              
-              <TouchableOpacity 
-                style={styles.settingRow}
-                onPress={toggleTheme}
-              >
-                <View style={styles.settingLeft}>
-                  <IconSymbol
-                    ios_icon_name={isDark ? "moon.fill" : "sun.max.fill"}
-                    android_material_icon_name={isDark ? "dark-mode" : "light-mode"}
-                    size={20}
-                    color={colors.accent}
-                  />
-                  <Text style={[styles.settingText, { color: colors.text }]}>
-                    {isDark ? 'Dark Mode' : 'Light Mode'}
-                  </Text>
-                </View>
-                <View style={[styles.toggle, { backgroundColor: isDark ? colors.primary : colors.border }]}>
-                  <View style={[
-                    styles.toggleThumb,
-                    { backgroundColor: '#FFFFFF' },
-                    isDark && styles.toggleThumbActive
-                  ]} />
-                </View>
-              </TouchableOpacity>
-            </View>
+            {canToggleTheme && (
+              <View style={[styles.card, { backgroundColor: colors.card }]}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>Settings</Text>
+                <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
+                  Theme mode is controlled by your selected theme
+                </Text>
+              </View>
+            )}
 
             <View style={[styles.card, { backgroundColor: colors.card }]}>
               <Text style={[styles.cardTitle, { color: colors.text }]}>Data Management</Text>

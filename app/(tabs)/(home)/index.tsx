@@ -25,7 +25,7 @@ import { formatLargeNumber } from '@/utils/formatNumber';
 import { APP_THEMES } from '@/constants/Themes';
 
 export default function HomeScreen() {
-  const { colors, isDark, selectedTheme, setSelectedTheme } = useThemeContext();
+  const { colors, isDark, selectedTheme, setSelectedTheme, setThemeMode } = useThemeContext();
   const router = useRouter();
   const [treeLogs, setTreeLogs] = useState<TreePlantingLog[]>([]);
   const [earningsLogs, setEarningsLogs] = useState<EarningsLog[]>([]);
@@ -70,7 +70,7 @@ export default function HomeScreen() {
     setEditTrees(log.totalTrees.toString());
     setEditSpecies(log.species);
     setEditProvince(log.province);
-    setEditLandType(log.hourlyLogs[0]?.landType || 'prepped');
+    setEditLandType((log.hourlyLogs && log.hourlyLogs[0]?.landType) || 'prepped');
     setShowEditModal(true);
   };
 
@@ -91,7 +91,7 @@ export default function HomeScreen() {
       totalTrees: parseInt(editTrees),
       species: editSpecies,
       province: editProvince,
-      hourlyLogs: editingLog.hourlyLogs.map(hl => ({
+      hourlyLogs: (editingLog.hourlyLogs || []).map(hl => ({
         ...hl,
         landType: editLandType,
       })),
@@ -104,7 +104,7 @@ export default function HomeScreen() {
     Alert.alert('Success', 'Log updated successfully!');
   };
 
-  const handleThemeSelect = (themeId: string) => {
+  const handleThemeSelect = async (themeId: string) => {
     const theme = APP_THEMES.find(t => t.id === themeId);
     if (!theme) return;
 
@@ -117,6 +117,9 @@ export default function HomeScreen() {
           text: 'Yes',
           onPress: async () => {
             await setSelectedTheme(themeId);
+            if (theme.forcedMode) {
+              await setThemeMode(theme.forcedMode);
+            }
             setShowThemeMenu(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
@@ -128,7 +131,15 @@ export default function HomeScreen() {
   const getSpeciesBreakdown = () => {
     const speciesCount: { [key: string]: number } = {};
     treeLogs.forEach(log => {
-      speciesCount[log.species] = (speciesCount[log.species] || 0) + log.totalTrees;
+      if (log.hourlyLogs && log.hourlyLogs.length > 0) {
+        log.hourlyLogs.forEach(hourlyLog => {
+          const species = hourlyLog.species || log.species || 'Unknown';
+          speciesCount[species] = (speciesCount[species] || 0) + hourlyLog.treesPlanted;
+        });
+      } else {
+        const species = log.species || 'Unknown';
+        speciesCount[species] = (speciesCount[species] || 0) + log.totalTrees;
+      }
     });
     return Object.entries(speciesCount)
       .sort((a, b) => b[1] - a[1])
@@ -194,6 +205,16 @@ export default function HomeScreen() {
     };
   };
 
+  const getRecentActivityLogs = () => {
+    const now = new Date();
+    const fiveDaysAgo = new Date(now.getTime() - (5 * 24 * 60 * 60 * 1000));
+    
+    return treeLogs
+      .filter(log => new Date(log.date) >= fiveDaysAgo)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+  };
+
   const screenWidth = Dimensions.get('window').width;
 
   const chartConfig = {
@@ -234,6 +255,8 @@ export default function HomeScreen() {
   };
 
   console.log('Rendering HomeScreen with colors:', colors);
+
+  const recentActivityLogs = getRecentActivityLogs();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -416,10 +439,10 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {treeLogs.length > 0 && (
+        {recentActivityLogs.length > 0 && (
           <View style={[styles.recentCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.recentTitle, { color: colors.text }]}>Recent Activity</Text>
-            {treeLogs.slice(-3).reverse().map((log, index) => (
+            <Text style={[styles.recentTitle, { color: colors.text }]}>Recent Activity (Last 5 Days)</Text>
+            {recentActivityLogs.map((log, index) => (
               <View key={`activity-${log.id}-${index}`} style={[styles.activityItem, { borderBottomColor: colors.border }]}>
                 <View style={[styles.activityIcon, { backgroundColor: colors.highlight }]}>
                   <IconSymbol
