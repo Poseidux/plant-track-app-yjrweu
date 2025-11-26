@@ -17,6 +17,7 @@ import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
 import { TreePlantingLog, HourlyLog, TREE_SPECIES, DaySettings } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
+import MyForest from '@/components/MyForest';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -727,6 +728,10 @@ export default function TrackerScreen() {
         )}
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Previous Days</Text>
+
+        {treeLogs.length > 0 && (
+          <MyForest treeLogs={treeLogs} />
+        )}
 
         {treeLogs.filter(log => log.date !== new Date().toISOString().split('T')[0]).length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: colors.card }]}>

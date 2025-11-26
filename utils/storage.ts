@@ -1,6 +1,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TreePlantingLog, EarningsLog, UserProfile, ExpenseLog, Achievement, TreeCountSettings, DaySettings } from '@/types/TreePlanting';
+import { Season } from '@/types/Season';
 
 const KEYS = {
   TREE_LOGS: '@tree_planting_logs',
@@ -12,6 +13,12 @@ const KEYS = {
   TREE_COUNT_SETTINGS: '@tree_count_settings',
   SELECTED_THEME: '@selected_theme',
   DAY_SETTINGS_PREFIX: '@day_settings_',
+  SEASONS: '@seasons',
+  ACTIVE_SEASON: '@active_season',
+  SEASON_TREE_LOGS_PREFIX: '@season_tree_logs_',
+  SEASON_EARNINGS_LOGS_PREFIX: '@season_earnings_logs_',
+  SEASON_EXPENSE_LOGS_PREFIX: '@season_expense_logs_',
+  SEASON_ACHIEVEMENTS_PREFIX: '@season_achievements_',
 };
 
 export const StorageService = {
@@ -238,6 +245,166 @@ export const StorageService = {
       await AsyncStorage.setItem(KEYS.SELECTED_THEME, theme);
     } catch (error) {
       console.error('Error saving selected theme:', error);
+    }
+  },
+
+  // Seasons
+  async getSeasons(): Promise<Season[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.SEASONS);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting seasons:', error);
+      return [];
+    }
+  },
+
+  async saveSeason(season: Season): Promise<void> {
+    try {
+      const seasons = await this.getSeasons();
+      const existingIndex = seasons.findIndex(s => s.id === season.id);
+      if (existingIndex >= 0) {
+        seasons[existingIndex] = season;
+      } else {
+        seasons.push(season);
+      }
+      await AsyncStorage.setItem(KEYS.SEASONS, JSON.stringify(seasons));
+    } catch (error) {
+      console.error('Error saving season:', error);
+    }
+  },
+
+  async getActiveSeason(): Promise<Season | null> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.ACTIVE_SEASON);
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      console.error('Error getting active season:', error);
+      return null;
+    }
+  },
+
+  async setActiveSeason(season: Season): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.ACTIVE_SEASON, JSON.stringify(season));
+    } catch (error) {
+      console.error('Error setting active season:', error);
+    }
+  },
+
+  async createNewSeason(province: string, year: number): Promise<Season> {
+    try {
+      const seasons = await this.getSeasons();
+      const activeSeason = await this.getActiveSeason();
+      
+      if (activeSeason) {
+        activeSeason.isActive = false;
+        activeSeason.endDate = new Date().toISOString();
+        await this.saveSeason(activeSeason);
+      }
+
+      const newSeason: Season = {
+        id: Date.now().toString(),
+        name: `${province} ${year}`,
+        province,
+        year,
+        startDate: new Date().toISOString(),
+        isActive: true,
+        totalTrees: 0,
+        totalEarnings: 0,
+        totalDays: 0,
+      };
+
+      await this.saveSeason(newSeason);
+      await this.setActiveSeason(newSeason);
+      
+      return newSeason;
+    } catch (error) {
+      console.error('Error creating new season:', error);
+      throw error;
+    }
+  },
+
+  async getSeasonTreeLogs(seasonId: string): Promise<TreePlantingLog[]> {
+    try {
+      const data = await AsyncStorage.getItem(`${KEYS.SEASON_TREE_LOGS_PREFIX}${seasonId}`);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting season tree logs:', error);
+      return [];
+    }
+  },
+
+  async saveSeasonTreeLog(seasonId: string, log: TreePlantingLog): Promise<void> {
+    try {
+      const logs = await this.getSeasonTreeLogs(seasonId);
+      const existingIndex = logs.findIndex(l => l.id === log.id);
+      if (existingIndex >= 0) {
+        logs[existingIndex] = log;
+      } else {
+        logs.push(log);
+      }
+      await AsyncStorage.setItem(`${KEYS.SEASON_TREE_LOGS_PREFIX}${seasonId}`, JSON.stringify(logs));
+    } catch (error) {
+      console.error('Error saving season tree log:', error);
+    }
+  },
+
+  async getSeasonEarningsLogs(seasonId: string): Promise<EarningsLog[]> {
+    try {
+      const data = await AsyncStorage.getItem(`${KEYS.SEASON_EARNINGS_LOGS_PREFIX}${seasonId}`);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting season earnings logs:', error);
+      return [];
+    }
+  },
+
+  async saveSeasonEarningsLog(seasonId: string, log: EarningsLog): Promise<void> {
+    try {
+      const logs = await this.getSeasonEarningsLogs(seasonId);
+      logs.push(log);
+      await AsyncStorage.setItem(`${KEYS.SEASON_EARNINGS_LOGS_PREFIX}${seasonId}`, JSON.stringify(logs));
+    } catch (error) {
+      console.error('Error saving season earnings log:', error);
+    }
+  },
+
+  async getSeasonExpenseLogs(seasonId: string): Promise<ExpenseLog[]> {
+    try {
+      const data = await AsyncStorage.getItem(`${KEYS.SEASON_EXPENSE_LOGS_PREFIX}${seasonId}`);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting season expense logs:', error);
+      return [];
+    }
+  },
+
+  async saveSeasonExpenseLog(seasonId: string, log: ExpenseLog): Promise<void> {
+    try {
+      const logs = await this.getSeasonExpenseLogs(seasonId);
+      logs.push(log);
+      await AsyncStorage.setItem(`${KEYS.SEASON_EXPENSE_LOGS_PREFIX}${seasonId}`, JSON.stringify(logs));
+    } catch (error) {
+      console.error('Error saving season expense log:', error);
+    }
+  },
+
+  async getSeasonAchievements(seasonId: string): Promise<Achievement[]> {
+    try {
+      const data = await AsyncStorage.getItem(`${KEYS.SEASON_ACHIEVEMENTS_PREFIX}${seasonId}`);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting season achievements:', error);
+      return [];
+    }
+  },
+
+  async saveSeasonAchievements(seasonId: string, achievements: Achievement[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(`${KEYS.SEASON_ACHIEVEMENTS_PREFIX}${seasonId}`, JSON.stringify(achievements));
+    } catch (error) {
+      console.error('Error saving season achievements:', error);
     }
   },
 

@@ -8,12 +8,14 @@ import {
   Dimensions,
   Platform,
   ImageBackground,
+  TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
-import { TreePlantingLog, EarningsLog, ExpenseLog, Achievement } from '@/types/TreePlanting';
+import { TreePlantingLog, EarningsLog, ExpenseLog, Achievement, UserProfile } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
-import { LineChart, BarChart } from 'react-native-chart-kit';
+import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { checkAchievements } from '@/utils/achievements';
 
 export default function AnalyticsScreen() {
@@ -22,21 +24,44 @@ export default function AnalyticsScreen() {
   const [earningsLogs, setEarningsLogs] = useState<EarningsLog[]>([]);
   const [expenseLogs, setExpenseLogs] = useState<ExpenseLog[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [showAllAchievements, setShowAllAchievements] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [cardRotation] = useState(new Animated.Value(0));
 
   useEffect(() => {
     loadData();
+    startCardAnimation();
   }, []);
 
+  const startCardAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(cardRotation, {
+          toValue: 1,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardRotation, {
+          toValue: 0,
+          duration: 3000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
   const loadData = async () => {
-    const [trees, earnings, expenses, savedAchievements] = await Promise.all([
+    const [trees, earnings, expenses, savedAchievements, userProfile] = await Promise.all([
       StorageService.getTreeLogs(),
       StorageService.getEarningsLogs(),
       StorageService.getExpenseLogs(),
       StorageService.getAchievements(),
+      StorageService.getUserProfile(),
     ]);
     setTreeLogs(trees);
     setEarningsLogs(earnings);
     setExpenseLogs(expenses);
+    setProfile(userProfile);
     
     const updatedAchievements = checkAchievements(trees, earnings, savedAchievements);
     setAchievements(updatedAchievements);
@@ -46,9 +71,13 @@ export default function AnalyticsScreen() {
   const totalTrees = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
   const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
   const totalExpenses = expenseLogs.reduce((sum, log) => sum + log.amount, 0);
-  const totalDays = treeLogs.length;
+  const totalDays = treeLogs.filter(log => log.dayType !== 'sick' && log.dayType !== 'dayoff').length;
   const averageTreesPerDay = totalDays > 0 ? totalTrees / totalDays : 0;
   const unlockedAchievements = achievements.filter(a => a.progress >= a.target);
+
+  const personalBest = treeLogs.length > 0 
+    ? Math.max(...treeLogs.map(log => log.totalTrees))
+    : 0;
 
   const totalHours = treeLogs.reduce((sum, log) => {
     return sum + log.hourlyLogs.reduce((hourSum, hourLog) => {
@@ -71,6 +100,32 @@ export default function AnalyticsScreen() {
   const percentageImprovement = firstHalfAvg > 0 
     ? ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100
     : 0;
+
+  const getSpeciesDistribution = () => {
+    const speciesCount: { [key: string]: number } = {};
+    
+    treeLogs.forEach(log => {
+      log.hourlyLogs.forEach(hourlyLog => {
+        const species = hourlyLog.species || log.species || 'Unknown';
+        speciesCount[species] = (speciesCount[species] || 0) + hourlyLog.treesPlanted;
+      });
+    });
+    
+    return Object.entries(speciesCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+  };
+
+  const speciesData = getSpeciesDistribution();
+  const speciesColors = ['#3498DB', '#2ECC71', '#F39C12', '#E74C3C', '#9B59B6', '#1ABC9C'];
+
+  const pieChartData = speciesData.map(([species, count], index) => ({
+    name: species.length > 12 ? species.substring(0, 10) + '...' : species,
+    population: count,
+    color: speciesColors[index % speciesColors.length],
+    legendFontColor: colors.text,
+    legendFontSize: 11,
+  }));
 
   const getTreesChartData = () => {
     const sortedLogs = [...treeLogs].sort((a, b) => 
@@ -218,6 +273,16 @@ export default function AnalyticsScreen() {
     },
   ];
 
+  const incompleteAchievements = achievements.filter(a => a.progress < a.target);
+  const displayedAchievements = showAllAchievements 
+    ? achievements 
+    : incompleteAchievements.slice(0, 10);
+
+  const rotateInterpolate = cardRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '5deg'],
+  });
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ImageBackground
@@ -241,7 +306,7 @@ export default function AnalyticsScreen() {
           
           <View style={styles.overviewGrid}>
             {performanceItems.map((item, index) => (
-              <View key={`perf-item-${item.label}-${index}`} style={styles.overviewItem}>
+              <View key={`perf-item-${index}`} style={styles.overviewItem}>
                 <IconSymbol
                   ios_icon_name={item.icon}
                   android_material_icon_name={item.androidIcon}
@@ -311,6 +376,34 @@ export default function AnalyticsScreen() {
           </View>
         )}
 
+        {pieChartData.length > 0 && (
+          <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>Species Distribution</Text>
+            <PieChart
+              data={pieChartData}
+              width={screenWidth - 64}
+              height={200}
+              chartConfig={{
+                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              }}
+              accessor="population"
+              backgroundColor="transparent"
+              paddingLeft="15"
+              absolute
+            />
+            <View style={styles.speciesLegend}>
+              {speciesData.map(([species, count], index) => (
+                <View key={`species-legend-${index}`} style={styles.speciesLegendItem}>
+                  <View style={[styles.speciesLegendColor, { backgroundColor: speciesColors[index % speciesColors.length] }]} />
+                  <Text style={[styles.speciesLegendText, { color: colors.text }]} numberOfLines={1}>
+                    {species}: {count.toLocaleString()} trees
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         <View style={[styles.achievementsCard, { backgroundColor: colors.card }]}>
           <View style={styles.achievementsHeader}>
             <IconSymbol
@@ -335,61 +428,182 @@ export default function AnalyticsScreen() {
               Start planting trees to unlock achievements!
             </Text>
           ) : (
-            <View style={styles.achievementsList}>
-              {achievements.map((achievement, index) => {
-                const isUnlocked = achievement.progress >= achievement.target;
-                return (
-                  <View 
-                    key={`achievement-${achievement.id}-${index}`}
-                    style={[
-                      styles.achievementItem,
-                      { backgroundColor: isUnlocked ? colors.highlight : colors.background },
-                      { borderColor: colors.border }
-                    ]}
-                  >
-                    <View style={styles.achievementIcon}>
-                      <Text style={styles.achievementEmoji}>{achievement.icon}</Text>
-                      {isUnlocked && (
-                        <View style={[styles.achievementBadge, { backgroundColor: colors.gold }]}>
-                          <IconSymbol
-                            ios_icon_name="checkmark"
-                            android_material_icon_name="check"
-                            size={12}
-                            color="#FFFFFF"
-                          />
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.achievementContent}>
-                      <Text style={[styles.achievementTitle, { color: colors.text }]}>
-                        {achievement.title}
-                      </Text>
-                      <Text style={[styles.achievementDescription, { color: colors.textSecondary }]}>
-                        {achievement.description}
-                      </Text>
-                      <View style={styles.achievementProgress}>
-                        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-                          <View 
-                            style={[
-                              styles.progressFill, 
-                              { 
-                                backgroundColor: isUnlocked ? colors.gold : colors.primary,
-                                width: `${Math.min((achievement.progress / achievement.target) * 100, 100)}%`
-                              }
-                            ]} 
-                          />
-                        </View>
-                        <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-                          {achievement.progress}/{achievement.target}
+            <>
+              <View style={styles.achievementsList}>
+                {displayedAchievements.map((achievement, index) => {
+                  const isUnlocked = achievement.progress >= achievement.target;
+                  const scaleAnim = new Animated.Value(1);
+                  
+                  Animated.loop(
+                    Animated.sequence([
+                      Animated.timing(scaleAnim, {
+                        toValue: 1.1,
+                        duration: 1000,
+                        useNativeDriver: true,
+                      }),
+                      Animated.timing(scaleAnim, {
+                        toValue: 1,
+                        duration: 1000,
+                        useNativeDriver: true,
+                      }),
+                    ])
+                  ).start();
+
+                  return (
+                    <View 
+                      key={`achievement-${index}`}
+                      style={[
+                        styles.achievementItem,
+                        { backgroundColor: isUnlocked ? colors.highlight : colors.background },
+                        { borderColor: colors.border }
+                      ]}
+                    >
+                      <Animated.View style={[styles.achievementIcon, { transform: [{ scale: scaleAnim }] }]}>
+                        <Text style={styles.achievementEmoji}>{achievement.icon}</Text>
+                        {isUnlocked && (
+                          <View style={[styles.achievementBadge, { backgroundColor: colors.gold }]}>
+                            <IconSymbol
+                              ios_icon_name="checkmark"
+                              android_material_icon_name="check"
+                              size={12}
+                              color="#FFFFFF"
+                            />
+                          </View>
+                        )}
+                      </Animated.View>
+                      <View style={styles.achievementContent}>
+                        <Text style={[styles.achievementTitle, { color: colors.text }]}>
+                          {achievement.title}
                         </Text>
+                        <Text style={[styles.achievementDescription, { color: colors.textSecondary }]}>
+                          {achievement.description}
+                        </Text>
+                        <View style={styles.achievementProgress}>
+                          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+                            <View 
+                              style={[
+                                styles.progressFill, 
+                                { 
+                                  backgroundColor: isUnlocked ? colors.gold : colors.primary,
+                                  width: `${Math.min((achievement.progress / achievement.target) * 100, 100)}%`
+                                }
+                              ]} 
+                            />
+                          </View>
+                          <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                            {achievement.progress}/{achievement.target}
+                          </Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                );
-              })}
-            </View>
+                  );
+                })}
+              </View>
+              
+              {!showAllAchievements && incompleteAchievements.length > 10 && (
+                <TouchableOpacity
+                  style={[styles.showMoreButton, { backgroundColor: colors.primary }]}
+                  onPress={() => setShowAllAchievements(true)}
+                >
+                  <Text style={styles.showMoreButtonText}>Show More</Text>
+                  <IconSymbol
+                    ios_icon_name="chevron.down"
+                    android_material_icon_name="expand-more"
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
+              )}
+              
+              {showAllAchievements && (
+                <TouchableOpacity
+                  style={[styles.showMoreButton, { backgroundColor: colors.textSecondary }]}
+                  onPress={() => setShowAllAchievements(false)}
+                >
+                  <Text style={styles.showMoreButtonText}>Show Less</Text>
+                  <IconSymbol
+                    ios_icon_name="chevron.up"
+                    android_material_icon_name="expand-less"
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
+
+        {profile && (
+          <Animated.View 
+            style={[
+              styles.performanceCard, 
+              { 
+                backgroundColor: colors.card,
+                transform: [
+                  { perspective: 1000 },
+                  { rotateY: rotateInterpolate },
+                ],
+              }
+            ]}
+          >
+            <View style={[styles.performanceCardGlow, { backgroundColor: colors.primary }]} />
+            <View style={styles.performanceCardContent}>
+              <View style={styles.performanceCardHeader}>
+                <IconSymbol
+                  ios_icon_name="person.crop.circle.fill"
+                  android_material_icon_name="account-circle"
+                  size={48}
+                  color={colors.primary}
+                />
+                <Text style={[styles.performanceCardName, { color: colors.text }]}>
+                  {profile.name}
+                </Text>
+              </View>
+              
+              <View style={styles.performanceCardStats}>
+                <View style={styles.performanceCardStat}>
+                  <Text style={[styles.performanceCardStatLabel, { color: colors.textSecondary }]}>
+                    PB (Personal Best)
+                  </Text>
+                  <Text style={[styles.performanceCardStatValue, { color: colors.primary }]}>
+                    {personalBest.toLocaleString()}
+                  </Text>
+                  <Text style={[styles.performanceCardStatUnit, { color: colors.textSecondary }]}>
+                    trees/day
+                  </Text>
+                </View>
+                
+                <View style={[styles.performanceCardDivider, { backgroundColor: colors.border }]} />
+                
+                <View style={styles.performanceCardStat}>
+                  <Text style={[styles.performanceCardStatLabel, { color: colors.textSecondary }]}>
+                    Avg Rate
+                  </Text>
+                  <Text style={[styles.performanceCardStatValue, { color: colors.secondary }]}>
+                    {averageTreesPerDay.toFixed(0)}
+                  </Text>
+                  <Text style={[styles.performanceCardStatUnit, { color: colors.textSecondary }]}>
+                    trees/day
+                  </Text>
+                </View>
+                
+                <View style={[styles.performanceCardDivider, { backgroundColor: colors.border }]} />
+                
+                <View style={styles.performanceCardStat}>
+                  <Text style={[styles.performanceCardStatLabel, { color: colors.textSecondary }]}>
+                    Total Trees
+                  </Text>
+                  <Text style={[styles.performanceCardStatValue, { color: colors.accent }]}>
+                    {totalTrees.toLocaleString()}
+                  </Text>
+                  <Text style={[styles.performanceCardStatUnit, { color: colors.textSecondary }]}>
+                    planted
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+        )}
 
         <View style={[styles.tipsCard, { backgroundColor: colors.card }]}>
           <View style={styles.tipsHeader}>
@@ -514,6 +728,25 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 16,
   },
+  speciesLegend: {
+    marginTop: 16,
+    width: '100%',
+  },
+  speciesLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  speciesLegendColor: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  speciesLegendText: {
+    fontSize: 13,
+    flex: 1,
+  },
   achievementsCard: {
     borderRadius: 16,
     padding: 20,
@@ -604,6 +837,79 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     minWidth: 50,
+  },
+  showMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 16,
+    gap: 8,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  showMoreButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  performanceCard: {
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 16,
+    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  performanceCardGlow: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    opacity: 0.1,
+  },
+  performanceCardContent: {
+    position: 'relative',
+    zIndex: 1,
+  },
+  performanceCardHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  performanceCardName: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginTop: 12,
+  },
+  performanceCardStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  performanceCardStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  performanceCardStatLabel: {
+    fontSize: 12,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  performanceCardStatValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  performanceCardStatUnit: {
+    fontSize: 11,
+  },
+  performanceCardDivider: {
+    width: 1,
+    height: 60,
+    marginHorizontal: 8,
   },
   tipsCard: {
     borderRadius: 16,

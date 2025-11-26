@@ -16,6 +16,7 @@ import {
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
 import { UserProfile, PROVINCES, EXPERIENCE_LEVELS } from '@/types/TreePlanting';
+import { Season } from '@/types/Season';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as Haptics from 'expo-haptics';
 
@@ -23,6 +24,10 @@ export default function ProfileScreen() {
   const { colors, isDark, setThemeMode, themeMode } = useThemeContext();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [showSeasonModal, setShowSeasonModal] = useState(false);
+  const [showSeasonListModal, setShowSeasonListModal] = useState(false);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [activeSeason, setActiveSeason] = useState<Season | null>(null);
   
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -30,8 +35,13 @@ export default function ProfileScreen() {
   const [experienceLevel, setExperienceLevel] = useState<'rookie' | 'highballer' | 'vet'>('rookie');
   const [showProvincePicker, setShowProvincePicker] = useState(false);
 
+  const [newSeasonProvince, setNewSeasonProvince] = useState(PROVINCES[0]);
+  const [newSeasonYear, setNewSeasonYear] = useState(new Date().getFullYear().toString());
+  const [showNewSeasonProvincePicker, setShowNewSeasonProvincePicker] = useState(false);
+
   useEffect(() => {
     loadProfile();
+    loadSeasons();
   }, []);
 
   const loadProfile = async () => {
@@ -45,6 +55,13 @@ export default function ProfileScreen() {
     } else {
       setIsEditing(true);
     }
+  };
+
+  const loadSeasons = async () => {
+    const allSeasons = await StorageService.getSeasons();
+    const active = await StorageService.getActiveSeason();
+    setSeasons(allSeasons);
+    setActiveSeason(active);
   };
 
   const handleSaveProfile = async () => {
@@ -75,6 +92,53 @@ export default function ProfileScreen() {
     setProfile(newProfile);
     setIsEditing(false);
     Alert.alert('Success', 'Profile saved successfully!');
+  };
+
+  const handleCreateNewSeason = async () => {
+    const year = parseInt(newSeasonYear);
+    if (!year || year < 2000 || year > 2100) {
+      Alert.alert('Error', 'Please enter a valid year');
+      return;
+    }
+
+    Alert.alert(
+      'Create New Season',
+      `Are you sure you want to start a new season for ${newSeasonProvince} ${year}? Your current season will be archived.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Create',
+          onPress: async () => {
+            try {
+              const newSeason = await StorageService.createNewSeason(newSeasonProvince, year);
+              await loadSeasons();
+              setShowSeasonModal(false);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Success', `New season created for ${newSeasonProvince} ${year}!`);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to create new season');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleViewSeason = async (season: Season) => {
+    const treeLogs = await StorageService.getSeasonTreeLogs(season.id);
+    const earningsLogs = await StorageService.getSeasonEarningsLogs(season.id);
+    const expenseLogs = await StorageService.getSeasonExpenseLogs(season.id);
+
+    const totalTrees = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
+    const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
+    const totalExpenses = expenseLogs.reduce((sum, log) => sum + log.amount, 0);
+    const totalDays = treeLogs.length;
+
+    Alert.alert(
+      season.name,
+      `Total Trees: ${totalTrees.toLocaleString()}\nTotal Earnings: $${totalEarnings.toFixed(2)}\nTotal Expenses: $${totalExpenses.toFixed(2)}\nPlanting Days: ${totalDays}\n\nStart Date: ${new Date(season.startDate).toLocaleDateString()}\n${season.endDate ? `End Date: ${new Date(season.endDate).toLocaleDateString()}` : 'Active Season'}`,
+      [{ text: 'OK' }]
+    );
   };
 
   const toggleTheme = async () => {
@@ -112,6 +176,8 @@ export default function ProfileScreen() {
                       setAge('');
                       setSelectedProvince(PROVINCES[0]);
                       setExperienceLevel('rookie');
+                      setSeasons([]);
+                      setActiveSeason(null);
                     },
                   },
                 ]
@@ -151,7 +217,7 @@ export default function ProfileScreen() {
           </View>
           <FlatList
             data={PROVINCES}
-            keyExtractor={(item, index) => `province-${item}-${index}`}
+            keyExtractor={(item, index) => `province-${index}`}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[
@@ -174,6 +240,61 @@ export default function ProfileScreen() {
                   {item}
                 </Text>
                 {item === selectedProvince && (
+                  <IconSymbol
+                    ios_icon_name="checkmark"
+                    android_material_icon_name="check"
+                    size={20}
+                    color={colors.primary}
+                  />
+                )}
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderNewSeasonProvincePicker = () => (
+    <Modal visible={showNewSeasonProvincePicker} transparent animationType="slide">
+      <View style={styles.modalOverlay}>
+        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
+          <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
+            <TouchableOpacity onPress={() => setShowNewSeasonProvincePicker(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={28}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={PROVINCES}
+            keyExtractor={(item, index) => `new-season-province-${index}`}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.pickerItem,
+                  { borderBottomColor: colors.border },
+                  item === newSeasonProvince && { backgroundColor: colors.highlight },
+                ]}
+                onPress={() => {
+                  setNewSeasonProvince(item);
+                  setShowNewSeasonProvincePicker(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.pickerItemText,
+                    { color: colors.text },
+                    item === newSeasonProvince && { fontWeight: '600', color: colors.primary },
+                  ]}
+                >
+                  {item}
+                </Text>
+                {item === newSeasonProvince && (
                   <IconSymbol
                     ios_icon_name="checkmark"
                     android_material_icon_name="check"
@@ -218,6 +339,11 @@ export default function ProfileScreen() {
               <Text style={[styles.profileInfo, { color: colors.textSecondary }]}>
                 {profile.age} years • {profile.province}
               </Text>
+              {activeSeason && (
+                <Text style={[styles.profileSeason, { color: colors.primary }]}>
+                  Current Season: {activeSeason.name}
+                </Text>
+              )}
             </>
           )}
         </View>
@@ -294,6 +420,36 @@ export default function ProfileScreen() {
               />
               <Text style={styles.editButtonText}>Edit Profile</Text>
             </TouchableOpacity>
+
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Season Management</Text>
+              
+              <TouchableOpacity 
+                style={[styles.seasonButton, { backgroundColor: colors.primary }]}
+                onPress={() => setShowSeasonModal(true)}
+              >
+                <IconSymbol
+                  ios_icon_name="plus.circle.fill"
+                  android_material_icon_name="add-circle"
+                  size={20}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.seasonButtonText}>Create New Season</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.seasonButton, { backgroundColor: colors.secondary }]}
+                onPress={() => setShowSeasonListModal(true)}
+              >
+                <IconSymbol
+                  ios_icon_name="list.bullet"
+                  android_material_icon_name="list"
+                  size={20}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.seasonButtonText}>View Previous Seasons</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={[styles.card, { backgroundColor: colors.card }]}>
               <Text style={[styles.cardTitle, { color: colors.text }]}>Settings</Text>
@@ -390,7 +546,7 @@ export default function ProfileScreen() {
               <View style={styles.experienceContainer}>
                 {EXPERIENCE_LEVELS.map((level, index) => (
                   <TouchableOpacity
-                    key={`exp-level-${level}-${index}`}
+                    key={`exp-level-${index}`}
                     style={[
                       styles.experienceButton,
                       { borderColor: colors.border },
@@ -440,6 +596,120 @@ export default function ProfileScreen() {
       </ScrollView>
 
       {renderProvincePicker()}
+      {renderNewSeasonProvincePicker()}
+
+      <Modal
+        visible={showSeasonModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Create New Season</Text>
+            <TouchableOpacity onPress={() => setShowSeasonModal(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={32}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <Text style={[styles.label, { color: colors.text }]}>Province *</Text>
+            <TouchableOpacity
+              style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setShowNewSeasonProvincePicker(true)}
+            >
+              <Text style={[styles.pickerButtonText, { color: colors.text }]}>{newSeasonProvince}</Text>
+              <IconSymbol
+                ios_icon_name="chevron.down"
+                android_material_icon_name="arrow-drop-down"
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+
+            <Text style={[styles.label, { color: colors.text }]}>Year *</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+              placeholder="e.g., 2024"
+              keyboardType="numeric"
+              value={newSeasonYear}
+              onChangeText={setNewSeasonYear}
+              placeholderTextColor={colors.textSecondary}
+            />
+
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: colors.primary }]}
+              onPress={handleCreateNewSeason}
+            >
+              <Text style={styles.submitButtonText}>Create Season</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showSeasonListModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Previous Seasons</Text>
+            <TouchableOpacity onPress={() => setShowSeasonListModal(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={32}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={seasons}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.seasonList}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.seasonCard,
+                  { backgroundColor: colors.card, borderColor: item.isActive ? colors.primary : colors.border },
+                ]}
+                onPress={() => handleViewSeason(item)}
+              >
+                <View style={styles.seasonCardHeader}>
+                  <Text style={[styles.seasonCardTitle, { color: colors.text }]}>{item.name}</Text>
+                  {item.isActive && (
+                    <View style={[styles.activeBadge, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.activeBadgeText}>Active</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.seasonCardDate, { color: colors.textSecondary }]}>
+                  {new Date(item.startDate).toLocaleDateString()} - {item.endDate ? new Date(item.endDate).toLocaleDateString() : 'Present'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <View style={styles.emptySeasons}>
+                <IconSymbol
+                  ios_icon_name="calendar"
+                  android_material_icon_name="event"
+                  size={64}
+                  color={colors.textSecondary}
+                />
+                <Text style={[styles.emptySeasonsText, { color: colors.textSecondary }]}>
+                  No seasons yet. Create your first season to get started!
+                </Text>
+              </View>
+            }
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -485,6 +755,11 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     fontSize: 16,
+  },
+  profileSeason: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
   },
   card: {
     borderRadius: 16,
@@ -532,6 +807,22 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   editButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  seasonButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 8,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  seasonButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
@@ -645,6 +936,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  submitButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 48,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   cancelButton: {
     marginTop: 12,
     paddingVertical: 12,
@@ -688,5 +993,72 @@ const styles = StyleSheet.create({
   },
   pickerItemText: {
     fontSize: 16,
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  seasonList: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+  seasonCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+  },
+  seasonCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  seasonCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  activeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  activeBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  seasonCardDate: {
+    fontSize: 14,
+  },
+  emptySeasons: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptySeasonsText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 16,
+    paddingHorizontal: 32,
   },
 });
