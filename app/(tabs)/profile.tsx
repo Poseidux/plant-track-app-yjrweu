@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
-import { UserProfile, PROVINCES } from '@/types/TreePlanting';
+import { UserProfile, PROVINCES, EXPERIENCE_LEVELS } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as Haptics from 'expo-haptics';
 
@@ -27,7 +27,7 @@ export default function ProfileScreen() {
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [selectedProvince, setSelectedProvince] = useState(PROVINCES[0]);
-  const [experienceLevel, setExperienceLevel] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
+  const [experienceLevel, setExperienceLevel] = useState<'rookie' | 'highballer' | 'vet'>('rookie');
   const [showProvincePicker, setShowProvincePicker] = useState(false);
 
   useEffect(() => {
@@ -83,6 +83,57 @@ export default function ProfileScreen() {
     await setThemeMode(newMode);
   };
 
+  const handleEraseData = () => {
+    Alert.alert(
+      'Erase All Data',
+      'Are you sure you want to erase all data? This action cannot be undone. All your logs, earnings, and settings will be permanently deleted.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Erase Everything',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await StorageService.eraseAllData();
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert(
+                'Data Erased',
+                'All data has been successfully erased. The app will now restart.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      setProfile(null);
+                      setIsEditing(true);
+                      setName('');
+                      setAge('');
+                      setSelectedProvince(PROVINCES[0]);
+                      setExperienceLevel('rookie');
+                    },
+                  },
+                ]
+              );
+            } catch (error) {
+              Alert.alert('Error', 'Failed to erase data. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const getExperienceLevelDisplay = (level: 'rookie' | 'highballer' | 'vet') => {
+    const displayMap = {
+      rookie: 'Rookie',
+      highballer: 'High Baller',
+      vet: 'Vet',
+    };
+    return displayMap[level];
+  };
+
   const renderProvincePicker = () => (
     <Modal visible={showProvincePicker} transparent animationType="slide">
       <View style={styles.modalOverlay}>
@@ -100,7 +151,7 @@ export default function ProfileScreen() {
           </View>
           <FlatList
             data={PROVINCES}
-            keyExtractor={(item) => item}
+            keyExtractor={(item, index) => `province-${item}-${index}`}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[
@@ -225,7 +276,7 @@ export default function ProfileScreen() {
                 <View style={styles.infoContent}>
                   <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Experience Level</Text>
                   <Text style={[styles.infoValue, { color: colors.text }]}>
-                    {profile.experienceLevel.charAt(0).toUpperCase() + profile.experienceLevel.slice(1)}
+                    {getExperienceLevelDisplay(profile.experienceLevel)}
                   </Text>
                 </View>
               </View>
@@ -270,6 +321,26 @@ export default function ProfileScreen() {
                   ]} />
                 </View>
               </TouchableOpacity>
+            </View>
+
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Data Management</Text>
+              
+              <TouchableOpacity 
+                style={[styles.dangerButton, { backgroundColor: colors.error }]}
+                onPress={handleEraseData}
+              >
+                <IconSymbol
+                  ios_icon_name="trash.fill"
+                  android_material_icon_name="delete-forever"
+                  size={20}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.dangerButtonText}>Erase All Data</Text>
+              </TouchableOpacity>
+              <Text style={[styles.dangerWarning, { color: colors.textSecondary }]}>
+                This will permanently delete all your logs, earnings, and settings. This action cannot be undone.
+              </Text>
             </View>
           </View>
         ) : (
@@ -317,9 +388,9 @@ export default function ProfileScreen() {
 
               <Text style={[styles.label, { color: colors.text }]}>Experience Level *</Text>
               <View style={styles.experienceContainer}>
-                {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
+                {EXPERIENCE_LEVELS.map((level, index) => (
                   <TouchableOpacity
-                    key={level}
+                    key={`exp-level-${level}-${index}`}
                     style={[
                       styles.experienceButton,
                       { borderColor: colors.border },
@@ -337,7 +408,7 @@ export default function ProfileScreen() {
                         experienceLevel === level && { color: colors.primary, fontWeight: '600' },
                       ]}
                     >
-                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                      {getExperienceLevelDisplay(level)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -497,6 +568,27 @@ const styles = StyleSheet.create({
   toggleThumbActive: {
     alignSelf: 'flex-end',
   },
+  dangerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 8,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  dangerButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dangerWarning: {
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
   label: {
     fontSize: 16,
     fontWeight: '600',
@@ -531,13 +623,14 @@ const styles = StyleSheet.create({
   experienceButton: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
   },
   experienceText: {
-    fontSize: 14,
+    fontSize: 13,
+    textAlign: 'center',
   },
   saveButton: {
     paddingVertical: 14,

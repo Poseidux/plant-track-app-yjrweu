@@ -12,11 +12,10 @@ import {
   FlatList,
   Platform,
   ImageBackground,
-  Switch,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
-import { TreePlantingLog, HourlyLog, PROVINCES, TREE_SPECIES, WEATHER_CONDITIONS, LAND_TYPES } from '@/types/TreePlanting';
+import { TreePlantingLog, HourlyLog, TREE_SPECIES, DaySettings } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,14 +29,26 @@ export default function TrackerScreen() {
   const [showAddHourlyModal, setShowAddHourlyModal] = useState(false);
   const [showEndDayModal, setShowEndDayModal] = useState(false);
   const [showSpeciesPopup, setShowSpeciesPopup] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [dontAskSpecies, setDontAskSpecies] = useState(false);
+  const [daySettings, setDaySettings] = useState<DaySettings>({
+    treesPerBundle: 100,
+    treesPerBox: 50,
+    treesPerTray: 25,
+  });
   
-  const [treesPlanted, setTreesPlanted] = useState('');
+  const [bundles, setBundles] = useState('0');
+  const [boxes, setBoxes] = useState('0');
+  const [trays, setTrays] = useState('0');
+  const [individualTrees, setIndividualTrees] = useState('0');
+  
+  const [treesPerBundle, setTreesPerBundle] = useState('100');
+  const [treesPerBox, setTreesPerBox] = useState('50');
+  const [treesPerTray, setTreesPerTray] = useState('25');
+  
   const [selectedSpecies, setSelectedSpecies] = useState(TREE_SPECIES[0]);
-  const [selectedProvince, setSelectedProvince] = useState(PROVINCES[0]);
-  const [selectedWeather, setSelectedWeather] = useState(WEATHER_CONDITIONS[0]);
   const [selectedLandType, setSelectedLandType] = useState<'prepped' | 'raw'>('prepped');
   const [notes, setNotes] = useState('');
   const [dayRating, setDayRating] = useState(3);
@@ -45,15 +56,20 @@ export default function TrackerScreen() {
   const [tempTreesPlanted, setTempTreesPlanted] = useState(0);
   const [tempStartTime, setTempStartTime] = useState('');
   const [tempEndTime, setTempEndTime] = useState('');
+  const [tempBundles, setTempBundles] = useState(0);
+  const [tempBoxes, setTempBoxes] = useState(0);
+  const [tempTrays, setTempTrays] = useState(0);
+  const [tempIndividual, setTempIndividual] = useState(0);
 
-  const [showProvincePicker, setShowProvincePicker] = useState(false);
-  const [showWeatherPicker, setShowWeatherPicker] = useState(false);
   const [showSpeciesPicker, setShowSpeciesPicker] = useState(false);
+  const [editingHourlyLog, setEditingHourlyLog] = useState<HourlyLog | null>(null);
+  const [editTrees, setEditTrees] = useState('');
 
   useEffect(() => {
     console.log('TrackerScreen mounted');
     loadLogs();
     loadDontAskPreference();
+    loadDaySettings();
   }, []);
 
   const loadDontAskPreference = async () => {
@@ -74,6 +90,28 @@ export default function TrackerScreen() {
     } catch (error) {
       console.error('Error saving dont ask preference:', error);
     }
+  };
+
+  const loadDaySettings = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const settings = await StorageService.getDaySettings(today);
+    if (settings) {
+      setDaySettings(settings);
+      setTreesPerBundle(settings.treesPerBundle.toString());
+      setTreesPerBox(settings.treesPerBox.toString());
+      setTreesPerTray(settings.treesPerTray.toString());
+    }
+  };
+
+  const saveDaySettings = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const settings: DaySettings = {
+      treesPerBundle: parseInt(treesPerBundle) || 100,
+      treesPerBox: parseInt(treesPerBox) || 50,
+      treesPerTray: parseInt(treesPerTray) || 25,
+    };
+    await StorageService.saveDaySettings(today, settings);
+    setDaySettings(settings);
   };
 
   const loadLogs = useCallback(async () => {
@@ -99,11 +137,30 @@ export default function TrackerScreen() {
       }
     }
     
+    setBundles('0');
+    setBoxes('0');
+    setTrays('0');
+    setIndividualTrees('0');
     setShowAddHourlyModal(true);
   };
 
+  const calculateTotalTrees = () => {
+    const bundleCount = parseInt(bundles) || 0;
+    const boxCount = parseInt(boxes) || 0;
+    const trayCount = parseInt(trays) || 0;
+    const individualCount = parseInt(individualTrees) || 0;
+    
+    const bundleValue = parseInt(treesPerBundle) || 100;
+    const boxValue = parseInt(treesPerBox) || 50;
+    const trayValue = parseInt(treesPerTray) || 25;
+    
+    return (bundleCount * bundleValue) + (boxCount * boxValue) + (trayCount * trayValue) + individualCount;
+  };
+
   const handleAddHourlyLog = async () => {
-    if (!treesPlanted || parseInt(treesPlanted) <= 0) {
+    const totalTrees = calculateTotalTrees();
+    
+    if (totalTrees <= 0) {
       Alert.alert('Error', 'Please enter a valid number of trees planted');
       return;
     }
@@ -112,6 +169,8 @@ export default function TrackerScreen() {
       Alert.alert('Error', 'Session start time not recorded');
       return;
     }
+
+    await saveDaySettings();
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -127,18 +186,25 @@ export default function TrackerScreen() {
       hour12: true 
     });
 
-    setTempTreesPlanted(parseInt(treesPlanted));
+    setTempTreesPlanted(totalTrees);
     setTempStartTime(startTimeStr);
     setTempEndTime(endTimeStr);
+    setTempBundles(parseInt(bundles) || 0);
+    setTempBoxes(parseInt(boxes) || 0);
+    setTempTrays(parseInt(trays) || 0);
+    setTempIndividual(parseInt(individualTrees) || 0);
 
-    setTreesPlanted('');
+    setBundles('0');
+    setBoxes('0');
+    setTrays('0');
+    setIndividualTrees('0');
     setSessionStartTime(null);
     setShowAddHourlyModal(false);
 
     if (!dontAskSpecies) {
       setShowSpeciesPopup(true);
     } else {
-      await saveHourlyLogWithSpecies(startTimeStr, endTimeStr, parseInt(treesPlanted), selectedSpecies);
+      await saveHourlyLogWithSpecies(startTimeStr, endTimeStr, totalTrees, selectedSpecies);
     }
   };
 
@@ -151,6 +217,10 @@ export default function TrackerScreen() {
       treesPlanted: trees,
       species: species,
       landType: selectedLandType,
+      bundles: tempBundles,
+      boxes: tempBoxes,
+      trays: tempTrays,
+      individualTrees: tempIndividual,
     };
 
     let updatedLog: TreePlantingLog;
@@ -168,9 +238,10 @@ export default function TrackerScreen() {
         hourlyLogs: [newHourlyLog],
         totalTrees: trees,
         species: species,
-        province: selectedProvince,
-        weatherCondition: selectedWeather,
+        province: '',
+        weatherCondition: '',
         notes: '',
+        dayType: 'normal',
       };
     }
 
@@ -183,6 +254,103 @@ export default function TrackerScreen() {
   const handleSpeciesPopupConfirm = async () => {
     await saveHourlyLogWithSpecies(tempStartTime, tempEndTime, tempTreesPlanted, selectedSpecies);
     setShowSpeciesPopup(false);
+  };
+
+  const handleMarkSickDay = async () => {
+    Alert.alert(
+      'Mark as Sick Day',
+      'Are you sure you want to mark today as a sick day?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            const today = new Date().toISOString().split('T')[0];
+            const sickDayLog: TreePlantingLog = {
+              id: Date.now().toString(),
+              date: today,
+              hourlyLogs: [],
+              totalTrees: 0,
+              species: '',
+              province: '',
+              weatherCondition: '',
+              notes: 'Sick Day',
+              dayType: 'sick',
+            };
+            await StorageService.saveTreeLog(sickDayLog);
+            await loadLogs();
+            Alert.alert('Success', 'Today marked as sick day');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleMarkDayOff = async () => {
+    Alert.alert(
+      'Mark as Day Off',
+      'Are you sure you want to mark today as a day off?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            const today = new Date().toISOString().split('T')[0];
+            const dayOffLog: TreePlantingLog = {
+              id: Date.now().toString(),
+              date: today,
+              hourlyLogs: [],
+              totalTrees: 0,
+              species: '',
+              province: '',
+              weatherCondition: '',
+              notes: 'Day Off',
+              dayType: 'dayoff',
+            };
+            await StorageService.saveTreeLog(dayOffLog);
+            await loadLogs();
+            Alert.alert('Success', 'Today marked as day off');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleEditHourlyLog = (hourlyLog: HourlyLog) => {
+    setEditingHourlyLog(hourlyLog);
+    setEditTrees(hourlyLog.treesPlanted.toString());
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingHourlyLog || !currentDayLog) {
+      return;
+    }
+
+    const newTrees = parseInt(editTrees);
+    if (!newTrees || newTrees <= 0) {
+      Alert.alert('Error', 'Please enter a valid number of trees');
+      return;
+    }
+
+    const oldTrees = editingHourlyLog.treesPlanted;
+    const treeDifference = newTrees - oldTrees;
+
+    const updatedHourlyLogs = currentDayLog.hourlyLogs.map(hl => 
+      hl.id === editingHourlyLog.id ? { ...hl, treesPlanted: newTrees } : hl
+    );
+
+    const updatedLog: TreePlantingLog = {
+      ...currentDayLog,
+      hourlyLogs: updatedHourlyLogs,
+      totalTrees: currentDayLog.totalTrees + treeDifference,
+    };
+
+    await StorageService.saveTreeLog(updatedLog);
+    await loadLogs();
+    setShowEditModal(false);
+    setEditingHourlyLog(null);
+    Alert.alert('Success', 'Log updated successfully!');
   };
 
   const handleEndDay = async () => {
@@ -324,6 +492,18 @@ export default function TrackerScreen() {
     </Modal>
   );
 
+  const getDayTypeColor = (dayType?: 'normal' | 'sick' | 'dayoff') => {
+    if (dayType === 'sick') return colors.error;
+    if (dayType === 'dayoff') return colors.accent;
+    return colors.secondary;
+  };
+
+  const getDayTypeLabel = (dayType?: 'normal' | 'sick' | 'dayoff') => {
+    if (dayType === 'sick') return 'Sick Day';
+    if (dayType === 'dayoff') return 'Day Off';
+    return '';
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]} key={`tracker-${refreshKey}`}>
       <ImageBackground
@@ -369,7 +549,7 @@ export default function TrackerScreen() {
           </View>
         </View>
 
-        {currentDayLog && (
+        {currentDayLog && currentDayLog.dayType !== 'sick' && currentDayLog.dayType !== 'dayoff' && (
           <View style={[styles.currentDayCard, { backgroundColor: colors.card }]}>
             <View style={styles.currentDayHeader}>
               <Text style={[styles.currentDayTitle, { color: colors.text }]}>
@@ -422,16 +602,30 @@ export default function TrackerScreen() {
                       </Text>
                     )}
                   </View>
-                  <TouchableOpacity 
-                    onPress={() => handleDeleteHourlyLog(currentDayLog.id, hourlyLog.id)}
-                  >
-                    <IconSymbol
-                      ios_icon_name="trash.fill"
-                      android_material_icon_name="delete"
-                      size={20}
-                      color={colors.error}
-                    />
-                  </TouchableOpacity>
+                  <View style={styles.hourlyLogActions}>
+                    <TouchableOpacity 
+                      onPress={() => handleEditHourlyLog(hourlyLog)}
+                      style={styles.iconButton}
+                    >
+                      <IconSymbol
+                        ios_icon_name="pencil.circle.fill"
+                        android_material_icon_name="edit"
+                        size={24}
+                        color={colors.primary}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => handleDeleteHourlyLog(currentDayLog.id, hourlyLog.id)}
+                      style={styles.iconButton}
+                    >
+                      <IconSymbol
+                        ios_icon_name="trash.fill"
+                        android_material_icon_name="delete"
+                        size={20}
+                        color={colors.error}
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))}
             </View>
@@ -466,19 +660,70 @@ export default function TrackerScreen() {
           </View>
         )}
 
-        {!currentDayLog && (
-          <TouchableOpacity
-            style={[styles.startDayButton, { backgroundColor: colors.primary }]}
-            onPress={startSession}
-          >
+        {currentDayLog && (currentDayLog.dayType === 'sick' || currentDayLog.dayType === 'dayoff') && (
+          <View style={[styles.specialDayCard, { backgroundColor: colors.card, borderColor: getDayTypeColor(currentDayLog.dayType) }]}>
             <IconSymbol
-              ios_icon_name="play.circle.fill"
-              android_material_icon_name="play-circle-filled"
-              size={32}
-              color="#FFFFFF"
+              ios_icon_name={currentDayLog.dayType === 'sick' ? 'cross.case.fill' : 'beach.umbrella.fill'}
+              android_material_icon_name={currentDayLog.dayType === 'sick' ? 'local-hospital' : 'beach-access'}
+              size={48}
+              color={getDayTypeColor(currentDayLog.dayType)}
             />
-            <Text style={styles.startDayButtonText}>Start Today&apos;s Log</Text>
-          </TouchableOpacity>
+            <Text style={[styles.specialDayTitle, { color: colors.text }]}>
+              {getDayTypeLabel(currentDayLog.dayType)}
+            </Text>
+            <Text style={[styles.specialDaySubtitle, { color: colors.textSecondary }]}>
+              {new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </Text>
+          </View>
+        )}
+
+        {!currentDayLog && (
+          <View>
+            <TouchableOpacity
+              style={[styles.startDayButton, { backgroundColor: colors.primary }]}
+              onPress={startSession}
+            >
+              <IconSymbol
+                ios_icon_name="play.circle.fill"
+                android_material_icon_name="play-circle-filled"
+                size={32}
+                color="#FFFFFF"
+              />
+              <Text style={styles.startDayButtonText}>Start Today&apos;s Log</Text>
+            </TouchableOpacity>
+
+            <View style={styles.specialDayButtons}>
+              <TouchableOpacity
+                style={[styles.specialDayButton, { backgroundColor: colors.error }]}
+                onPress={handleMarkSickDay}
+              >
+                <IconSymbol
+                  ios_icon_name="cross.case.fill"
+                  android_material_icon_name="local-hospital"
+                  size={24}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.specialDayButtonText}>Sick Day</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.specialDayButton, { backgroundColor: colors.accent }]}
+                onPress={handleMarkDayOff}
+              >
+                <IconSymbol
+                  ios_icon_name="beach.umbrella.fill"
+                  android_material_icon_name="beach-access"
+                  size={24}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.specialDayButtonText}>Day Off</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Previous Days</Text>
@@ -500,7 +745,7 @@ export default function TrackerScreen() {
           treeLogs
             .filter(log => log.date !== new Date().toISOString().split('T')[0])
             .map((log, logIndex) => (
-              <View key={`log-${log.id}-${logIndex}`} style={[styles.logCard, { backgroundColor: colors.card }]}>
+              <View key={`log-${log.id}-${logIndex}`} style={[styles.logCard, { backgroundColor: colors.card, borderLeftColor: getDayTypeColor(log.dayType) }]}>
                 <View style={styles.logHeader}>
                   <View style={styles.logHeaderLeft}>
                     <Text style={[styles.logDate, { color: colors.text }]}>
@@ -511,9 +756,16 @@ export default function TrackerScreen() {
                         year: 'numeric',
                       })}
                     </Text>
-                    <Text style={[styles.logProvince, { color: colors.textSecondary }]}>
-                      {log.province}
-                    </Text>
+                    {log.dayType && log.dayType !== 'normal' && (
+                      <Text style={[styles.logDayType, { color: getDayTypeColor(log.dayType) }]}>
+                        {getDayTypeLabel(log.dayType)}
+                      </Text>
+                    )}
+                    {log.province && (
+                      <Text style={[styles.logProvince, { color: colors.textSecondary }]}>
+                        {log.province}
+                      </Text>
+                    )}
                   </View>
                   <TouchableOpacity onPress={() => handleDeleteLog(log.id)}>
                     <IconSymbol
@@ -525,62 +777,66 @@ export default function TrackerScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={[styles.logStats, { borderTopColor: colors.border }]}>
-                  <View style={styles.logStat}>
-                    <IconSymbol
-                      ios_icon_name="leaf.fill"
-                      android_material_icon_name="eco"
-                      size={20}
-                      color={colors.secondary}
-                    />
-                    <Text style={[styles.logStatNumber, { color: colors.text }]}>
-                      {log.totalTrees}
-                    </Text>
-                    <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
-                      Trees
-                    </Text>
-                  </View>
+                {log.dayType === 'normal' || !log.dayType ? (
+                  <>
+                    <View style={[styles.logStats, { borderTopColor: colors.border }]}>
+                      <View style={styles.logStat}>
+                        <IconSymbol
+                          ios_icon_name="leaf.fill"
+                          android_material_icon_name="eco"
+                          size={20}
+                          color={colors.secondary}
+                        />
+                        <Text style={[styles.logStatNumber, { color: colors.text }]}>
+                          {log.totalTrees}
+                        </Text>
+                        <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
+                          Trees
+                        </Text>
+                      </View>
 
-                  <View style={styles.logStat}>
-                    <IconSymbol
-                      ios_icon_name="clock.fill"
-                      android_material_icon_name="schedule"
-                      size={20}
-                      color={colors.primary}
-                    />
-                    <Text style={[styles.logStatNumber, { color: colors.text }]}>
-                      {log.hourlyLogs.length}
-                    </Text>
-                    <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
-                      Hours
-                    </Text>
-                  </View>
+                      <View style={styles.logStat}>
+                        <IconSymbol
+                          ios_icon_name="clock.fill"
+                          android_material_icon_name="schedule"
+                          size={20}
+                          color={colors.primary}
+                        />
+                        <Text style={[styles.logStatNumber, { color: colors.text }]}>
+                          {log.hourlyLogs.length}
+                        </Text>
+                        <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
+                          Hours
+                        </Text>
+                      </View>
 
-                  {log.dayRating && (
-                    <View style={styles.logStat}>
-                      <IconSymbol
-                        ios_icon_name="star.fill"
-                        android_material_icon_name="star"
-                        size={20}
-                        color={colors.accent}
-                      />
-                      <Text style={[styles.logStatNumber, { color: colors.text }]}>
-                        {log.dayRating}/5
-                      </Text>
-                      <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
-                        Rating
-                      </Text>
+                      {log.dayRating && (
+                        <View style={styles.logStat}>
+                          <IconSymbol
+                            ios_icon_name="star.fill"
+                            android_material_icon_name="star"
+                            size={20}
+                            color={colors.accent}
+                          />
+                          <Text style={[styles.logStatNumber, { color: colors.text }]}>
+                            {log.dayRating}/5
+                          </Text>
+                          <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
+                            Rating
+                          </Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                </View>
 
-                {log.notes && (
-                  <View style={[styles.logNotes, { backgroundColor: colors.highlight }]}>
-                    <Text style={[styles.logNotesText, { color: colors.text }]}>
-                      {log.notes}
-                    </Text>
-                  </View>
-                )}
+                    {log.notes && (
+                      <View style={[styles.logNotes, { backgroundColor: colors.highlight }]}>
+                        <Text style={[styles.logNotesText, { color: colors.text }]}>
+                          {log.notes}
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                ) : null}
               </View>
             ))
         )}
@@ -628,51 +884,99 @@ export default function TrackerScreen() {
               </View>
             )}
 
-            {!currentDayLog && (
-              <>
-                <Text style={[styles.label, { color: colors.text }]}>Province *</Text>
-                <TouchableOpacity
-                  style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  onPress={() => setShowProvincePicker(true)}
-                >
-                  <Text style={[styles.pickerButtonText, { color: colors.text }]}>
-                    {selectedProvince}
-                  </Text>
-                  <IconSymbol
-                    ios_icon_name="chevron.down"
-                    android_material_icon_name="arrow-drop-down"
-                    size={24}
-                    color={colors.text}
+            <Text style={[styles.label, { color: colors.text }]}>Trees Planted</Text>
+            
+            <View style={styles.treeInputRow}>
+              <View style={styles.treeInputGroup}>
+                <Text style={[styles.treeInputLabel, { color: colors.textSecondary }]}>Bundles</Text>
+                <View style={styles.treeInputWithSetting}>
+                  <TextInput
+                    style={[styles.treeInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                    placeholder="0"
+                    keyboardType="numeric"
+                    value={bundles}
+                    onChangeText={setBundles}
+                    placeholderTextColor={colors.textSecondary}
                   />
-                </TouchableOpacity>
-
-                <Text style={[styles.label, { color: colors.text }]}>Weather *</Text>
-                <TouchableOpacity
-                  style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  onPress={() => setShowWeatherPicker(true)}
-                >
-                  <Text style={[styles.pickerButtonText, { color: colors.text }]}>
-                    {selectedWeather}
-                  </Text>
-                  <IconSymbol
-                    ios_icon_name="chevron.down"
-                    android_material_icon_name="arrow-drop-down"
-                    size={24}
-                    color={colors.text}
+                  <TextInput
+                    style={[styles.treeSettingInput, { backgroundColor: colors.highlight, borderColor: colors.border, color: colors.text }]}
+                    placeholder="100"
+                    keyboardType="numeric"
+                    value={treesPerBundle}
+                    onChangeText={setTreesPerBundle}
+                    placeholderTextColor={colors.textSecondary}
                   />
-                </TouchableOpacity>
-              </>
-            )}
+                  <Text style={[styles.treeSettingLabel, { color: colors.textSecondary }]}>per</Text>
+                </View>
+              </View>
 
-            <Text style={[styles.label, { color: colors.text }]}>Trees Planted *</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
-              placeholder="e.g., 600"
-              keyboardType="numeric"
-              value={treesPlanted}
-              onChangeText={setTreesPlanted}
-              placeholderTextColor={colors.textSecondary}
-            />
+              <View style={styles.treeInputGroup}>
+                <Text style={[styles.treeInputLabel, { color: colors.textSecondary }]}>Boxes</Text>
+                <View style={styles.treeInputWithSetting}>
+                  <TextInput
+                    style={[styles.treeInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                    placeholder="0"
+                    keyboardType="numeric"
+                    value={boxes}
+                    onChangeText={setBoxes}
+                    placeholderTextColor={colors.textSecondary}
+                  />
+                  <TextInput
+                    style={[styles.treeSettingInput, { backgroundColor: colors.highlight, borderColor: colors.border, color: colors.text }]}
+                    placeholder="50"
+                    keyboardType="numeric"
+                    value={treesPerBox}
+                    onChangeText={setTreesPerBox}
+                    placeholderTextColor={colors.textSecondary}
+                  />
+                  <Text style={[styles.treeSettingLabel, { color: colors.textSecondary }]}>per</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.treeInputRow}>
+              <View style={styles.treeInputGroup}>
+                <Text style={[styles.treeInputLabel, { color: colors.textSecondary }]}>Trays</Text>
+                <View style={styles.treeInputWithSetting}>
+                  <TextInput
+                    style={[styles.treeInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                    placeholder="0"
+                    keyboardType="numeric"
+                    value={trays}
+                    onChangeText={setTrays}
+                    placeholderTextColor={colors.textSecondary}
+                  />
+                  <TextInput
+                    style={[styles.treeSettingInput, { backgroundColor: colors.highlight, borderColor: colors.border, color: colors.text }]}
+                    placeholder="25"
+                    keyboardType="numeric"
+                    value={treesPerTray}
+                    onChangeText={setTreesPerTray}
+                    placeholderTextColor={colors.textSecondary}
+                  />
+                  <Text style={[styles.treeSettingLabel, { color: colors.textSecondary }]}>per</Text>
+                </View>
+              </View>
+
+              <View style={styles.treeInputGroup}>
+                <Text style={[styles.treeInputLabel, { color: colors.textSecondary }]}>Individual</Text>
+                <TextInput
+                  style={[styles.treeInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                  placeholder="0"
+                  keyboardType="numeric"
+                  value={individualTrees}
+                  onChangeText={setIndividualTrees}
+                  placeholderTextColor={colors.textSecondary}
+                />
+              </View>
+            </View>
+
+            <View style={[styles.totalTreesCard, { backgroundColor: colors.highlight }]}>
+              <Text style={[styles.totalTreesLabel, { color: colors.textSecondary }]}>Total Trees</Text>
+              <Text style={[styles.totalTreesValue, { color: colors.primary }]}>
+                {calculateTotalTrees()}
+              </Text>
+            </View>
 
             <TouchableOpacity
               style={[styles.submitButton, { backgroundColor: colors.primary }]}
@@ -681,6 +985,46 @@ export default function TrackerScreen() {
               <Text style={styles.submitButtonText}>Save Hourly Log</Text>
             </TouchableOpacity>
           </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="fade"
+      >
+        <View style={styles.popupOverlay}>
+          <View style={[styles.popupContainer, { backgroundColor: colors.card }]}>
+            <Text style={[styles.popupTitle, { color: colors.text }]}>Edit Trees Planted</Text>
+            
+            <Text style={[styles.label, { color: colors.text, marginTop: 16 }]}>Trees Planted *</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+              placeholder="e.g., 600"
+              keyboardType="numeric"
+              value={editTrees}
+              onChangeText={setEditTrees}
+              placeholderTextColor={colors.textSecondary}
+            />
+
+            <View style={styles.popupButtons}>
+              <TouchableOpacity
+                style={[styles.popupButton, { backgroundColor: colors.textSecondary, flex: 1, marginRight: 8 }]}
+                onPress={() => {
+                  setShowEditModal(false);
+                  setEditingHourlyLog(null);
+                }}
+              >
+                <Text style={styles.popupButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.popupButton, { backgroundColor: colors.primary, flex: 1 }]}
+                onPress={handleSaveEdit}
+              >
+                <Text style={styles.popupButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
 
@@ -834,33 +1178,29 @@ export default function TrackerScreen() {
                         {currentDayLog.hourlyLogs.length}
                       </Text>
                     </View>
-                    <View style={styles.summaryStat}>
-                      <Text style={[styles.summaryStatLabel, { color: colors.textSecondary }]}>
-                        Avg Rate
-                      </Text>
-                      <Text style={[styles.summaryStatValue, { color: colors.accent }]}>
-                        {(currentDayLog.totalTrees / currentDayLog.hourlyLogs.length).toFixed(0)}/hr
-                      </Text>
-                    </View>
                   </View>
                 </View>
 
-                <Text style={[styles.label, { color: colors.text }]}>Rate Your Day</Text>
+                <Text style={[styles.label, { color: colors.text }]}>Day Rating</Text>
                 <View style={styles.ratingContainer}>
                   {[1, 2, 3, 4, 5].map((rating) => (
                     <TouchableOpacity
                       key={`rating-${rating}`}
-                      onPress={() => {
-                        setDayRating(rating);
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      }}
-                      style={styles.ratingButton}
+                      style={[
+                        styles.ratingButton,
+                        { borderColor: colors.border },
+                        dayRating === rating && { 
+                          borderColor: colors.accent, 
+                          backgroundColor: colors.highlight 
+                        },
+                      ]}
+                      onPress={() => setDayRating(rating)}
                     >
                       <IconSymbol
-                        ios_icon_name={rating <= dayRating ? "star.fill" : "star"}
-                        android_material_icon_name={rating <= dayRating ? "star" : "star-border"}
-                        size={40}
-                        color={rating <= dayRating ? colors.accent : colors.border}
+                        ios_icon_name={dayRating >= rating ? "star.fill" : "star"}
+                        android_material_icon_name={dayRating >= rating ? "star" : "star-border"}
+                        size={28}
+                        color={dayRating >= rating ? colors.accent : colors.textSecondary}
                       />
                     </TouchableOpacity>
                   ))}
@@ -868,7 +1208,7 @@ export default function TrackerScreen() {
 
                 <Text style={[styles.label, { color: colors.text }]}>Notes (Optional)</Text>
                 <TextInput
-                  style={[styles.notesInput, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                  style={[styles.textArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
                   placeholder="How was your day? Any challenges or achievements?"
                   multiline
                   numberOfLines={4}
@@ -878,7 +1218,7 @@ export default function TrackerScreen() {
                 />
 
                 <TouchableOpacity
-                  style={[styles.submitButton, { backgroundColor: colors.accent }]}
+                  style={[styles.submitButton, { backgroundColor: colors.primary }]}
                   onPress={handleEndDay}
                 >
                   <Text style={styles.submitButtonText}>Complete Day</Text>
@@ -888,33 +1228,6 @@ export default function TrackerScreen() {
           </ScrollView>
         </View>
       </Modal>
-
-      {renderPicker(
-        showSpeciesPicker,
-        () => setShowSpeciesPicker(false),
-        TREE_SPECIES,
-        selectedSpecies,
-        setSelectedSpecies,
-        'Select Tree Species'
-      )}
-
-      {renderPicker(
-        showProvincePicker,
-        () => setShowProvincePicker(false),
-        PROVINCES,
-        selectedProvince,
-        setSelectedProvince,
-        'Select Province'
-      )}
-
-      {renderPicker(
-        showWeatherPicker,
-        () => setShowWeatherPicker(false),
-        WEATHER_CONDITIONS,
-        selectedWeather,
-        setSelectedWeather,
-        'Select Weather'
-      )}
     </View>
   );
 }
@@ -952,23 +1265,26 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   settingsButton: {
-    padding: 10,
-    borderRadius: 12,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
   },
   currentDayCard: {
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     marginBottom: 24,
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
-    elevation: 4,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+    elevation: 6,
   },
   currentDayHeader: {
     marginBottom: 16,
   },
   currentDayTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     marginBottom: 4,
   },
@@ -979,7 +1295,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   currentDayStat: {
     alignItems: 'center',
@@ -993,7 +1309,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   hourlyLogsList: {
-    gap: 8,
     marginBottom: 16,
   },
   hourlyLogItem: {
@@ -1002,6 +1317,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderRadius: 12,
+    marginBottom: 8,
   },
   hourlyLogInfo: {
     flex: 1,
@@ -1009,7 +1325,7 @@ const styles = StyleSheet.create({
   hourlyLogTime: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   hourlyLogTrees: {
     fontSize: 16,
@@ -1018,6 +1334,13 @@ const styles = StyleSheet.create({
   },
   hourlyLogDetail: {
     fontSize: 12,
+  },
+  hourlyLogActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  iconButton: {
+    padding: 4,
   },
   currentDayActions: {
     flexDirection: 'row',
@@ -1031,27 +1354,68 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     gap: 8,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
   },
   actionButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
+  },
+  specialDayCard: {
+    borderRadius: 16,
+    padding: 32,
+    marginBottom: 24,
+    alignItems: 'center',
+    borderWidth: 3,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+    elevation: 6,
+  },
+  specialDayTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  specialDaySubtitle: {
+    fontSize: 14,
   },
   startDayButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingVertical: 16,
     borderRadius: 16,
-    marginBottom: 24,
+    marginBottom: 16,
     gap: 12,
-    boxShadow: '0px 4px 12px rgba(52, 152, 219, 0.3)',
-    elevation: 4,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.2)',
+    elevation: 6,
   },
   startDayButtonText: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
+  },
+  specialDayButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  specialDayButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  specialDayButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 20,
@@ -1062,11 +1426,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 48,
     borderRadius: 16,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
-    elevation: 3,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 4,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     marginTop: 16,
     marginBottom: 8,
@@ -1079,9 +1443,10 @@ const styles = StyleSheet.create({
   logCard: {
     borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
-    elevation: 3,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 4,
   },
   logHeader: {
     flexDirection: 'row',
@@ -1097,25 +1462,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 4,
   },
-  logProvince: {
+  logDayType: {
     fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  logProvince: {
+    fontSize: 13,
   },
   logStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
   },
   logStat: {
     alignItems: 'center',
-    gap: 4,
   },
   logStatNumber: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
+    marginTop: 4,
+    marginBottom: 2,
   },
   logStatLabel: {
-    fontSize: 12,
+    fontSize: 11,
   },
   logNotes: {
     marginTop: 12,
@@ -1123,8 +1494,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   logNotesText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
   bottomPadding: {
     height: 20,
@@ -1153,13 +1524,13 @@ const styles = StyleSheet.create({
   timeInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     marginBottom: 24,
     gap: 12,
   },
   timeInfoText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   label: {
@@ -1167,26 +1538,114 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
+  treeInputRow: {
+    flexDirection: 'row',
+    gap: 12,
     marginBottom: 16,
   },
-  pickerButton: {
+  treeInputGroup: {
+    flex: 1,
+  },
+  treeInputLabel: {
+    fontSize: 13,
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  treeInputWithSetting: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  treeInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  treeSettingInput: {
+    width: 50,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  treeSettingLabel: {
+    fontSize: 11,
+  },
+  totalTreesCard: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  totalTreesLabel: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  totalTreesValue: {
+    fontSize: 36,
+    fontWeight: '800',
+  },
+  submitButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 48,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  popupContainer: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 24,
+    maxHeight: '80%',
+  },
+  popupTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  popupSubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  speciesScrollView: {
+    maxHeight: 300,
+    marginBottom: 16,
+  },
+  speciesOptionButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    marginBottom: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    marginBottom: 8,
   },
-  pickerButtonText: {
-    fontSize: 16,
+  speciesOptionText: {
+    fontSize: 15,
   },
   landTypeContainer: {
     flexDirection: 'row',
@@ -1204,29 +1663,29 @@ const styles = StyleSheet.create({
   landTypeText: {
     fontSize: 16,
   },
-  notesInput: {
+  popupButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  popupButton: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  popupButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  input: {
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 16,
     marginBottom: 16,
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  submitButton: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 48,
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
-    elevation: 4,
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -1262,15 +1721,16 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     marginBottom: 24,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
   summaryTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     marginBottom: 16,
+    textAlign: 'center',
   },
   summaryStats: {
     flexDirection: 'row',
@@ -1280,11 +1740,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryStatLabel: {
-    fontSize: 12,
-    marginBottom: 4,
+    fontSize: 13,
+    marginBottom: 8,
   },
   summaryStatValue: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '800',
   },
   ratingContainer: {
@@ -1294,65 +1754,21 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   ratingButton: {
-    padding: 4,
-  },
-  popupOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  popupContainer: {
-    width: '100%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    borderRadius: 20,
-    padding: 24,
-    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.3)',
-    elevation: 8,
-  },
-  popupTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  popupSubtitle: {
-    fontSize: 15,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  speciesScrollView: {
-    maxHeight: 300,
-    marginBottom: 8,
-  },
-  speciesOptionButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     borderWidth: 2,
-    marginBottom: 8,
-  },
-  speciesOptionText: {
-    fontSize: 16,
-  },
-  popupButtons: {
-    marginTop: 8,
-  },
-  popupButton: {
-    paddingVertical: 14,
-    borderRadius: 12,
     alignItems: 'center',
-    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
-    elevation: 4,
+    justifyContent: 'center',
   },
-  popupButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  textArea: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    marginBottom: 24,
+    minHeight: 100,
+    textAlignVertical: 'top',
   },
 });

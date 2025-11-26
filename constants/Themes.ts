@@ -1,0 +1,248 @@
+
+export interface AppTheme {
+  id: string;
+  name: string;
+  description: string;
+  colors: {
+    background: string;
+    text: string;
+    textSecondary: string;
+    primary: string;
+    secondary: string;
+    accent: string;
+    card: string;
+    highlight: string;
+    border: string;
+    error: string;
+    success: string;
+    warning: string;
+    gold: string;
+  };
+  fontFamily?: string;
+  borderRadius?: number;
+}
+
+export const APP_THEMES: AppTheme[] = [
+  {
+    id: 'default',
+    name: 'Default',
+    description: 'Clean and modern forest theme',
+    colors: {
+      background: '#F0F4F7',
+      text: '#2D3436',
+      textSecondary: '#747A7C',
+      primary: '#3498DB',
+      secondary: '#2ECC71',
+      accent: '#F39C12',
+      card: '#FFFFFF',
+      highlight: '#EBF5FB',
+      border: '#E0E0E0',
+      error: '#E74C3C',
+      success: '#27AE60',
+      warning: '#F39C12',
+      gold: '#FFD700',
+    },
+  },
+  {
+    id: 'game-mode',
+    name: 'Game Mode',
+    description: 'Retro pixel cubic design',
+    colors: {
+      background: '#1A1A2E',
+      text: '#EAEAEA',
+      textSecondary: '#A0A0A0',
+      primary: '#00FF41',
+      secondary: '#FF6B35',
+      accent: '#FFD23F',
+      card: '#16213E',
+      highlight: '#0F3460',
+      border: '#00FF41',
+      error: '#FF0000',
+      success: '#00FF00',
+      warning: '#FFFF00',
+      gold: '#FFD700',
+    },
+    fontFamily: 'monospace',
+    borderRadius: 0,
+  },
+  {
+    id: 'ocean-breeze',
+    name: 'Ocean Breeze',
+    description: 'Cool blue tones inspired by the sea',
+    colors: {
+      background: '#E8F4F8',
+      text: '#1B4965',
+      textSecondary: '#5FA8D3',
+      primary: '#1B4965',
+      secondary: '#62B6CB',
+      accent: '#BEE9E8',
+      card: '#FFFFFF',
+      highlight: '#CAE9FF',
+      border: '#BEE9E8',
+      error: '#E63946',
+      success: '#06D6A0',
+      warning: '#FFB703',
+      gold: '#FFD700',
+    },
+  },
+  {
+    id: 'sunset-glow',
+    name: 'Sunset Glow',
+    description: 'Warm sunset colors',
+    colors: {
+      background: '#FFF5E6',
+      text: '#5D2E46',
+      textSecondary: '#8B5A7C',
+      primary: '#FF6B6B',
+      secondary: '#FFB347',
+      accent: '#FFA07A',
+      card: '#FFFFFF',
+      highlight: '#FFE4E1',
+      border: '#FFD4B8',
+      error: '#DC143C',
+      success: '#32CD32',
+      warning: '#FFA500',
+      gold: '#FFD700',
+    },
+  },
+  {
+    id: 'forest-dark',
+    name: 'Forest Dark',
+    description: 'Deep forest night theme',
+    colors: {
+      background: '#0D1B2A',
+      text: '#E0E1DD',
+      textSecondary: '#778DA9',
+      primary: '#415A77',
+      secondary: '#1B263B',
+      accent: '#778DA9',
+      card: '#1B263B',
+      highlight: '#415A77',
+      border: '#415A77',
+      error: '#E63946',
+      success: '#06D6A0',
+      warning: '#FFB703',
+      gold: '#FFD700',
+    },
+  },
+  {
+    id: 'neon-nights',
+    name: 'Neon Nights',
+    description: 'Vibrant neon cyberpunk style',
+    colors: {
+      background: '#0A0E27',
+      text: '#F0F0F0',
+      textSecondary: '#B8B8D1',
+      primary: '#FF006E',
+      secondary: '#8338EC',
+      accent: '#3A86FF',
+      card: '#1A1F3A',
+      highlight: '#2A2F4A',
+      border: '#FF006E',
+      error: '#FF0000',
+      success: '#00FF00',
+      warning: '#FFFF00',
+      gold: '#FFD700',
+    },
+  },
+  {
+    id: 'earthy-tones',
+    name: 'Earthy Tones',
+    description: 'Natural earth colors',
+    colors: {
+      background: '#F5F1E8',
+      text: '#3E2723',
+      textSecondary: '#6D4C41',
+      primary: '#8D6E63',
+      secondary: '#A1887F',
+      accent: '#BCAAA4',
+      card: '#FFFFFF',
+      highlight: '#EFEBE9',
+      border: '#D7CCC8',
+      error: '#D32F2F',
+      success: '#388E3C',
+      warning: '#F57C00',
+      gold: '#FFD700',
+    },
+  },
+  {
+    id: 'arctic-frost',
+    name: 'Arctic Frost',
+    description: 'Cool icy winter theme',
+    colors: {
+      background: '#E8F4F8',
+      text: '#1C3144',
+      textSecondary: '#5C7A99',
+      primary: '#4A90A4',
+      secondary: '#87CEEB',
+      accent: '#B0E0E6',
+      card: '#FFFFFF',
+      highlight: '#F0F8FF',
+      border: '#ADD8E6',
+      error: '#DC143C',
+      success: '#20B2AA',
+      warning: '#FFB347',
+      gold: '#FFD700',
+    },
+  },
+  {
+    id: 'cherry-blossom',
+    name: 'Cherry Blossom',
+    description: 'Soft pink spring theme',
+    colors: {
+      background: '#FFF0F5',
+      text: '#4A2C2A',
+      textSecondary: '#8B6F6F',
+      primary: '#FF69B4',
+      secondary: '#FFB6C1',
+      accent: '#FFC0CB',
+      card: '#FFFFFF',
+      highlight: '#FFE4E1',
+      border: '#FFB6C1',
+      error: '#DC143C',
+      success: '#32CD32',
+      warning: '#FFA500',
+      gold: '#FFD700',
+    },
+  },
+  {
+    id: 'midnight-purple',
+    name: 'Midnight Purple',
+    description: 'Deep purple night theme',
+    colors: {
+      background: '#1A0B2E',
+      text: '#E8DFF5',
+      textSecondary: '#A991D4',
+      primary: '#7B2CBF',
+      secondary: '#9D4EDD',
+      accent: '#C77DFF',
+      card: '#2D1B4E',
+      highlight: '#3E2A5E',
+      border: '#7B2CBF',
+      error: '#FF006E',
+      success: '#06FFA5',
+      warning: '#FFD60A',
+      gold: '#FFD700',
+    },
+  },
+  {
+    id: 'autumn-harvest',
+    name: 'Autumn Harvest',
+    description: 'Warm autumn colors',
+    colors: {
+      background: '#FFF8E7',
+      text: '#5D3A1A',
+      textSecondary: '#8B6F47',
+      primary: '#D2691E',
+      secondary: '#CD853F',
+      accent: '#DEB887',
+      card: '#FFFFFF',
+      highlight: '#FAEBD7',
+      border: '#D2B48C',
+      error: '#DC143C',
+      success: '#228B22',
+      warning: '#FF8C00',
+      gold: '#FFD700',
+    },
+  },
+];

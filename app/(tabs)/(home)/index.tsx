@@ -12,6 +12,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  FlatList,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
@@ -21,15 +22,17 @@ import { PieChart, LineChart } from 'react-native-chart-kit';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { formatLargeNumber } from '@/utils/formatNumber';
+import { APP_THEMES } from '@/constants/Themes';
 
 export default function HomeScreen() {
-  const { colors, isDark } = useThemeContext();
+  const { colors, isDark, selectedTheme, setSelectedTheme } = useThemeContext();
   const router = useRouter();
   const [treeLogs, setTreeLogs] = useState<TreePlantingLog[]>([]);
   const [earningsLogs, setEarningsLogs] = useState<EarningsLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingLog, setEditingLog] = useState<TreePlantingLog | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
   
   const [editTrees, setEditTrees] = useState('');
   const [editSpecies, setEditSpecies] = useState('');
@@ -99,6 +102,27 @@ export default function HomeScreen() {
     setShowEditModal(false);
     setEditingLog(null);
     Alert.alert('Success', 'Log updated successfully!');
+  };
+
+  const handleThemeSelect = (themeId: string) => {
+    const theme = APP_THEMES.find(t => t.id === themeId);
+    if (!theme) return;
+
+    Alert.alert(
+      'Switch Theme',
+      `Are you sure you want to switch to ${theme.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes',
+          onPress: async () => {
+            await setSelectedTheme(themeId);
+            setShowThemeMenu(false);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        },
+      ]
+    );
   };
 
   const getSpeciesBreakdown = () => {
@@ -226,10 +250,27 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>🌲 Tree Planter</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            Track your environmental impact
-          </Text>
+          <TouchableOpacity
+            style={[styles.menuButton, { backgroundColor: colors.card }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowThemeMenu(true);
+            }}
+          >
+            <IconSymbol
+              ios_icon_name="line.3.horizontal"
+              android_material_icon_name="menu"
+              size={24}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>🌲 Tree Planter 🌲</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+              Track your environmental impact
+            </Text>
+          </View>
+          <View style={styles.menuButtonPlaceholder} />
         </View>
 
         <View style={styles.statsContainer}>
@@ -413,6 +454,66 @@ export default function HomeScreen() {
       </ScrollView>
 
       <Modal
+        visible={showThemeMenu}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Theme</Text>
+            <TouchableOpacity onPress={() => setShowThemeMenu(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={32}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={APP_THEMES}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.themeList}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.themeCard,
+                  { 
+                    backgroundColor: item.colors.card,
+                    borderColor: selectedTheme === item.id ? colors.primary : item.colors.border,
+                    borderWidth: selectedTheme === item.id ? 3 : 1,
+                  },
+                ]}
+                onPress={() => handleThemeSelect(item.id)}
+              >
+                <View style={styles.themeHeader}>
+                  <Text style={[styles.themeName, { color: item.colors.text }]}>{item.name}</Text>
+                  {selectedTheme === item.id && (
+                    <IconSymbol
+                      ios_icon_name="checkmark.circle.fill"
+                      android_material_icon_name="check-circle"
+                      size={24}
+                      color={colors.primary}
+                    />
+                  )}
+                </View>
+                <Text style={[styles.themeDescription, { color: item.colors.textSecondary }]}>
+                  {item.description}
+                </Text>
+                <View style={styles.themeColors}>
+                  <View style={[styles.themeColorDot, { backgroundColor: item.colors.primary }]} />
+                  <View style={[styles.themeColorDot, { backgroundColor: item.colors.secondary }]} />
+                  <View style={[styles.themeColorDot, { backgroundColor: item.colors.accent }]} />
+                  <View style={[styles.themeColorDot, { backgroundColor: item.colors.background }]} />
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </Modal>
+
+      <Modal
         visible={showEditModal}
         animationType="slide"
         presentationStyle="pageSheet"
@@ -578,15 +679,33 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+  },
+  menuButtonPlaceholder: {
+    width: 44,
+  },
+  headerCenter: {
+    flex: 1,
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: 14,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -733,6 +852,43 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 24,
+  },
+  themeList: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+  themeCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+  },
+  themeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  themeName: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  themeDescription: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  themeColors: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  themeColorDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
   },
   label: {
     fontSize: 16,

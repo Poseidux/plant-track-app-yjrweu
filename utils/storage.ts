@@ -1,6 +1,6 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TreePlantingLog, EarningsLog, UserProfile, ExpenseLog, Achievement } from '@/types/TreePlanting';
+import { TreePlantingLog, EarningsLog, UserProfile, ExpenseLog, Achievement, TreeCountSettings, DaySettings } from '@/types/TreePlanting';
 
 const KEYS = {
   TREE_LOGS: '@tree_planting_logs',
@@ -9,6 +9,9 @@ const KEYS = {
   USER_PROFILE: '@user_profile',
   THEME_MODE: '@theme_mode',
   ACHIEVEMENTS: '@achievements',
+  TREE_COUNT_SETTINGS: '@tree_count_settings',
+  SELECTED_THEME: '@selected_theme',
+  DAY_SETTINGS_PREFIX: '@day_settings_',
 };
 
 export const StorageService = {
@@ -178,6 +181,78 @@ export const StorageService = {
       await AsyncStorage.setItem(KEYS.ACHIEVEMENTS, JSON.stringify(achievements));
     } catch (error) {
       console.error('Error saving achievements:', error);
+    }
+  },
+
+  // Tree Count Settings
+  async getTreeCountSettings(): Promise<TreeCountSettings> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.TREE_COUNT_SETTINGS);
+      return data ? JSON.parse(data) : { treesPerBundle: 100, treesPerBox: 50, treesPerTray: 25 };
+    } catch (error) {
+      console.error('Error getting tree count settings:', error);
+      return { treesPerBundle: 100, treesPerBox: 50, treesPerTray: 25 };
+    }
+  },
+
+  async saveTreeCountSettings(settings: TreeCountSettings): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.TREE_COUNT_SETTINGS, JSON.stringify(settings));
+    } catch (error) {
+      console.error('Error saving tree count settings:', error);
+    }
+  },
+
+  // Day Settings (per-day settings)
+  async getDaySettings(date: string): Promise<DaySettings | null> {
+    try {
+      const data = await AsyncStorage.getItem(`${KEYS.DAY_SETTINGS_PREFIX}${date}`);
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      console.error('Error getting day settings:', error);
+      return null;
+    }
+  },
+
+  async saveDaySettings(date: string, settings: DaySettings): Promise<void> {
+    try {
+      await AsyncStorage.setItem(`${KEYS.DAY_SETTINGS_PREFIX}${date}`, JSON.stringify(settings));
+    } catch (error) {
+      console.error('Error saving day settings:', error);
+    }
+  },
+
+  // Selected Theme
+  async getSelectedTheme(): Promise<string> {
+    try {
+      const theme = await AsyncStorage.getItem(KEYS.SELECTED_THEME);
+      return theme || 'default';
+    } catch (error) {
+      console.error('Error getting selected theme:', error);
+      return 'default';
+    }
+  },
+
+  async saveSelectedTheme(theme: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.SELECTED_THEME, theme);
+    } catch (error) {
+      console.error('Error saving selected theme:', error);
+    }
+  },
+
+  // Erase All Data
+  async eraseAllData(): Promise<void> {
+    try {
+      const allKeys = await AsyncStorage.getAllKeys();
+      const keysToRemove = allKeys.filter(key => 
+        key.startsWith('@') && key !== KEYS.THEME_MODE && key !== KEYS.SELECTED_THEME
+      );
+      await AsyncStorage.multiRemove(keysToRemove);
+      console.log('All data erased successfully');
+    } catch (error) {
+      console.error('Error erasing all data:', error);
+      throw error;
     }
   },
 };

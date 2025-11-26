@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useColorScheme } from 'react-native';
 import { StorageService } from '@/utils/storage';
 import { getColors } from '@/styles/commonStyles';
+import { APP_THEMES, AppTheme } from '@/constants/Themes';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 
@@ -11,6 +12,9 @@ interface ThemeContextType {
   setThemeMode: (mode: ThemeMode) => Promise<void>;
   colors: ReturnType<typeof getColors>;
   isDark: boolean;
+  selectedTheme: string;
+  setSelectedTheme: (themeId: string) => Promise<void>;
+  currentTheme: AppTheme;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -18,20 +22,26 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
+  const [selectedTheme, setSelectedThemeState] = useState<string>('default');
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    loadThemeMode();
+    loadThemeSettings();
   }, []);
 
-  const loadThemeMode = async () => {
+  const loadThemeSettings = async () => {
     try {
-      const savedMode = await StorageService.getThemeMode();
-      console.log('Loaded theme mode:', savedMode);
+      const [savedMode, savedTheme] = await Promise.all([
+        StorageService.getThemeMode(),
+        StorageService.getSelectedTheme(),
+      ]);
+      console.log('Loaded theme mode:', savedMode, 'theme:', savedTheme);
       setThemeModeState(savedMode);
+      setSelectedThemeState(savedTheme);
     } catch (error) {
-      console.error('Error loading theme mode:', error);
+      console.error('Error loading theme settings:', error);
       setThemeModeState('light');
+      setSelectedThemeState('default');
     } finally {
       setIsLoaded(true);
     }
@@ -48,19 +58,36 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const isDark = themeMode === 'dark' || (themeMode === 'auto' && systemColorScheme === 'dark');
-  const colors = getColors(isDark);
+  const setSelectedTheme = async (themeId: string) => {
+    try {
+      setSelectedThemeState(themeId);
+      await StorageService.saveSelectedTheme(themeId);
+      console.log('Saved selected theme:', themeId);
+    } catch (error) {
+      console.error('Error saving selected theme:', error);
+    }
+  };
 
-  // Don't show loading screen, just render with default theme
-  // This prevents blank white screen issues
+  const isDark = themeMode === 'dark' || (themeMode === 'auto' && systemColorScheme === 'dark');
+  
+  const currentTheme = APP_THEMES.find(t => t.id === selectedTheme) || APP_THEMES[0];
+  
+  const colors = selectedTheme === 'default' 
+    ? getColors(isDark)
+    : currentTheme.colors;
+
   if (!isLoaded) {
     const defaultColors = getColors(false);
+    const defaultTheme = APP_THEMES[0];
     return (
       <ThemeContext.Provider value={{ 
         themeMode: 'light', 
         setThemeMode, 
         colors: defaultColors, 
-        isDark: false 
+        isDark: false,
+        selectedTheme: 'default',
+        setSelectedTheme,
+        currentTheme: defaultTheme,
       }}>
         {children}
       </ThemeContext.Provider>
@@ -68,7 +95,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ themeMode, setThemeMode, colors, isDark }}>
+    <ThemeContext.Provider value={{ 
+      themeMode, 
+      setThemeMode, 
+      colors, 
+      isDark,
+      selectedTheme,
+      setSelectedTheme,
+      currentTheme,
+    }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -6,6 +6,10 @@ export interface HourlyLog {
   treesPlanted: number;
   species?: string;
   landType?: 'prepped' | 'raw';
+  bundles?: number;
+  boxes?: number;
+  trays?: number;
+  individualTrees?: number;
 }
 
 export interface TreePlantingLog {
@@ -19,6 +23,19 @@ export interface TreePlantingLog {
   notes?: string;
   dayRating?: number;
   averageRate?: number;
+  dayType?: 'normal' | 'sick' | 'dayoff';
+}
+
+export interface DaySettings {
+  treesPerBundle: number;
+  treesPerBox: number;
+  treesPerTray: number;
+}
+
+export interface TreeCountSettings {
+  treesPerBundle: number;
+  treesPerBox: number;
+  treesPerTray: number;
 }
 
 export interface ExpenseLog {
@@ -54,7 +71,7 @@ export interface UserProfile {
   name: string;
   age: number;
   province: string;
-  experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+  experienceLevel: 'rookie' | 'highballer' | 'vet';
   favoriteSpecies: string[];
   totalBadges: number;
   achievements: Achievement[];
@@ -118,3 +135,5 @@ export const EXPENSE_CATEGORIES = [
 ];
 
 export const LAND_TYPES: Array<'prepped' | 'raw'> = ['prepped', 'raw'];
+
+export const EXPERIENCE_LEVELS: Array<'rookie' | 'highballer' | 'vet'> = ['rookie', 'highballer', 'vet'];
