@@ -54,6 +54,26 @@ export default function MyForest({ treeLogs }: MyForestProps) {
   };
 
   const renderForestGrid = (grid: number[][], title: string, zoom: number) => {
+    // Check if grid is valid before rendering
+    if (!grid || grid.length === 0 || !grid[0] || grid[0].length === 0) {
+      return (
+        <View style={styles.forestContainer}>
+          <Text style={[styles.forestTitle, { color: colors.text }]}>{title}</Text>
+          <View style={[styles.emptyForestCard, { backgroundColor: colors.highlight }]}>
+            <IconSymbol
+              ios_icon_name="tree.fill"
+              android_material_icon_name="park"
+              size={48}
+              color={colors.textSecondary}
+            />
+            <Text style={[styles.emptyForestText, { color: colors.textSecondary }]}>
+              Start planting to grow your forest!
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
     const screenWidth = Dimensions.get('window').width - 64;
     const cellSize = (screenWidth / grid[0].length) * zoom;
     const gridWidth = grid[0].length * cellSize;
@@ -176,5 +196,18 @@ const styles = StyleSheet.create({
   },
   forestLegendText: {
     fontSize: 12,
+  },
+  emptyForestCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  emptyForestText: {
+    fontSize: 14,
+    marginTop: 12,
+    textAlign: 'center',
   },
 });
