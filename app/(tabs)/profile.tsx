@@ -19,6 +19,7 @@ import { UserProfile, PROVINCES, EXPERIENCE_LEVELS } from '@/types/TreePlanting'
 import { Season } from '@/types/Season';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as Haptics from 'expo-haptics';
+import { formatLargeNumber } from '@/utils/formatNumber';
 
 export default function ProfileScreen() {
   const { colors, isDark, currentTheme } = useThemeContext();
@@ -108,7 +109,7 @@ export default function ProfileScreen() {
 
     Alert.alert(
       'Create New Season',
-      `Are you sure you want to start a new season for ${newSeasonProvince} ${year}?\n\n⚠️ WARNING: All your current stats, logs, and analytics will be reset for the new season. Your current season will be archived and can be viewed later.`,
+      `Are you sure you want to start a new season for ${newSeasonProvince} ${year}?\n\n⚠️ WARNING: All your current stats, logs, and analytics will be reset for the new season. Your current season will be archived and can be viewed later. Your career forest will be preserved.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -140,11 +141,11 @@ export default function ProfileScreen() {
     const totalTrees = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
     const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
     const totalExpenses = expenseLogs.reduce((sum, log) => sum + log.amount, 0);
-    const totalDays = treeLogs.length;
+    const totalDays = treeLogs.filter(log => log.dayType !== 'sick' && log.dayType !== 'dayoff').length;
 
     Alert.alert(
       season.name,
-      `Total Trees: ${totalTrees.toLocaleString()}\nTotal Earnings: $${totalEarnings.toFixed(2)}\nTotal Expenses: $${totalExpenses.toFixed(2)}\nPlanting Days: ${totalDays}\n\nStart Date: ${new Date(season.startDate).toLocaleDateString()}\n${season.endDate ? `End Date: ${new Date(season.endDate).toLocaleDateString()}` : 'Active Season'}`,
+      `Total Trees: ${formatLargeNumber(totalTrees)}\nTotal Earnings: $${totalEarnings >= 100000 ? formatLargeNumber(totalEarnings) : totalEarnings.toFixed(2)}\nTotal Expenses: $${totalExpenses >= 100000 ? formatLargeNumber(totalExpenses) : totalExpenses.toFixed(2)}\nPlanting Days: ${totalDays}\n\nStart Date: ${new Date(season.startDate).toLocaleDateString()}\n${season.endDate ? `End Date: ${new Date(season.endDate).toLocaleDateString()}` : 'Active Season'}`,
       [{ text: 'OK' }]
     );
   };
