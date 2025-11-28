@@ -365,9 +365,13 @@ export const StorageService = {
     }
   },
 
-  async setActiveSeason(season: Season): Promise<void> {
+  async setActiveSeason(season: Season | null): Promise<void> {
     try {
-      await AsyncStorage.setItem(KEYS.ACTIVE_SEASON, JSON.stringify(season));
+      if (season === null) {
+        await AsyncStorage.removeItem(KEYS.ACTIVE_SEASON);
+      } else {
+        await AsyncStorage.setItem(KEYS.ACTIVE_SEASON, JSON.stringify(season));
+      }
     } catch (error) {
       console.error('Error setting active season:', error);
     }

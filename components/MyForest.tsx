@@ -11,72 +11,22 @@ interface MyForestProps {
   treeLogs: TreePlantingLog[];
 }
 
-interface BearPosition {
-  x: Animated.Value;
-  y: Animated.Value;
-  isMoving: boolean;
-  currentX: number;
-  currentY: number;
-}
-
-const ANIMATION_DISABLED_KEY = '@bear_animation_disabled';
-const BEAR_POSITIONS_KEY = '@bear_positions';
+const ANIMATION_DISABLED_KEY = '@forest_animation_disabled';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const FOREST_PADDING = 40;
-const FOREST_WIDTH = SCREEN_WIDTH - FOREST_PADDING * 2;
-const BEAR_SIZE = 16;
-
-const MIN_X = -FOREST_WIDTH / 2 + BEAR_SIZE;
-const MAX_X = FOREST_WIDTH / 2 - BEAR_SIZE;
-const MIN_Y = -80;
-const MAX_Y = 80;
 
 export default function MyForest({ treeLogs }: MyForestProps) {
   const { colors } = useThemeContext();
   const [seasonTrees, setSeasonTrees] = useState<string[]>([]);
   const [careerTrees, setCareerTrees] = useState<string[]>([]);
   const [animationDisabled, setAnimationDisabled] = useState(false);
-  const [positionsLoaded, setPositionsLoaded] = useState(false);
   
+  const dayNightProgress = useRef(new Animated.Value(0)).current;
   const animationTimeouts = useRef<NodeJS.Timeout[]>([]);
-  
-  const [brownBear1] = useState<BearPosition>({
-    x: new Animated.Value(0),
-    y: new Animated.Value(0),
-    isMoving: false,
-    currentX: 0,
-    currentY: 0,
-  });
-  
-  const [brownBear2] = useState<BearPosition>({
-    x: new Animated.Value(0),
-    y: new Animated.Value(0),
-    isMoving: false,
-    currentX: 0,
-    currentY: 0,
-  });
-
-  const [brownBear3] = useState<BearPosition>({
-    x: new Animated.Value(0),
-    y: new Animated.Value(0),
-    isMoving: false,
-    currentX: 0,
-    currentY: 0,
-  });
-  
-  const [brownBear4] = useState<BearPosition>({
-    x: new Animated.Value(0),
-    y: new Animated.Value(0),
-    isMoving: false,
-    currentX: 0,
-    currentY: 0,
-  });
 
   useEffect(() => {
     generateForests();
     loadAnimationPreference();
-    loadBearPositions();
     
     return () => {
       animationTimeouts.current.forEach(timeout => clearTimeout(timeout));
@@ -85,13 +35,13 @@ export default function MyForest({ treeLogs }: MyForestProps) {
   }, [treeLogs]);
 
   useEffect(() => {
-    if (positionsLoaded && !animationDisabled) {
-      animateBear(brownBear1, 0);
-      animateBear(brownBear2, 1500);
-      animateBear(brownBear3, 3000);
-      animateBear(brownBear4, 4500);
+    if (!animationDisabled) {
+      startDayNightCycle();
+    } else {
+      animationTimeouts.current.forEach(timeout => clearTimeout(timeout));
+      animationTimeouts.current = [];
     }
-  }, [animationDisabled, positionsLoaded]);
+  }, [animationDisabled]);
 
   const loadAnimationPreference = async () => {
     try {
@@ -101,82 +51,6 @@ export default function MyForest({ treeLogs }: MyForestProps) {
       }
     } catch (error) {
       console.error('Error loading animation preference:', error);
-    }
-  };
-
-  const loadBearPositions = async () => {
-    try {
-      const value = await AsyncStorage.getItem(BEAR_POSITIONS_KEY);
-      if (value !== null) {
-        const positions = JSON.parse(value);
-        
-        brownBear1.x.setValue(positions.bear1.x);
-        brownBear1.y.setValue(positions.bear1.y);
-        brownBear1.currentX = positions.bear1.x;
-        brownBear1.currentY = positions.bear1.y;
-
-        brownBear2.x.setValue(positions.bear2.x);
-        brownBear2.y.setValue(positions.bear2.y);
-        brownBear2.currentX = positions.bear2.x;
-        brownBear2.currentY = positions.bear2.y;
-
-        brownBear3.x.setValue(positions.bear3.x);
-        brownBear3.y.setValue(positions.bear3.y);
-        brownBear3.currentX = positions.bear3.x;
-        brownBear3.currentY = positions.bear3.y;
-
-        brownBear4.x.setValue(positions.bear4.x);
-        brownBear4.y.setValue(positions.bear4.y);
-        brownBear4.currentX = positions.bear4.x;
-        brownBear4.currentY = positions.bear4.y;
-      } else {
-        const initialPositions = {
-          bear1: { x: -120, y: -60 },
-          bear2: { x: 100, y: 40 },
-          bear3: { x: -80, y: 70 },
-          bear4: { x: 140, y: -50 },
-        };
-        
-        brownBear1.x.setValue(initialPositions.bear1.x);
-        brownBear1.y.setValue(initialPositions.bear1.y);
-        brownBear1.currentX = initialPositions.bear1.x;
-        brownBear1.currentY = initialPositions.bear1.y;
-
-        brownBear2.x.setValue(initialPositions.bear2.x);
-        brownBear2.y.setValue(initialPositions.bear2.y);
-        brownBear2.currentX = initialPositions.bear2.x;
-        brownBear2.currentY = initialPositions.bear2.y;
-
-        brownBear3.x.setValue(initialPositions.bear3.x);
-        brownBear3.y.setValue(initialPositions.bear3.y);
-        brownBear3.currentX = initialPositions.bear3.x;
-        brownBear3.currentY = initialPositions.bear3.y;
-
-        brownBear4.x.setValue(initialPositions.bear4.x);
-        brownBear4.y.setValue(initialPositions.bear4.y);
-        brownBear4.currentX = initialPositions.bear4.x;
-        brownBear4.currentY = initialPositions.bear4.y;
-
-        await saveBearPositions();
-      }
-      setPositionsLoaded(true);
-    } catch (error) {
-      console.error('Error loading bear positions:', error);
-      setPositionsLoaded(true);
-    }
-  };
-
-  const saveBearPositions = async () => {
-    try {
-      const positions = {
-        bear1: { x: brownBear1.currentX, y: brownBear1.currentY },
-        bear2: { x: brownBear2.currentX, y: brownBear2.currentY },
-        bear3: { x: brownBear3.currentX, y: brownBear3.currentY },
-        bear4: { x: brownBear4.currentX, y: brownBear4.currentY },
-      };
-      await AsyncStorage.setItem(BEAR_POSITIONS_KEY, JSON.stringify(positions));
-    } catch (error) {
-      console.error('Error saving bear positions:', error);
     }
   };
 
@@ -192,6 +66,33 @@ export default function MyForest({ treeLogs }: MyForestProps) {
     } catch (error) {
       console.error('Error saving animation preference:', error);
     }
+  };
+
+  const startDayNightCycle = () => {
+    const cycleDuration = 10000;
+    
+    const animate = () => {
+      Animated.sequence([
+        Animated.timing(dayNightProgress, {
+          toValue: 1,
+          duration: cycleDuration / 2,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+        Animated.timing(dayNightProgress, {
+          toValue: 0,
+          duration: cycleDuration / 2,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ]).start(() => {
+        if (!animationDisabled) {
+          animate();
+        }
+      });
+    };
+
+    animate();
   };
 
   const generateForests = async () => {
@@ -234,70 +135,7 @@ export default function MyForest({ treeLogs }: MyForestProps) {
     setCareerTrees(careerTreeArray);
   };
 
-  const clampValue = (value: number, min: number, max: number) => {
-    return Math.max(min, Math.min(max, value));
-  };
-
-  const getRandomPosition = (currentX: number, currentY: number) => {
-    const maxDistance = 200;
-    const minDistance = 100;
-    
-    const angle = Math.random() * Math.PI * 2;
-    const distance = minDistance + Math.random() * (maxDistance - minDistance);
-    
-    let newX = currentX + Math.cos(angle) * distance;
-    let newY = currentY + Math.sin(angle) * distance;
-    
-    newX = clampValue(newX, MIN_X, MAX_X);
-    newY = clampValue(newY, MIN_Y, MAX_Y);
-    
-    return { x: newX, y: newY };
-  };
-
-  const animateBear = (bear: BearPosition, delay: number) => {
-    const moveSequence = () => {
-      if (animationDisabled) {
-        return;
-      }
-      
-      const newPosition = getRandomPosition(bear.currentX, bear.currentY);
-      
-      bear.currentX = newPosition.x;
-      bear.currentY = newPosition.y;
-      
-      Animated.parallel([
-        Animated.timing(bear.x, {
-          toValue: newPosition.x,
-          duration: 8000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(bear.y, {
-          toValue: newPosition.y,
-          duration: 8000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        saveBearPositions();
-        const timeout = setTimeout(() => {
-          if (!animationDisabled) {
-            moveSequence();
-          }
-        }, 3000);
-        animationTimeouts.current.push(timeout);
-      });
-    };
-
-    const timeout = setTimeout(() => {
-      if (!animationDisabled) {
-        moveSequence();
-      }
-    }, delay);
-    animationTimeouts.current.push(timeout);
-  };
-
-  const renderForestGrid = (trees: string[], title: string, treesPerEmoji: number, showBears: boolean = false) => {
+  const renderForestGrid = (trees: string[], title: string, treesPerEmoji: number, showDayNight: boolean = false) => {
     if (trees.length === 0) {
       return (
         <View style={styles.forestContainer}>
@@ -317,76 +155,62 @@ export default function MyForest({ treeLogs }: MyForestProps) {
       );
     }
 
+    const backgroundColor = showDayNight && !animationDisabled
+      ? dayNightProgress.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: ['#87CEEB', '#1a1a2e', '#87CEEB'],
+        })
+      : colors.highlight;
+
     return (
       <View style={styles.forestContainer}>
         <Text style={[styles.forestTitle, { color: colors.text }]}>{title}</Text>
-        <View style={[styles.forestGrid, { backgroundColor: colors.highlight }]}>
+        <Animated.View 
+          style={[
+            styles.forestGrid, 
+            showDayNight && !animationDisabled 
+              ? { backgroundColor } 
+              : { backgroundColor: colors.highlight }
+          ]}
+        >
           {trees.map((tree, index) => (
             <Text key={`tree-${title}-${index}`} style={styles.treeEmoji}>
               {tree}
             </Text>
           ))}
           
-          {showBears && trees.length > 0 && !animationDisabled && positionsLoaded && (
-            <>
-              <Animated.Text
-                style={[
-                  styles.bearEmoji,
-                  {
-                    transform: [
-                      { translateX: brownBear1.x },
-                      { translateY: brownBear1.y },
-                    ],
-                  },
-                ]}
-              >
-                🐻
-              </Animated.Text>
-              
-              <Animated.Text
-                style={[
-                  styles.bearEmoji,
-                  {
-                    transform: [
-                      { translateX: brownBear2.x },
-                      { translateY: brownBear2.y },
-                    ],
-                  },
-                ]}
-              >
-                🐻
-              </Animated.Text>
-
-              <Animated.Text
-                style={[
-                  styles.bearEmoji,
-                  {
-                    transform: [
-                      { translateX: brownBear3.x },
-                      { translateY: brownBear3.y },
-                    ],
-                  },
-                ]}
-              >
-                🐻
-              </Animated.Text>
-              
-              <Animated.Text
-                style={[
-                  styles.bearEmoji,
-                  {
-                    transform: [
-                      { translateX: brownBear4.x },
-                      { translateY: brownBear4.y },
-                    ],
-                  },
-                ]}
-              >
-                🐻
-              </Animated.Text>
-            </>
+          {showDayNight && !animationDisabled && (
+            <Animated.View
+              style={[
+                styles.sunMoon,
+                {
+                  opacity: dayNightProgress.interpolate({
+                    inputRange: [0, 0.3, 0.7, 1],
+                    outputRange: [1, 0, 0, 1],
+                  }),
+                },
+              ]}
+            >
+              <Text style={styles.sunEmoji}>☀️</Text>
+            </Animated.View>
           )}
-        </View>
+          
+          {showDayNight && !animationDisabled && (
+            <Animated.View
+              style={[
+                styles.sunMoon,
+                {
+                  opacity: dayNightProgress.interpolate({
+                    inputRange: [0, 0.3, 0.7, 1],
+                    outputRange: [0, 1, 1, 0],
+                  }),
+                },
+              ]}
+            >
+              <Text style={styles.moonEmoji}>🌙</Text>
+            </Animated.View>
+          )}
+        </Animated.View>
         <Text style={[styles.forestInfo, { color: colors.textSecondary }]}>
           Each tree emoji represents {treesPerEmoji.toLocaleString()} trees planted
         </Text>
@@ -423,7 +247,7 @@ export default function MyForest({ treeLogs }: MyForestProps) {
       </View>
       
       <Text style={[styles.description, { color: colors.textSecondary }]}>
-        Watch your forest grow as you plant more trees! Each tree emoji represents your planting progress.
+        Watch your forest grow as you plant more trees! The forest transitions between day and night every 10 seconds.
       </Text>
 
       {renderForestGrid(seasonTrees, 'Your Season Forest', 1000, true)}
@@ -496,11 +320,16 @@ const styles = StyleSheet.create({
     fontSize: 24,
     margin: 4,
   },
-  bearEmoji: {
-    fontSize: 16,
+  sunMoon: {
     position: 'absolute',
-    top: '50%',
-    left: '50%',
+    top: 20,
+    right: 20,
+  },
+  sunEmoji: {
+    fontSize: 32,
+  },
+  moonEmoji: {
+    fontSize: 32,
   },
   forestInfo: {
     fontSize: 12,

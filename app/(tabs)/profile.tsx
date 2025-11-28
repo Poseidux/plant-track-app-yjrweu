@@ -96,7 +96,60 @@ export default function ProfileScreen() {
     Alert.alert('Success', 'Profile saved successfully!');
   };
 
+  const handleEndSeason = async () => {
+    if (!activeSeason) {
+      Alert.alert('Error', 'No active season to end');
+      return;
+    }
+
+    const treeLogs = await StorageService.getSeasonTreeLogs(activeSeason.id);
+    const earningsLogs = await StorageService.getSeasonEarningsLogs(activeSeason.id);
+    const expenseLogs = await StorageService.getSeasonExpenseLogs(activeSeason.id);
+
+    const totalTrees = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
+    const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
+    const totalExpenses = expenseLogs.reduce((sum, log) => sum + log.amount, 0);
+    const totalDays = treeLogs.filter(log => log.dayType !== 'sick' && log.dayType !== 'dayoff').length;
+
+    Alert.alert(
+      'End Current Season',
+      `Are you sure you want to end ${activeSeason.name}?\n\nSeason Summary:\n- Total Trees: ${formatLargeNumber(totalTrees)}\n- Total Earnings: $${totalEarnings >= 100000 ? formatLargeNumber(totalEarnings) : totalEarnings.toFixed(2)}\n- Total Expenses: $${totalExpenses >= 100000 ? formatLargeNumber(totalExpenses) : totalExpenses.toFixed(2)}\n- Planting Days: ${totalDays}\n\nThis season will be archived and you can create a new season afterwards.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'End Season',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              activeSeason.isActive = false;
+              activeSeason.endDate = new Date().toISOString();
+              activeSeason.totalTrees = totalTrees;
+              activeSeason.totalEarnings = totalEarnings;
+              activeSeason.totalDays = totalDays;
+              
+              await StorageService.saveSeason(activeSeason);
+              await StorageService.setActiveSeason(null as any);
+              
+              await loadSeasons();
+              
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Success', `${activeSeason.name} has been ended and archived!`);
+            } catch (error) {
+              console.error('Error ending season:', error);
+              Alert.alert('Error', 'Failed to end season');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleCreateNewSeason = async () => {
+    if (activeSeason) {
+      Alert.alert('Error', 'Please end your current season before creating a new one');
+      return;
+    }
+
     const year = parseInt(newSeasonYear);
     if (!year || year < 2000 || year > 2100) {
       Alert.alert('Error', 'Please enter a valid year');
@@ -110,12 +163,11 @@ export default function ProfileScreen() {
 
     Alert.alert(
       'Create New Season',
-      `Are you sure you want to start a new season for ${newSeasonProvince} ${year}?\n\n⚠️ WARNING: All your current stats, logs, and analytics will be reset for the new season. Your current season will be archived and can be viewed later. Your career forest will be preserved.`,
+      `Are you sure you want to start a new season for ${newSeasonProvince} ${year}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Create',
-          style: 'destructive',
           onPress: async () => {
             try {
               setIsCreatingSeason(true);
@@ -458,12 +510,34 @@ export default function ProfileScreen() {
             <View style={[styles.card, { backgroundColor: colors.card }]}>
               <Text style={[styles.cardTitle, { color: colors.text }]}>Season Management</Text>
               
+              {activeSeason && (
+                <TouchableOpacity 
+                  style={[styles.seasonButton, { backgroundColor: colors.warning }]}
+                  onPress={handleEndSeason}
+                >
+                  <IconSymbol
+                    ios_icon_name="stop.circle.fill"
+                    android_material_icon_name="stop-circle"
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.seasonButtonText}>End Current Season</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity 
-                style={[styles.seasonButton, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.seasonButton, 
+                  { backgroundColor: activeSeason ? colors.textSecondary : colors.primary }
+                ]}
                 onPress={() => {
-                  setNewSeasonProvince(PROVINCES[0]);
-                  setNewSeasonYear(new Date().getFullYear().toString());
-                  setShowSeasonModal(true);
+                  if (activeSeason) {
+                    Alert.alert('Active Season', 'Please end your current season before creating a new one');
+                  } else {
+                    setNewSeasonProvince(PROVINCES[0]);
+                    setNewSeasonYear(new Date().getFullYear().toString());
+                    setShowSeasonModal(true);
+                  }
                 }}
                 disabled={isCreatingSeason}
               >
