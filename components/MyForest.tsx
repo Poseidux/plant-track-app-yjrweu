@@ -15,9 +15,12 @@ interface BearPosition {
   x: Animated.Value;
   y: Animated.Value;
   isMoving: boolean;
+  currentX: number;
+  currentY: number;
 }
 
 const ANIMATION_DISABLED_KEY = '@bear_animation_disabled';
+const BEAR_POSITIONS_KEY = '@bear_positions';
 
 export default function MyForest({ treeLogs }: MyForestProps) {
   const { colors } = useThemeContext();
@@ -29,37 +32,46 @@ export default function MyForest({ treeLogs }: MyForestProps) {
     x: new Animated.Value(0),
     y: new Animated.Value(0),
     isMoving: false,
+    currentX: 0,
+    currentY: 0,
   });
   
-  const [blackBear1] = useState<BearPosition>({
-    x: new Animated.Value(50),
-    y: new Animated.Value(20),
+  const [brownBear2] = useState<BearPosition>({
+    x: new Animated.Value(0),
+    y: new Animated.Value(0),
     isMoving: false,
+    currentX: 0,
+    currentY: 0,
   });
 
-  const [brownBear2] = useState<BearPosition>({
-    x: new Animated.Value(-30),
-    y: new Animated.Value(40),
+  const [brownBear3] = useState<BearPosition>({
+    x: new Animated.Value(0),
+    y: new Animated.Value(0),
     isMoving: false,
+    currentX: 0,
+    currentY: 0,
   });
   
-  const [blackBear2] = useState<BearPosition>({
-    x: new Animated.Value(70),
-    y: new Animated.Value(-20),
+  const [brownBear4] = useState<BearPosition>({
+    x: new Animated.Value(0),
+    y: new Animated.Value(0),
     isMoving: false,
+    currentX: 0,
+    currentY: 0,
   });
 
   useEffect(() => {
     generateForests();
     loadAnimationPreference();
+    loadBearPositions();
   }, [treeLogs]);
 
   useEffect(() => {
     if (!animationDisabled) {
       animateBear(brownBear1, 0);
-      animateBear(blackBear1, 1500);
-      animateBear(brownBear2, 3000);
-      animateBear(blackBear2, 4500);
+      animateBear(brownBear2, 1500);
+      animateBear(brownBear3, 3000);
+      animateBear(brownBear4, 4500);
     }
   }, [animationDisabled]);
 
@@ -71,6 +83,78 @@ export default function MyForest({ treeLogs }: MyForestProps) {
       }
     } catch (error) {
       console.error('Error loading animation preference:', error);
+    }
+  };
+
+  const loadBearPositions = async () => {
+    try {
+      const value = await AsyncStorage.getItem(BEAR_POSITIONS_KEY);
+      if (value !== null) {
+        const positions = JSON.parse(value);
+        brownBear1.x.setValue(positions.bear1.x);
+        brownBear1.y.setValue(positions.bear1.y);
+        brownBear1.currentX = positions.bear1.x;
+        brownBear1.currentY = positions.bear1.y;
+
+        brownBear2.x.setValue(positions.bear2.x);
+        brownBear2.y.setValue(positions.bear2.y);
+        brownBear2.currentX = positions.bear2.x;
+        brownBear2.currentY = positions.bear2.y;
+
+        brownBear3.x.setValue(positions.bear3.x);
+        brownBear3.y.setValue(positions.bear3.y);
+        brownBear3.currentX = positions.bear3.x;
+        brownBear3.currentY = positions.bear3.y;
+
+        brownBear4.x.setValue(positions.bear4.x);
+        brownBear4.y.setValue(positions.bear4.y);
+        brownBear4.currentX = positions.bear4.x;
+        brownBear4.currentY = positions.bear4.y;
+      } else {
+        const initialPositions = {
+          bear1: { x: -80, y: -60 },
+          bear2: { x: 100, y: 40 },
+          bear3: { x: -120, y: 80 },
+          bear4: { x: 140, y: -40 },
+        };
+        brownBear1.x.setValue(initialPositions.bear1.x);
+        brownBear1.y.setValue(initialPositions.bear1.y);
+        brownBear1.currentX = initialPositions.bear1.x;
+        brownBear1.currentY = initialPositions.bear1.y;
+
+        brownBear2.x.setValue(initialPositions.bear2.x);
+        brownBear2.y.setValue(initialPositions.bear2.y);
+        brownBear2.currentX = initialPositions.bear2.x;
+        brownBear2.currentY = initialPositions.bear2.y;
+
+        brownBear3.x.setValue(initialPositions.bear3.x);
+        brownBear3.y.setValue(initialPositions.bear3.y);
+        brownBear3.currentX = initialPositions.bear3.x;
+        brownBear3.currentY = initialPositions.bear3.y;
+
+        brownBear4.x.setValue(initialPositions.bear4.x);
+        brownBear4.y.setValue(initialPositions.bear4.y);
+        brownBear4.currentX = initialPositions.bear4.x;
+        brownBear4.currentY = initialPositions.bear4.y;
+
+        await saveBearPositions();
+      }
+    } catch (error) {
+      console.error('Error loading bear positions:', error);
+    }
+  };
+
+  const saveBearPositions = async () => {
+    try {
+      const positions = {
+        bear1: { x: brownBear1.currentX, y: brownBear1.currentY },
+        bear2: { x: brownBear2.currentX, y: brownBear2.currentY },
+        bear3: { x: brownBear3.currentX, y: brownBear3.currentY },
+        bear4: { x: brownBear4.currentX, y: brownBear4.currentY },
+      };
+      await AsyncStorage.setItem(BEAR_POSITIONS_KEY, JSON.stringify(positions));
+    } catch (error) {
+      console.error('Error saving bear positions:', error);
     }
   };
 
@@ -126,28 +210,32 @@ export default function MyForest({ treeLogs }: MyForestProps) {
 
   const animateBear = (bear: BearPosition, delay: number) => {
     const moveSequence = () => {
-      const randomX = Math.random() * 200 - 100;
-      const randomY = Math.random() * 80 - 40;
+      const randomX = (Math.random() * 400) - 200;
+      const randomY = (Math.random() * 200) - 100;
+      
+      bear.currentX = randomX;
+      bear.currentY = randomY;
       
       Animated.parallel([
         Animated.timing(bear.x, {
           toValue: randomX,
-          duration: 6000,
+          duration: 8000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(bear.y, {
           toValue: randomY,
-          duration: 6000,
+          duration: 8000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ]).start(() => {
+        saveBearPositions();
         setTimeout(() => {
           if (!animationDisabled) {
             moveSequence();
           }
-        }, 2000);
+        }, 3000);
       });
     };
 
@@ -209,13 +297,13 @@ export default function MyForest({ treeLogs }: MyForestProps) {
                   styles.bearEmoji,
                   {
                     transform: [
-                      { translateX: blackBear1.x },
-                      { translateY: blackBear1.y },
+                      { translateX: brownBear2.x },
+                      { translateY: brownBear2.y },
                     ],
                   },
                 ]}
               >
-                🐻‍❄️
+                🐻
               </Animated.Text>
 
               <Animated.Text
@@ -223,8 +311,8 @@ export default function MyForest({ treeLogs }: MyForestProps) {
                   styles.bearEmoji,
                   {
                     transform: [
-                      { translateX: brownBear2.x },
-                      { translateY: brownBear2.y },
+                      { translateX: brownBear3.x },
+                      { translateY: brownBear3.y },
                     ],
                   },
                 ]}
@@ -237,13 +325,13 @@ export default function MyForest({ treeLogs }: MyForestProps) {
                   styles.bearEmoji,
                   {
                     transform: [
-                      { translateX: blackBear2.x },
-                      { translateY: blackBear2.y },
+                      { translateX: brownBear4.x },
+                      { translateY: brownBear4.y },
                     ],
                   },
                 ]}
               >
-                🐻‍❄️
+                🐻
               </Animated.Text>
             </>
           )}
