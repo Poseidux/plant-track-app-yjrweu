@@ -69,7 +69,7 @@ export default function MyForest({ treeLogs }: MyForestProps) {
   };
 
   const startDayNightCycle = () => {
-    const cycleDuration = 10000;
+    const cycleDuration = 30000;
     
     const animate = () => {
       Animated.sequence([
@@ -135,6 +135,35 @@ export default function MyForest({ treeLogs }: MyForestProps) {
     setCareerTrees(careerTreeArray);
   };
 
+  const renderStars = () => {
+    const stars = [];
+    for (let i = 0; i < 30; i++) {
+      const randomTop = Math.random() * 80 + 10;
+      const randomLeft = Math.random() * 90 + 5;
+      const randomSize = Math.random() * 2 + 1;
+      
+      stars.push(
+        <Animated.View
+          key={`star-${i}`}
+          style={[
+            styles.star,
+            {
+              top: `${randomTop}%`,
+              left: `${randomLeft}%`,
+              width: randomSize,
+              height: randomSize,
+              opacity: dayNightProgress.interpolate({
+                inputRange: [0, 0.3, 0.7, 1],
+                outputRange: [0, 1, 1, 0],
+              }),
+            },
+          ]}
+        />
+      );
+    }
+    return stars;
+  };
+
   const renderForestGrid = (trees: string[], title: string, treesPerEmoji: number, showDayNight: boolean = false) => {
     if (trees.length === 0) {
       return (
@@ -173,6 +202,8 @@ export default function MyForest({ treeLogs }: MyForestProps) {
               : { backgroundColor: colors.highlight }
           ]}
         >
+          {showDayNight && !animationDisabled && renderStars()}
+          
           {trees.map((tree, index) => (
             <Text key={`tree-${title}-${index}`} style={styles.treeEmoji}>
               {tree}
@@ -247,7 +278,7 @@ export default function MyForest({ treeLogs }: MyForestProps) {
       </View>
       
       <Text style={[styles.description, { color: colors.textSecondary }]}>
-        Watch your forest grow as you plant more trees! The forest transitions between day and night every 10 seconds.
+        Watch your forest grow as you plant more trees! The forest transitions between day and night every 30 seconds.
       </Text>
 
       {renderForestGrid(seasonTrees, 'Your Season Forest', 1000, true)}
@@ -330,6 +361,11 @@ const styles = StyleSheet.create({
   },
   moonEmoji: {
     fontSize: 32,
+  },
+  star: {
+    position: 'absolute',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 1,
   },
   forestInfo: {
     fontSize: 12,

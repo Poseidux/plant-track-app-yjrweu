@@ -282,12 +282,13 @@ export default function ProfileScreen() {
 
   const renderProvincePicker = () => (
     <Modal visible={showProvincePicker} transparent animationType="slide">
-      <TouchableOpacity 
-        style={styles.modalOverlay}
-        activeOpacity={1} 
-        onPress={() => setShowProvincePicker(false)}
-      >
-        <View style={[styles.pickerModal, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity 
+          style={styles.modalOverlayTouchable}
+          activeOpacity={1} 
+          onPress={() => setShowProvincePicker(false)}
+        />
+        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
             <TouchableOpacity onPress={() => setShowProvincePicker(false)}>
@@ -333,26 +334,31 @@ export default function ProfileScreen() {
             )}
           />
         </View>
-      </TouchableOpacity>
+      </View>
     </Modal>
   );
 
   const renderNewSeasonProvincePicker = () => (
     <Modal visible={showNewSeasonProvincePicker} transparent animationType="slide">
-      <TouchableOpacity 
-        style={styles.modalOverlay}
-        activeOpacity={1} 
-        onPress={() => setShowNewSeasonProvincePicker(false)}
-      >
-        <View style={[styles.pickerModal, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity 
+          style={styles.modalOverlayTouchable}
+          activeOpacity={1} 
+          onPress={() => !isCreatingSeason && setShowNewSeasonProvincePicker(false)}
+          disabled={isCreatingSeason}
+        />
+        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
-            <TouchableOpacity onPress={() => setShowNewSeasonProvincePicker(false)}>
+            <TouchableOpacity 
+              onPress={() => !isCreatingSeason && setShowNewSeasonProvincePicker(false)}
+              disabled={isCreatingSeason}
+            >
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
                 android_material_icon_name="close"
                 size={28}
-                color={colors.text}
+                color={isCreatingSeason ? colors.textSecondary : colors.text}
               />
             </TouchableOpacity>
           </View>
@@ -368,6 +374,7 @@ export default function ProfileScreen() {
                 ]}
                 onPress={() => handleNewSeasonProvinceSelect(item)}
                 activeOpacity={0.7}
+                disabled={isCreatingSeason}
               >
                 <Text
                   style={[
@@ -390,7 +397,7 @@ export default function ProfileScreen() {
             )}
           />
         </View>
-      </TouchableOpacity>
+      </View>
     </Modal>
   );
 
@@ -1072,8 +1079,11 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+  },
+  modalOverlayTouchable: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   pickerModal: {
     borderTopLeftRadius: 20,
