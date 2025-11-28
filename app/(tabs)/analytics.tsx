@@ -26,7 +26,7 @@ export default function AnalyticsScreen() {
   const { colors, isDark } = useThemeContext();
   const [treeLogs, setTreeLogs] = useState<TreePlantingLog[]>([]);
   const [earningsLogs, setEarningsLogs] = useState<EarningsLog[]>([]);
-  const [expenseLogs, setExpenseLog s] = useState<ExpenseLog[]>([]);
+  const [expenseLogs, setExpenseLogs] = useState<ExpenseLog[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [showAllAchievements, setShowAllAchievements] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
