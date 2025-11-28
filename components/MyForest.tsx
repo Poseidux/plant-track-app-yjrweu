@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Dimensions } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { TreePlantingLog } from '@/types/TreePlanting';
 import { IconSymbol } from './IconSymbol';
@@ -22,11 +22,24 @@ interface BearPosition {
 const ANIMATION_DISABLED_KEY = '@bear_animation_disabled';
 const BEAR_POSITIONS_KEY = '@bear_positions';
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const FOREST_PADDING = 40;
+const FOREST_WIDTH = SCREEN_WIDTH - FOREST_PADDING * 2;
+const BEAR_SIZE = 16;
+
+const MIN_X = -FOREST_WIDTH / 2 + BEAR_SIZE;
+const MAX_X = FOREST_WIDTH / 2 - BEAR_SIZE;
+const MIN_Y = -80;
+const MAX_Y = 80;
+
 export default function MyForest({ treeLogs }: MyForestProps) {
   const { colors } = useThemeContext();
   const [seasonTrees, setSeasonTrees] = useState<string[]>([]);
   const [careerTrees, setCareerTrees] = useState<string[]>([]);
   const [animationDisabled, setAnimationDisabled] = useState(false);
+  const [positionsLoaded, setPositionsLoaded] = useState(false);
+  
+  const animationTimeouts = useRef<NodeJS.Timeout[]>([]);
   
   const [brownBear1] = useState<BearPosition>({
     x: new Animated.Value(0),
@@ -64,16 +77,21 @@ export default function MyForest({ treeLogs }: MyForestProps) {
     generateForests();
     loadAnimationPreference();
     loadBearPositions();
+    
+    return () => {
+      animationTimeouts.current.forEach(timeout => clearTimeout(timeout));
+      animationTimeouts.current = [];
+    };
   }, [treeLogs]);
 
   useEffect(() => {
-    if (!animationDisabled) {
+    if (positionsLoaded && !animationDisabled) {
       animateBear(brownBear1, 0);
       animateBear(brownBear2, 1500);
       animateBear(brownBear3, 3000);
       animateBear(brownBear4, 4500);
     }
-  }, [animationDisabled]);
+  }, [animationDisabled, positionsLoaded]);
 
   const loadAnimationPreference = async () => {
     try {
@@ -91,6 +109,7 @@ export default function MyForest({ treeLogs }: MyForestProps) {
       const value = await AsyncStorage.getItem(BEAR_POSITIONS_KEY);
       if (value !== null) {
         const positions = JSON.parse(value);
+        
         brownBear1.x.setValue(positions.bear1.x);
         brownBear1.y.setValue(positions.bear1.y);
         brownBear1.currentX = positions.bear1.x;
@@ -112,11 +131,12 @@ export default function MyForest({ treeLogs }: MyForestProps) {
         brownBear4.currentY = positions.bear4.y;
       } else {
         const initialPositions = {
-          bear1: { x: -80, y: -60 },
+          bear1: { x: -120, y: -60 },
           bear2: { x: 100, y: 40 },
-          bear3: { x: -120, y: 80 },
-          bear4: { x: 140, y: -40 },
+          bear3: { x: -80, y: 70 },
+          bear4: { x: 140, y: -50 },
         };
+        
         brownBear1.x.setValue(initialPositions.bear1.x);
         brownBear1.y.setValue(initialPositions.bear1.y);
         brownBear1.currentX = initialPositions.bear1.x;
@@ -139,8 +159,10 @@ export default function MyForest({ treeLogs }: MyForestProps) {
 
         await saveBearPositions();
       }
+      setPositionsLoaded(true);
     } catch (error) {
       console.error('Error loading bear positions:', error);
+      setPositionsLoaded(true);
     }
   };
 
@@ -161,6 +183,10 @@ export default function MyForest({ treeLogs }: MyForestProps) {
   const toggleAnimation = async () => {
     const newValue = !animationDisabled;
     setAnimationDisabled(newValue);
+    
+    animationTimeouts.current.forEach(timeout => clearTimeout(timeout));
+    animationTimeouts.current = [];
+    
     try {
       await AsyncStorage.setItem(ANIMATION_DISABLED_KEY, newValue.toString());
     } catch (error) {
@@ -208,42 +234,67 @@ export default function MyForest({ treeLogs }: MyForestProps) {
     setCareerTrees(careerTreeArray);
   };
 
+  const clampValue = (value: number, min: number, max: number) => {
+    return Math.max(min, Math.min(max, value));
+  };
+
+  const getRandomPosition = (currentX: number, currentY: number) => {
+    const maxDistance = 200;
+    const minDistance = 100;
+    
+    const angle = Math.random() * Math.PI * 2;
+    const distance = minDistance + Math.random() * (maxDistance - minDistance);
+    
+    let newX = currentX + Math.cos(angle) * distance;
+    let newY = currentY + Math.sin(angle) * distance;
+    
+    newX = clampValue(newX, MIN_X, MAX_X);
+    newY = clampValue(newY, MIN_Y, MAX_Y);
+    
+    return { x: newX, y: newY };
+  };
+
   const animateBear = (bear: BearPosition, delay: number) => {
     const moveSequence = () => {
-      const randomX = (Math.random() * 400) - 200;
-      const randomY = (Math.random() * 200) - 100;
+      if (animationDisabled) {
+        return;
+      }
       
-      bear.currentX = randomX;
-      bear.currentY = randomY;
+      const newPosition = getRandomPosition(bear.currentX, bear.currentY);
+      
+      bear.currentX = newPosition.x;
+      bear.currentY = newPosition.y;
       
       Animated.parallel([
         Animated.timing(bear.x, {
-          toValue: randomX,
+          toValue: newPosition.x,
           duration: 8000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(bear.y, {
-          toValue: randomY,
+          toValue: newPosition.y,
           duration: 8000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ]).start(() => {
         saveBearPositions();
-        setTimeout(() => {
+        const timeout = setTimeout(() => {
           if (!animationDisabled) {
             moveSequence();
           }
         }, 3000);
+        animationTimeouts.current.push(timeout);
       });
     };
 
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       if (!animationDisabled) {
         moveSequence();
       }
     }, delay);
+    animationTimeouts.current.push(timeout);
   };
 
   const renderForestGrid = (trees: string[], title: string, treesPerEmoji: number, showBears: boolean = false) => {
@@ -276,7 +327,7 @@ export default function MyForest({ treeLogs }: MyForestProps) {
             </Text>
           ))}
           
-          {showBears && trees.length > 0 && !animationDisabled && (
+          {showBears && trees.length > 0 && !animationDisabled && positionsLoaded && (
             <>
               <Animated.Text
                 style={[
@@ -435,7 +486,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     padding: 12,
     borderRadius: 12,
-    minHeight: 80,
+    minHeight: 200,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',

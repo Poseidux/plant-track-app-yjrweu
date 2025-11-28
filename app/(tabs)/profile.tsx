@@ -214,28 +214,31 @@ export default function ProfileScreen() {
     return displayMap[level];
   };
 
-  const handleCloseProvincePicker = () => {
-    console.log('Closing province picker');
+  const handleProvinceSelect = (province: string) => {
+    console.log('Province selected:', province);
+    setSelectedProvince(province);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowProvincePicker(false);
   };
 
-  const handleCloseNewSeasonProvincePicker = () => {
-    console.log('Closing new season province picker');
+  const handleNewSeasonProvinceSelect = (province: string) => {
+    console.log('New season province selected:', province);
+    setNewSeasonProvince(province);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowNewSeasonProvincePicker(false);
   };
 
   const renderProvincePicker = () => (
     <Modal visible={showProvincePicker} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <TouchableOpacity 
-          style={styles.modalOverlayTouchable}
-          activeOpacity={1} 
-          onPress={handleCloseProvincePicker}
-        />
-        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1} 
+        onPress={() => setShowProvincePicker(false)}
+      >
+        <View style={[styles.pickerModal, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
-            <TouchableOpacity onPress={handleCloseProvincePicker}>
+            <TouchableOpacity onPress={() => setShowProvincePicker(false)}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
                 android_material_icon_name="close"
@@ -254,12 +257,7 @@ export default function ProfileScreen() {
                   { borderBottomColor: colors.border },
                   item === selectedProvince && { backgroundColor: colors.highlight },
                 ]}
-                onPress={() => {
-                  console.log('Province selected:', item);
-                  setSelectedProvince(item);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  handleCloseProvincePicker();
-                }}
+                onPress={() => handleProvinceSelect(item)}
                 activeOpacity={0.7}
               >
                 <Text
@@ -283,22 +281,21 @@ export default function ProfileScreen() {
             )}
           />
         </View>
-      </View>
+      </TouchableOpacity>
     </Modal>
   );
 
   const renderNewSeasonProvincePicker = () => (
     <Modal visible={showNewSeasonProvincePicker} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <TouchableOpacity 
-          style={styles.modalOverlayTouchable}
-          activeOpacity={1} 
-          onPress={handleCloseNewSeasonProvincePicker}
-        />
-        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1} 
+        onPress={() => setShowNewSeasonProvincePicker(false)}
+      >
+        <View style={[styles.pickerModal, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
-            <TouchableOpacity onPress={handleCloseNewSeasonProvincePicker}>
+            <TouchableOpacity onPress={() => setShowNewSeasonProvincePicker(false)}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
                 android_material_icon_name="close"
@@ -317,12 +314,7 @@ export default function ProfileScreen() {
                   { borderBottomColor: colors.border },
                   item === newSeasonProvince && { backgroundColor: colors.highlight },
                 ]}
-                onPress={() => {
-                  console.log('New season province selected:', item);
-                  setNewSeasonProvince(item);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  handleCloseNewSeasonProvincePicker();
-                }}
+                onPress={() => handleNewSeasonProvinceSelect(item)}
                 activeOpacity={0.7}
               >
                 <Text
@@ -346,7 +338,7 @@ export default function ProfileScreen() {
             )}
           />
         </View>
-      </View>
+      </TouchableOpacity>
     </Modal>
   );
 
@@ -1008,9 +1000,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
-  },
-  modalOverlayTouchable: {
-    flex: 1,
   },
   pickerModal: {
     borderTopLeftRadius: 20,
