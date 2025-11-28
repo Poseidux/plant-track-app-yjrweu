@@ -69,7 +69,7 @@ export default function MyForest({ treeLogs }: MyForestProps) {
   };
 
   const startDayNightCycle = () => {
-    const cycleDuration = 30000;
+    const cycleDuration = 45000;
     
     const animate = () => {
       Animated.sequence([
@@ -186,8 +186,16 @@ export default function MyForest({ treeLogs }: MyForestProps) {
 
     const backgroundColor = showDayNight && !animationDisabled
       ? dayNightProgress.interpolate({
-          inputRange: [0, 0.5, 1],
-          outputRange: ['#87CEEB', '#1a1a2e', '#87CEEB'],
+          inputRange: [0, 0.15, 0.35, 0.5, 0.65, 0.85, 1],
+          outputRange: [
+            '#87CEEB',
+            '#FFB347',
+            '#FF6B6B',
+            '#1a1a2e',
+            '#FF6B6B',
+            '#FFB347',
+            '#87CEEB',
+          ],
         })
       : colors.highlight;
 
@@ -209,38 +217,6 @@ export default function MyForest({ treeLogs }: MyForestProps) {
               {tree}
             </Text>
           ))}
-          
-          {showDayNight && !animationDisabled && (
-            <Animated.View
-              style={[
-                styles.sunMoon,
-                {
-                  opacity: dayNightProgress.interpolate({
-                    inputRange: [0, 0.3, 0.7, 1],
-                    outputRange: [1, 0, 0, 1],
-                  }),
-                },
-              ]}
-            >
-              <Text style={styles.sunEmoji}>☀️</Text>
-            </Animated.View>
-          )}
-          
-          {showDayNight && !animationDisabled && (
-            <Animated.View
-              style={[
-                styles.sunMoon,
-                {
-                  opacity: dayNightProgress.interpolate({
-                    inputRange: [0, 0.3, 0.7, 1],
-                    outputRange: [0, 1, 1, 0],
-                  }),
-                },
-              ]}
-            >
-              <Text style={styles.moonEmoji}>🌙</Text>
-            </Animated.View>
-          )}
         </Animated.View>
         <Text style={[styles.forestInfo, { color: colors.textSecondary }]}>
           Each tree emoji represents {treesPerEmoji.toLocaleString()} trees planted
@@ -278,7 +254,7 @@ export default function MyForest({ treeLogs }: MyForestProps) {
       </View>
       
       <Text style={[styles.description, { color: colors.textSecondary }]}>
-        Watch your forest grow as you plant more trees! The forest transitions between day and night every 30 seconds.
+        Watch your forest grow as you plant more trees! The forest transitions between day and night every 45 seconds with beautiful sunrise and sunset colors.
       </Text>
 
       {renderForestGrid(seasonTrees, 'Your Season Forest', 1000, true)}
@@ -350,17 +326,6 @@ const styles = StyleSheet.create({
   treeEmoji: {
     fontSize: 24,
     margin: 4,
-  },
-  sunMoon: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-  },
-  sunEmoji: {
-    fontSize: 32,
-  },
-  moonEmoji: {
-    fontSize: 32,
   },
   star: {
     position: 'absolute',

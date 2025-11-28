@@ -282,121 +282,121 @@ export default function ProfileScreen() {
 
   const renderProvincePicker = () => (
     <Modal visible={showProvincePicker} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <TouchableOpacity 
-          style={styles.modalOverlayTouchable}
-          activeOpacity={1} 
-          onPress={() => setShowProvincePicker(false)}
-        />
-        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
-          <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
-            <TouchableOpacity onPress={() => setShowProvincePicker(false)}>
-              <IconSymbol
-                ios_icon_name="xmark.circle.fill"
-                android_material_icon_name="close"
-                size={28}
-                color={colors.text}
-              />
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={PROVINCES}
-            keyExtractor={(item, index) => `province-${index}`}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.pickerItem,
-                  { borderBottomColor: colors.border },
-                  item === selectedProvince && { backgroundColor: colors.highlight },
-                ]}
-                onPress={() => handleProvinceSelect(item)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.pickerItemText,
-                    { color: colors.text },
-                    item === selectedProvince && { fontWeight: '600', color: colors.primary },
-                  ]}
-                >
-                  {item}
-                </Text>
-                {item === selectedProvince && (
-                  <IconSymbol
-                    ios_icon_name="checkmark"
-                    android_material_icon_name="check"
-                    size={20}
-                    color={colors.primary}
-                  />
-                )}
-              </TouchableOpacity>
-            )}
-          />
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1} 
+        onPress={() => setShowProvincePicker(false)}
+      >
+        <View style={styles.modalOverlayBackground} />
+      </TouchableOpacity>
+      <View style={[styles.pickerModal, { backgroundColor: colors.card }]} pointerEvents="box-none">
+        <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
+          <TouchableOpacity onPress={() => setShowProvincePicker(false)}>
+            <IconSymbol
+              ios_icon_name="xmark.circle.fill"
+              android_material_icon_name="close"
+              size={28}
+              color={colors.text}
+            />
+          </TouchableOpacity>
         </View>
+        <FlatList
+          data={PROVINCES}
+          keyExtractor={(item, index) => `province-${index}`}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.pickerItem,
+                { borderBottomColor: colors.border },
+                item === selectedProvince && { backgroundColor: colors.highlight },
+              ]}
+              onPress={() => handleProvinceSelect(item)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.pickerItemText,
+                  { color: colors.text },
+                  item === selectedProvince && { fontWeight: '600', color: colors.primary },
+                ]}
+              >
+                {item}
+              </Text>
+              {item === selectedProvince && (
+                <IconSymbol
+                  ios_icon_name="checkmark"
+                  android_material_icon_name="check"
+                  size={20}
+                  color={colors.primary}
+                />
+              )}
+            </TouchableOpacity>
+          )}
+        />
       </View>
     </Modal>
   );
 
   const renderNewSeasonProvincePicker = () => (
     <Modal visible={showNewSeasonProvincePicker} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <TouchableOpacity 
-          style={styles.modalOverlayTouchable}
-          activeOpacity={1} 
-          onPress={() => !isCreatingSeason && setShowNewSeasonProvincePicker(false)}
-          disabled={isCreatingSeason}
-        />
-        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
-          <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
-            <TouchableOpacity 
-              onPress={() => !isCreatingSeason && setShowNewSeasonProvincePicker(false)}
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1} 
+        onPress={() => !isCreatingSeason && setShowNewSeasonProvincePicker(false)}
+        disabled={isCreatingSeason}
+      >
+        <View style={styles.modalOverlayBackground} />
+      </TouchableOpacity>
+      <View style={[styles.pickerModal, { backgroundColor: colors.card }]} pointerEvents="box-none">
+        <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
+          <TouchableOpacity 
+            onPress={() => !isCreatingSeason && setShowNewSeasonProvincePicker(false)}
+            disabled={isCreatingSeason}
+          >
+            <IconSymbol
+              ios_icon_name="xmark.circle.fill"
+              android_material_icon_name="close"
+              size={28}
+              color={isCreatingSeason ? colors.textSecondary : colors.text}
+            />
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          data={PROVINCES}
+          keyExtractor={(item, index) => `new-season-province-${index}`}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.pickerItem,
+                { borderBottomColor: colors.border },
+                item === newSeasonProvince && { backgroundColor: colors.highlight },
+              ]}
+              onPress={() => handleNewSeasonProvinceSelect(item)}
+              activeOpacity={0.7}
               disabled={isCreatingSeason}
             >
-              <IconSymbol
-                ios_icon_name="xmark.circle.fill"
-                android_material_icon_name="close"
-                size={28}
-                color={isCreatingSeason ? colors.textSecondary : colors.text}
-              />
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={PROVINCES}
-            keyExtractor={(item, index) => `new-season-province-${index}`}
-            renderItem={({ item }) => (
-              <TouchableOpacity
+              <Text
                 style={[
-                  styles.pickerItem,
-                  { borderBottomColor: colors.border },
-                  item === newSeasonProvince && { backgroundColor: colors.highlight },
+                  styles.pickerItemText,
+                  { color: colors.text },
+                  item === newSeasonProvince && { fontWeight: '600', color: colors.primary },
                 ]}
-                onPress={() => handleNewSeasonProvinceSelect(item)}
-                activeOpacity={0.7}
-                disabled={isCreatingSeason}
               >
-                <Text
-                  style={[
-                    styles.pickerItemText,
-                    { color: colors.text },
-                    item === newSeasonProvince && { fontWeight: '600', color: colors.primary },
-                  ]}
-                >
-                  {item}
-                </Text>
-                {item === newSeasonProvince && (
-                  <IconSymbol
-                    ios_icon_name="checkmark"
-                    android_material_icon_name="check"
-                    size={20}
-                    color={colors.primary}
-                  />
-                )}
-              </TouchableOpacity>
-            )}
-          />
-        </View>
+                {item}
+              </Text>
+              {item === newSeasonProvince && (
+                <IconSymbol
+                  ios_icon_name="checkmark"
+                  android_material_icon_name="check"
+                  size={20}
+                  color={colors.primary}
+                />
+              )}
+            </TouchableOpacity>
+          )}
+        />
       </View>
     </Modal>
   );
@@ -1078,14 +1078,22 @@ const styles = StyleSheet.create({
     height: 20,
   },
   modalOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'flex-end',
   },
-  modalOverlayTouchable: {
-    flex: 1,
+  modalOverlayBackground: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   pickerModal: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
