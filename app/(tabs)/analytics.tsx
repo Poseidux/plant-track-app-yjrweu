@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,6 @@ import {
   Animated,
   Modal,
   Alert,
-  Share,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
@@ -21,6 +20,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { checkAchievements } from '@/utils/achievements';
 import { formatLargeNumber } from '@/utils/formatNumber';
+import { shareStatsAsImage } from '@/utils/shareStatsImage';
 
 export default function AnalyticsScreen() {
   const { colors, isDark } = useThemeContext();
@@ -32,6 +32,7 @@ export default function AnalyticsScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [cardRotation] = useState(new Animated.Value(0));
   const [showFullscreenPerformance, setShowFullscreenPerformance] = useState(false);
+  const shareViewRef = useRef(null);
 
   useEffect(() => {
     loadData();
@@ -106,7 +107,6 @@ export default function AnalyticsScreen() {
     ? ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100
     : 0;
 
-  // Get today's stats
   const today = new Date().toISOString().split('T')[0];
   const todayLog = treeLogs.find(log => log.date === today);
   const todayTrees = todayLog ? todayLog.totalTrees : 0;
@@ -188,30 +188,8 @@ export default function AnalyticsScreen() {
   };
 
   const handleShareStats = async () => {
-    try {
-      const message = `🌲 My Tree Planting Stats 🌲\n\n` +
-        `👤 ${profile?.name || 'Tree Planter'}\n\n` +
-        `📊 Overall Performance:\n` +
-        `• Total Trees: ${formatLargeNumber(totalTrees)}\n` +
-        `• Planting Days: ${totalDays}\n` +
-        `• Personal Best: ${formatLargeNumber(personalBest)} trees/day\n` +
-        `• Average Rate: ${formatLargeNumber(Math.round(averageTreesPerDay))} trees/day\n` +
-        `• Trees/Hour: ${treesPerHour.toFixed(0)}\n\n` +
-        `💰 Earnings:\n` +
-        `• Total: $${totalEarnings >= 100000 ? formatLargeNumber(totalEarnings) : totalEarnings.toFixed(2)}\n` +
-        `• Expenses: $${totalExpenses >= 100000 ? formatLargeNumber(totalExpenses) : totalExpenses.toFixed(2)}\n\n` +
-        `📈 Today's Stats:\n` +
-        `• Trees Planted: ${todayTrees}\n` +
-        `• Hours Worked: ${todayHours}\n` +
-        `• Rate: ${todayRate.toFixed(0)} trees/hour\n\n` +
-        `🏆 Achievements Unlocked: ${unlockedAchievements.length}/${achievements.length}`;
-
-      await Share.share({
-        message: message,
-      });
-    } catch (error) {
-      console.error('Error sharing stats:', error);
-      Alert.alert('Error', 'Failed to share stats');
+    if (shareViewRef.current) {
+      await shareStatsAsImage(shareViewRef.current);
     }
   };
 
@@ -737,116 +715,128 @@ export default function AnalyticsScreen() {
 
           <ScrollView contentContainerStyle={styles.fullscreenContent}>
             {profile && (
-              <View style={styles.fullscreenPerformanceCard}>
-                <View style={styles.fullscreenCardHeader}>
-                  <IconSymbol
-                    ios_icon_name="person.crop.circle.fill"
-                    android_material_icon_name="account-circle"
-                    size={80}
-                    color={colors.primary}
-                  />
-                  <Text style={[styles.fullscreenCardName, { color: colors.text }]}>
-                    {profile.name}
-                  </Text>
-                  <Text style={[styles.fullscreenCardSubtitle, { color: colors.textSecondary }]}>
-                    {profile.province} • {profile.experienceLevel}
-                  </Text>
-                </View>
+              <View 
+                ref={shareViewRef}
+                style={styles.fullscreenPerformanceCard}
+                collapsable={false}
+              >
+                <View style={[styles.shareCardBackground, { backgroundColor: colors.card }]}>
+                  <View style={styles.fullscreenCardHeader}>
+                    <IconSymbol
+                      ios_icon_name="person.crop.circle.fill"
+                      android_material_icon_name="account-circle"
+                      size={80}
+                      color={colors.primary}
+                    />
+                    <Text style={[styles.fullscreenCardName, { color: colors.text }]}>
+                      {profile.name}
+                    </Text>
+                    <Text style={[styles.fullscreenCardSubtitle, { color: colors.textSecondary }]}>
+                      {profile.province} • {profile.experienceLevel}
+                    </Text>
+                  </View>
 
-                <View style={[styles.fullscreenStatsSection, { backgroundColor: colors.card }]}>
-                  <Text style={[styles.fullscreenSectionTitle, { color: colors.text }]}>
-                    Overall Performance
-                  </Text>
-                  <View style={styles.fullscreenStatsGrid}>
-                    <View style={styles.fullscreenStatItem}>
-                      <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
-                        {formatLargeNumber(personalBest)}
-                      </Text>
-                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                        Personal Best
-                      </Text>
-                    </View>
-                    <View style={styles.fullscreenStatItem}>
-                      <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
-                        {formatLargeNumber(Math.round(averageTreesPerDay))}
-                      </Text>
-                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                        Avg Trees/Day
-                      </Text>
-                    </View>
-                    <View style={styles.fullscreenStatItem}>
-                      <Text style={[styles.fullscreenStatValue, { color: colors.accent }]}>
-                        {formatLargeNumber(totalTrees)}
-                      </Text>
-                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                        Total Trees
-                      </Text>
-                    </View>
-                    <View style={styles.fullscreenStatItem}>
-                      <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
-                        {totalDays}
-                      </Text>
-                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                        Planting Days
-                      </Text>
+                  <View style={[styles.fullscreenStatsSection, { backgroundColor: colors.highlight }]}>
+                    <Text style={[styles.fullscreenSectionTitle, { color: colors.text }]}>
+                      Overall Performance
+                    </Text>
+                    <View style={styles.fullscreenStatsGrid}>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
+                          {formatLargeNumber(personalBest)}
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          Personal Best
+                        </Text>
+                      </View>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
+                          {formatLargeNumber(Math.round(averageTreesPerDay))}
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          Avg Trees/Day
+                        </Text>
+                      </View>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.accent }]}>
+                          {formatLargeNumber(totalTrees)}
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          Total Trees
+                        </Text>
+                      </View>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
+                          {totalDays}
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          Planting Days
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                </View>
 
-                <View style={[styles.fullscreenStatsSection, { backgroundColor: colors.card }]}>
-                  <Text style={[styles.fullscreenSectionTitle, { color: colors.text }]}>
-                    Today&apos;s Performance
-                  </Text>
-                  <View style={styles.fullscreenStatsGrid}>
-                    <View style={styles.fullscreenStatItem}>
-                      <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
-                        {todayTrees}
-                      </Text>
-                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                        Trees Planted
-                      </Text>
-                    </View>
-                    <View style={styles.fullscreenStatItem}>
-                      <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
-                        {todayHours}
-                      </Text>
-                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                        Hours Worked
-                      </Text>
-                    </View>
-                    <View style={styles.fullscreenStatItem}>
-                      <Text style={[styles.fullscreenStatValue, { color: colors.accent }]}>
-                        {todayRate.toFixed(0)}
-                      </Text>
-                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                        Trees/Hour
-                      </Text>
-                    </View>
-                    <View style={styles.fullscreenStatItem}>
-                      <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
-                        {personalBest > 0 ? ((todayTrees / personalBest) * 100).toFixed(0) : 0}%
-                      </Text>
-                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                        vs PB
-                      </Text>
+                  <View style={[styles.fullscreenStatsSection, { backgroundColor: colors.highlight }]}>
+                    <Text style={[styles.fullscreenSectionTitle, { color: colors.text }]}>
+                      Today&apos;s Performance
+                    </Text>
+                    <View style={styles.fullscreenStatsGrid}>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
+                          {todayTrees}
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          Trees Planted
+                        </Text>
+                      </View>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
+                          {todayHours}
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          Hours Worked
+                        </Text>
+                      </View>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.accent }]}>
+                          {todayRate.toFixed(0)}
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          Trees/Hour
+                        </Text>
+                      </View>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
+                          {personalBest > 0 ? ((todayTrees / personalBest) * 100).toFixed(0) : 0}%
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          vs PB
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                </View>
 
-                <TouchableOpacity
-                  style={[styles.fullscreenShareButton, { backgroundColor: colors.primary }]}
-                  onPress={handleShareStats}
-                >
-                  <IconSymbol
-                    ios_icon_name="square.and.arrow.up"
-                    android_material_icon_name="share"
-                    size={24}
-                    color="#FFFFFF"
-                  />
-                  <Text style={styles.fullscreenShareButtonText}>Share Stats</Text>
-                </TouchableOpacity>
+                  <View style={styles.shareFooter}>
+                    <Text style={[styles.shareFooterText, { color: colors.textSecondary }]}>
+                      🌲 Tree Planting Tracker
+                    </Text>
+                  </View>
+                </View>
               </View>
             )}
+
+            <TouchableOpacity
+              style={[styles.fullscreenShareButton, { backgroundColor: colors.primary }]}
+              onPress={handleShareStats}
+            >
+              <IconSymbol
+                ios_icon_name="square.and.arrow.up"
+                android_material_icon_name="share"
+                size={24}
+                color="#FFFFFF"
+              />
+              <Text style={styles.fullscreenShareButtonText}>Share Stats</Text>
+            </TouchableOpacity>
           </ScrollView>
         </View>
       </Modal>
@@ -1214,6 +1204,12 @@ const styles = StyleSheet.create({
   fullscreenPerformanceCard: {
     alignItems: 'center',
   },
+  shareCardBackground: {
+    borderRadius: 24,
+    padding: 32,
+    boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.2)',
+    elevation: 8,
+  },
   fullscreenCardHeader: {
     alignItems: 'center',
     marginBottom: 32,
@@ -1232,8 +1228,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
   },
   fullscreenSectionTitle: {
     fontSize: 20,
@@ -1259,6 +1253,14 @@ const styles = StyleSheet.create({
   fullscreenStatLabel: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  shareFooter: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  shareFooterText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   fullscreenShareButton: {
     flexDirection: 'row',

@@ -203,21 +203,28 @@ export default function ProfileScreen() {
     return displayMap[level];
   };
 
+  const handleCloseProvincePicker = () => {
+    console.log('Closing province picker');
+    setShowProvincePicker(false);
+  };
+
+  const handleCloseNewSeasonProvincePicker = () => {
+    console.log('Closing new season province picker');
+    setShowNewSeasonProvincePicker(false);
+  };
+
   const renderProvincePicker = () => (
     <Modal visible={showProvincePicker} transparent animationType="slide">
-      <TouchableOpacity 
-        style={styles.modalOverlay} 
-        activeOpacity={1} 
-        onPress={() => setShowProvincePicker(false)}
-      >
+      <View style={styles.modalOverlay}>
         <TouchableOpacity 
+          style={styles.modalOverlayTouchable}
           activeOpacity={1} 
-          style={[styles.pickerModal, { backgroundColor: colors.card }]}
-          onPress={(e) => e.stopPropagation()}
-        >
+          onPress={handleCloseProvincePicker}
+        />
+        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
-            <TouchableOpacity onPress={() => setShowProvincePicker(false)}>
+            <TouchableOpacity onPress={handleCloseProvincePicker}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
                 android_material_icon_name="close"
@@ -238,7 +245,7 @@ export default function ProfileScreen() {
                 ]}
                 onPress={() => {
                   setSelectedProvince(item);
-                  setShowProvincePicker(false);
+                  handleCloseProvincePicker();
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
@@ -262,26 +269,23 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             )}
           />
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
 
   const renderNewSeasonProvincePicker = () => (
     <Modal visible={showNewSeasonProvincePicker} transparent animationType="slide">
-      <TouchableOpacity 
-        style={styles.modalOverlay} 
-        activeOpacity={1} 
-        onPress={() => setShowNewSeasonProvincePicker(false)}
-      >
+      <View style={styles.modalOverlay}>
         <TouchableOpacity 
+          style={styles.modalOverlayTouchable}
           activeOpacity={1} 
-          style={[styles.pickerModal, { backgroundColor: colors.card }]}
-          onPress={(e) => e.stopPropagation()}
-        >
+          onPress={handleCloseNewSeasonProvincePicker}
+        />
+        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
-            <TouchableOpacity onPress={() => setShowNewSeasonProvincePicker(false)}>
+            <TouchableOpacity onPress={handleCloseNewSeasonProvincePicker}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
                 android_material_icon_name="close"
@@ -302,7 +306,7 @@ export default function ProfileScreen() {
                 ]}
                 onPress={() => {
                   setNewSeasonProvince(item);
-                  setShowNewSeasonProvincePicker(false);
+                  handleCloseNewSeasonProvincePicker();
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
@@ -326,8 +330,8 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             )}
           />
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </View>
     </Modal>
   );
 
@@ -974,6 +978,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+  },
+  modalOverlayTouchable: {
+    flex: 1,
   },
   pickerModal: {
     borderTopLeftRadius: 20,

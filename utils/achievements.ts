@@ -75,6 +75,38 @@ export const ACHIEVEMENT_DEFINITIONS = [
     target: 50000,
     type: 'trees' as const,
   },
+  {
+    id: 'hundred_thousand_trees',
+    title: 'Century of Thousands',
+    description: 'Plant 100,000 trees',
+    icon: '🌟',
+    target: 100000,
+    type: 'trees' as const,
+  },
+  {
+    id: 'quarter_million_trees',
+    title: 'Quarter Million Club',
+    description: 'Plant 250,000 trees',
+    icon: '💫',
+    target: 250000,
+    type: 'trees' as const,
+  },
+  {
+    id: 'half_million_trees',
+    title: 'Half Million Hero',
+    description: 'Plant 500,000 trees',
+    icon: '🌠',
+    target: 500000,
+    type: 'trees' as const,
+  },
+  {
+    id: 'million_trees',
+    title: 'Million Tree Master',
+    description: 'Plant 1,000,000 trees',
+    icon: '👑',
+    target: 1000000,
+    type: 'trees' as const,
+  },
   
   // Working day streaks
   {
@@ -118,6 +150,22 @@ export const ACHIEVEMENT_DEFINITIONS = [
     type: 'streak' as const,
   },
   {
+    id: 'two_month_streak',
+    title: 'Two Month Marathon',
+    description: 'Plant trees for 60 consecutive days',
+    icon: '🏃',
+    target: 60,
+    type: 'streak' as const,
+  },
+  {
+    id: 'season_streak',
+    title: 'Season Survivor',
+    description: 'Plant trees for 90 consecutive days',
+    icon: '🦾',
+    target: 90,
+    type: 'streak' as const,
+  },
+  {
     id: 'ten_days_total',
     title: 'Dedicated Planter',
     description: 'Complete 10 planting days',
@@ -147,6 +195,22 @@ export const ACHIEVEMENT_DEFINITIONS = [
     description: 'Complete 100 planting days',
     icon: '💯',
     target: 100,
+    type: 'days' as const,
+  },
+  {
+    id: 'two_hundred_days_total',
+    title: 'Double Century',
+    description: 'Complete 200 planting days',
+    icon: '🎊',
+    target: 200,
+    type: 'days' as const,
+  },
+  {
+    id: 'five_hundred_days_total',
+    title: 'Half Millennium',
+    description: 'Complete 500 planting days',
+    icon: '🎉',
+    target: 500,
     type: 'days' as const,
   },
   
@@ -189,6 +253,30 @@ export const ACHIEVEMENT_DEFINITIONS = [
     description: 'Earn $10,000',
     icon: '🤑',
     target: 10000,
+    type: 'earnings' as const,
+  },
+  {
+    id: 'twenty_thousand_earnings',
+    title: 'Big Spender',
+    description: 'Earn $20,000',
+    icon: '💵',
+    target: 20000,
+    type: 'earnings' as const,
+  },
+  {
+    id: 'fifty_thousand_earnings',
+    title: 'High Roller',
+    description: 'Earn $50,000',
+    icon: '💸',
+    target: 50000,
+    type: 'earnings' as const,
+  },
+  {
+    id: 'hundred_thousand_earnings',
+    title: 'Six Figure Season',
+    description: 'Earn $100,000',
+    icon: '💰',
+    target: 100000,
     type: 'earnings' as const,
   },
   
@@ -313,6 +401,90 @@ export const ACHIEVEMENT_DEFINITIONS = [
     target: 12000,
     type: 'single_day' as const,
   },
+  {
+    id: 'cosmic_13000',
+    title: 'Cosmic Planter',
+    description: 'Plant 13,000 trees in one day',
+    icon: '🌠',
+    target: 13000,
+    type: 'single_day' as const,
+  },
+  {
+    id: 'divine_14000',
+    title: 'Divine Performance',
+    description: 'Plant 14,000 trees in one day',
+    icon: '✨',
+    target: 14000,
+    type: 'single_day' as const,
+  },
+  {
+    id: 'ultimate_15000',
+    title: 'Ultimate Planter',
+    description: 'Plant 15,000 trees in one day',
+    icon: '🔱',
+    target: 15000,
+    type: 'single_day' as const,
+  },
+  
+  // Speed achievements
+  {
+    id: 'speed_demon_300',
+    title: 'Speed Demon',
+    description: 'Plant 300+ trees per hour',
+    icon: '⚡',
+    target: 300,
+    type: 'hourly_rate' as const,
+  },
+  {
+    id: 'lightning_fast_400',
+    title: 'Lightning Fast',
+    description: 'Plant 400+ trees per hour',
+    icon: '⚡',
+    target: 400,
+    type: 'hourly_rate' as const,
+  },
+  {
+    id: 'sonic_speed_500',
+    title: 'Sonic Speed',
+    description: 'Plant 500+ trees per hour',
+    icon: '💨',
+    target: 500,
+    type: 'hourly_rate' as const,
+  },
+  {
+    id: 'warp_speed_600',
+    title: 'Warp Speed',
+    description: 'Plant 600+ trees per hour',
+    icon: '🚀',
+    target: 600,
+    type: 'hourly_rate' as const,
+  },
+  
+  // Consistency achievements
+  {
+    id: 'consistent_performer',
+    title: 'Consistent Performer',
+    description: 'Plant 1000+ trees for 5 days in a row',
+    icon: '📊',
+    target: 5,
+    type: 'consistency' as const,
+  },
+  {
+    id: 'reliable_planter',
+    title: 'Reliable Planter',
+    description: 'Plant 1000+ trees for 10 days in a row',
+    icon: '📈',
+    target: 10,
+    type: 'consistency' as const,
+  },
+  {
+    id: 'machine_mode',
+    title: 'Machine Mode',
+    description: 'Plant 2000+ trees for 7 days in a row',
+    icon: '🤖',
+    target: 7,
+    type: 'consistency_2k' as const,
+  },
 ];
 
 function calculateStreak(treeLogs: TreePlantingLog[]): number {
@@ -340,6 +512,63 @@ function calculateStreak(treeLogs: TreePlantingLog[]): number {
   return streak;
 }
 
+function calculateMaxHourlyRate(treeLogs: TreePlantingLog[]): number {
+  let maxRate = 0;
+  
+  treeLogs.forEach(log => {
+    (log.hourlyLogs || []).forEach(hourlyLog => {
+      const start = new Date(`2000-01-01T${hourlyLog.startTime}`);
+      const end = new Date(`2000-01-01T${hourlyLog.endTime}`);
+      const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      
+      if (hours > 0) {
+        const rate = hourlyLog.treesPlanted / hours;
+        if (rate > maxRate) {
+          maxRate = rate;
+        }
+      }
+    });
+  });
+  
+  return maxRate;
+}
+
+function calculateConsistency(treeLogs: TreePlantingLog[], threshold: number): number {
+  if (treeLogs.length === 0) return 0;
+
+  const sortedLogs = [...treeLogs].sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
+  let maxStreak = 0;
+  let currentStreak = 0;
+  let currentDate = new Date(sortedLogs[0].date);
+
+  for (let i = 0; i < sortedLogs.length; i++) {
+    const log = sortedLogs[i];
+    const logDate = new Date(log.date);
+    
+    if (i === 0) {
+      if (log.totalTrees >= threshold) {
+        currentStreak = 1;
+      }
+    } else {
+      const dayDiff = Math.floor((currentDate.getTime() - logDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (dayDiff === 1 && log.totalTrees >= threshold) {
+        currentStreak++;
+      } else {
+        maxStreak = Math.max(maxStreak, currentStreak);
+        currentStreak = log.totalTrees >= threshold ? 1 : 0;
+      }
+      
+      currentDate = logDate;
+    }
+  }
+  
+  return Math.max(maxStreak, currentStreak);
+}
+
 export function checkAchievements(
   treeLogs: TreePlantingLog[],
   earningsLogs: EarningsLog[],
@@ -352,6 +581,9 @@ export function checkAchievements(
     ? Math.max(...treeLogs.map(log => log.totalTrees))
     : 0;
   const currentStreak = calculateStreak(treeLogs);
+  const maxHourlyRate = calculateMaxHourlyRate(treeLogs);
+  const consistency1k = calculateConsistency(treeLogs, 1000);
+  const consistency2k = calculateConsistency(treeLogs, 2000);
 
   const achievements: Achievement[] = ACHIEVEMENT_DEFINITIONS.map(def => {
     let progress = 0;
@@ -371,6 +603,15 @@ export function checkAchievements(
         break;
       case 'streak':
         progress = currentStreak;
+        break;
+      case 'hourly_rate':
+        progress = Math.floor(maxHourlyRate);
+        break;
+      case 'consistency':
+        progress = consistency1k;
+        break;
+      case 'consistency_2k':
+        progress = consistency2k;
         break;
     }
 

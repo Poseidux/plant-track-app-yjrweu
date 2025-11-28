@@ -3,8 +3,6 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
 
-// Using the same layout as Android/Web for consistency
-// Native tabs are unstable and causing rendering issues
 export default function TabLayout() {
   const tabs: TabBarItem[] = [
     {
@@ -45,13 +43,45 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           animation: 'none',
+          animationDuration: 0,
+          presentation: 'card',
         }}
       >
-        <Stack.Screen name="(home)" />
-        <Stack.Screen name="tracker" />
-        <Stack.Screen name="earnings" />
-        <Stack.Screen name="analytics" />
-        <Stack.Screen name="profile" />
+        <Stack.Screen 
+          name="(home)" 
+          options={{ 
+            animation: 'none',
+            animationDuration: 0,
+          }} 
+        />
+        <Stack.Screen 
+          name="tracker" 
+          options={{ 
+            animation: 'none',
+            animationDuration: 0,
+          }} 
+        />
+        <Stack.Screen 
+          name="earnings" 
+          options={{ 
+            animation: 'none',
+            animationDuration: 0,
+          }} 
+        />
+        <Stack.Screen 
+          name="analytics" 
+          options={{ 
+            animation: 'none',
+            animationDuration: 0,
+          }} 
+        />
+        <Stack.Screen 
+          name="profile" 
+          options={{ 
+            animation: 'none',
+            animationDuration: 0,
+          }} 
+        />
       </Stack>
       <FloatingTabBar tabs={tabs} />
     </>
