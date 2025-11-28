@@ -29,6 +29,7 @@ export default function ProfileScreen() {
   const [showSeasonListModal, setShowSeasonListModal] = useState(false);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [activeSeason, setActiveSeason] = useState<Season | null>(null);
+  const [isCreatingSeason, setIsCreatingSeason] = useState(false);
   
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -117,14 +118,24 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              setIsCreatingSeason(true);
+              console.log('Creating new season...');
+              
               const newSeason = await StorageService.createNewSeason(newSeasonProvince, year);
+              console.log('New season created:', newSeason);
+              
               await loadSeasons();
+              
               setShowSeasonModal(false);
               setNewSeasonProvince(PROVINCES[0]);
               setNewSeasonYear(new Date().getFullYear().toString());
+              setIsCreatingSeason(false);
+              
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert('Success', `New season created for ${newSeasonProvince} ${year}!`);
             } catch (error) {
+              console.error('Error creating season:', error);
+              setIsCreatingSeason(false);
               Alert.alert('Error', 'Failed to create new season');
             }
           },
@@ -215,12 +226,11 @@ export default function ProfileScreen() {
 
   const renderProvincePicker = () => (
     <Modal visible={showProvincePicker} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <TouchableOpacity 
-          style={styles.modalOverlayTouchable}
-          activeOpacity={1} 
-          onPress={handleCloseProvincePicker}
-        />
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1} 
+        onPress={handleCloseProvincePicker}
+      >
         <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
@@ -270,18 +280,17 @@ export default function ProfileScreen() {
             )}
           />
         </View>
-      </View>
+      </TouchableOpacity>
     </Modal>
   );
 
   const renderNewSeasonProvincePicker = () => (
     <Modal visible={showNewSeasonProvincePicker} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <TouchableOpacity 
-          style={styles.modalOverlayTouchable}
-          activeOpacity={1} 
-          onPress={handleCloseNewSeasonProvincePicker}
-        />
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1} 
+        onPress={handleCloseNewSeasonProvincePicker}
+      >
         <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
@@ -331,7 +340,7 @@ export default function ProfileScreen() {
             )}
           />
         </View>
-      </View>
+      </TouchableOpacity>
     </Modal>
   );
 
@@ -458,6 +467,7 @@ export default function ProfileScreen() {
                   setNewSeasonYear(new Date().getFullYear().toString());
                   setShowSeasonModal(true);
                 }}
+                disabled={isCreatingSeason}
               >
                 <IconSymbol
                   ios_icon_name="plus.circle.fill"
@@ -465,7 +475,9 @@ export default function ProfileScreen() {
                   size={20}
                   color="#FFFFFF"
                 />
-                <Text style={styles.seasonButtonText}>Create New Season</Text>
+                <Text style={styles.seasonButtonText}>
+                  {isCreatingSeason ? 'Creating...' : 'Create New Season'}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -614,16 +626,20 @@ export default function ProfileScreen() {
         visible={showSeasonModal}
         animationType="slide"
         presentationStyle="pageSheet"
+        onRequestClose={() => !isCreatingSeason && setShowSeasonModal(false)}
       >
         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Create New Season</Text>
-            <TouchableOpacity onPress={() => setShowSeasonModal(false)}>
+            <TouchableOpacity 
+              onPress={() => !isCreatingSeason && setShowSeasonModal(false)}
+              disabled={isCreatingSeason}
+            >
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
                 android_material_icon_name="close"
                 size={32}
-                color={colors.text}
+                color={isCreatingSeason ? colors.textSecondary : colors.text}
               />
             </TouchableOpacity>
           </View>
@@ -632,7 +648,8 @@ export default function ProfileScreen() {
             <Text style={[styles.label, { color: colors.text }]}>Province *</Text>
             <TouchableOpacity
               style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => setShowNewSeasonProvincePicker(true)}
+              onPress={() => !isCreatingSeason && setShowNewSeasonProvincePicker(true)}
+              disabled={isCreatingSeason}
             >
               <Text style={[styles.pickerButtonText, { color: colors.text }]}>{newSeasonProvince}</Text>
               <IconSymbol
@@ -651,13 +668,20 @@ export default function ProfileScreen() {
               value={newSeasonYear}
               onChangeText={setNewSeasonYear}
               placeholderTextColor={colors.textSecondary}
+              editable={!isCreatingSeason}
             />
 
             <TouchableOpacity
-              style={[styles.submitButton, { backgroundColor: colors.primary }]}
+              style={[
+                styles.submitButton, 
+                { backgroundColor: isCreatingSeason ? colors.textSecondary : colors.primary }
+              ]}
               onPress={handleCreateNewSeason}
+              disabled={isCreatingSeason}
             >
-              <Text style={styles.submitButtonText}>Create Season</Text>
+              <Text style={styles.submitButtonText}>
+                {isCreatingSeason ? 'Creating Season...' : 'Create Season'}
+              </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -978,9 +1002,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
-  },
-  modalOverlayTouchable: {
-    flex: 1,
   },
   pickerModal: {
     borderTopLeftRadius: 20,

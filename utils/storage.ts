@@ -23,7 +23,6 @@ const KEYS = {
 };
 
 export const StorageService = {
-  // Tree Planting Logs
   async getTreeLogs(): Promise<TreePlantingLog[]> {
     try {
       const activeSeason = await this.getActiveSeason();
@@ -114,7 +113,6 @@ export const StorageService = {
     }
   },
 
-  // Earnings Logs
   async getEarningsLogs(): Promise<EarningsLog[]> {
     try {
       const activeSeason = await this.getActiveSeason();
@@ -164,7 +162,6 @@ export const StorageService = {
     }
   },
 
-  // Expense Logs
   async getExpenseLogs(): Promise<ExpenseLog[]> {
     try {
       const activeSeason = await this.getActiveSeason();
@@ -214,7 +211,6 @@ export const StorageService = {
     }
   },
 
-  // User Profile
   async getUserProfile(): Promise<UserProfile | null> {
     try {
       const data = await AsyncStorage.getItem(KEYS.USER_PROFILE);
@@ -233,7 +229,6 @@ export const StorageService = {
     }
   },
 
-  // Theme Mode
   async getThemeMode(): Promise<'light' | 'dark'> {
     try {
       const mode = await AsyncStorage.getItem(KEYS.THEME_MODE);
@@ -252,7 +247,6 @@ export const StorageService = {
     }
   },
 
-  // Achievements
   async getAchievements(): Promise<Achievement[]> {
     try {
       const activeSeason = await this.getActiveSeason();
@@ -282,7 +276,6 @@ export const StorageService = {
     }
   },
 
-  // Tree Count Settings
   async getTreeCountSettings(): Promise<TreeCountSettings> {
     try {
       const data = await AsyncStorage.getItem(KEYS.TREE_COUNT_SETTINGS);
@@ -301,7 +294,6 @@ export const StorageService = {
     }
   },
 
-  // Day Settings (per-day settings)
   async getDaySettings(date: string): Promise<DaySettings | null> {
     try {
       const data = await AsyncStorage.getItem(`${KEYS.DAY_SETTINGS_PREFIX}${date}`);
@@ -320,7 +312,6 @@ export const StorageService = {
     }
   },
 
-  // Selected Theme
   async getSelectedTheme(): Promise<string> {
     try {
       const theme = await AsyncStorage.getItem(KEYS.SELECTED_THEME);
@@ -339,7 +330,6 @@ export const StorageService = {
     }
   },
 
-  // Seasons
   async getSeasons(): Promise<Season[]> {
     try {
       const data = await AsyncStorage.getItem(KEYS.SEASONS);
@@ -385,23 +375,31 @@ export const StorageService = {
 
   async createNewSeason(province: string, year: number): Promise<Season> {
     try {
+      console.log('Starting createNewSeason...');
       const seasons = await this.getSeasons();
       const activeSeason = await this.getActiveSeason();
       
       if (activeSeason) {
+        console.log('Found active season, archiving it...');
         const currentTreeLogs = await this.getSeasonTreeLogs(activeSeason.id);
         const currentEarningsLogs = await this.getSeasonEarningsLogs(activeSeason.id);
+        const currentExpenseLogs = await this.getSeasonExpenseLogs(activeSeason.id);
         
         const totalTrees = currentTreeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
         const totalEarnings = currentEarningsLogs.reduce((sum, log) => sum + log.amount, 0);
+        const totalExpenses = currentExpenseLogs.reduce((sum, log) => sum + log.amount, 0);
         const totalDays = currentTreeLogs.filter(log => log.dayType !== 'sick' && log.dayType !== 'dayoff').length;
+        
+        console.log('Current season stats:', { totalTrees, totalEarnings, totalExpenses, totalDays });
         
         activeSeason.isActive = false;
         activeSeason.endDate = new Date().toISOString();
         activeSeason.totalTrees = totalTrees;
         activeSeason.totalEarnings = totalEarnings;
         activeSeason.totalDays = totalDays;
+        
         await this.saveSeason(activeSeason);
+        console.log('Active season archived successfully');
       }
 
       const newSeason: Season = {
@@ -416,9 +414,11 @@ export const StorageService = {
         totalDays: 0,
       };
 
+      console.log('Creating new season:', newSeason);
       await this.saveSeason(newSeason);
       await this.setActiveSeason(newSeason);
       
+      console.log('New season created and set as active');
       return newSeason;
     } catch (error) {
       console.error('Error creating new season:', error);
@@ -517,7 +517,6 @@ export const StorageService = {
     }
   },
 
-  // Erase All Data
   async eraseAllData(): Promise<void> {
     try {
       const allKeys = await AsyncStorage.getAllKeys();

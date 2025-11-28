@@ -25,15 +25,27 @@ export default function MyForest({ treeLogs }: MyForestProps) {
   const [careerTrees, setCareerTrees] = useState<string[]>([]);
   const [animationDisabled, setAnimationDisabled] = useState(false);
   
-  const [brownBear] = useState<BearPosition>({
+  const [brownBear1] = useState<BearPosition>({
     x: new Animated.Value(0),
     y: new Animated.Value(0),
     isMoving: false,
   });
   
-  const [blackBear] = useState<BearPosition>({
+  const [blackBear1] = useState<BearPosition>({
     x: new Animated.Value(50),
     y: new Animated.Value(20),
+    isMoving: false,
+  });
+
+  const [brownBear2] = useState<BearPosition>({
+    x: new Animated.Value(-30),
+    y: new Animated.Value(40),
+    isMoving: false,
+  });
+  
+  const [blackBear2] = useState<BearPosition>({
+    x: new Animated.Value(70),
+    y: new Animated.Value(-20),
     isMoving: false,
   });
 
@@ -44,8 +56,10 @@ export default function MyForest({ treeLogs }: MyForestProps) {
 
   useEffect(() => {
     if (!animationDisabled) {
-      animateBear(brownBear, 0);
-      animateBear(blackBear, 1500);
+      animateBear(brownBear1, 0);
+      animateBear(blackBear1, 1500);
+      animateBear(brownBear2, 3000);
+      animateBear(blackBear2, 4500);
     }
   }, [animationDisabled]);
 
@@ -112,21 +126,19 @@ export default function MyForest({ treeLogs }: MyForestProps) {
 
   const animateBear = (bear: BearPosition, delay: number) => {
     const moveSequence = () => {
-      // Constrain movement to stay within the forest area
-      // Reduced range to keep bears within tree boundaries
-      const randomX = Math.random() * 80 - 40; // Reduced from 120 to 80
-      const randomY = Math.random() * 20 - 10; // Reduced from 30 to 20
+      const randomX = Math.random() * 200 - 100;
+      const randomY = Math.random() * 80 - 40;
       
       Animated.parallel([
         Animated.timing(bear.x, {
           toValue: randomX,
-          duration: 6000, // Increased from 4000 to 6000 (even slower)
+          duration: 6000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(bear.y, {
           toValue: randomY,
-          duration: 6000, // Increased from 4000 to 6000 (even slower)
+          duration: 6000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
@@ -183,8 +195,8 @@ export default function MyForest({ treeLogs }: MyForestProps) {
                   styles.bearEmoji,
                   {
                     transform: [
-                      { translateX: brownBear.x },
-                      { translateY: brownBear.y },
+                      { translateX: brownBear1.x },
+                      { translateY: brownBear1.y },
                     ],
                   },
                 ]}
@@ -197,8 +209,36 @@ export default function MyForest({ treeLogs }: MyForestProps) {
                   styles.bearEmoji,
                   {
                     transform: [
-                      { translateX: blackBear.x },
-                      { translateY: blackBear.y },
+                      { translateX: blackBear1.x },
+                      { translateY: blackBear1.y },
+                    ],
+                  },
+                ]}
+              >
+                🐻‍❄️
+              </Animated.Text>
+
+              <Animated.Text
+                style={[
+                  styles.bearEmoji,
+                  {
+                    transform: [
+                      { translateX: brownBear2.x },
+                      { translateY: brownBear2.y },
+                    ],
+                  },
+                ]}
+              >
+                🐻
+              </Animated.Text>
+              
+              <Animated.Text
+                style={[
+                  styles.bearEmoji,
+                  {
+                    transform: [
+                      { translateX: blackBear2.x },
+                      { translateY: blackBear2.y },
                     ],
                   },
                 ]}
@@ -320,8 +360,8 @@ const styles = StyleSheet.create({
   bearEmoji: {
     fontSize: 16,
     position: 'absolute',
-    top: 30,
-    left: 50,
+    top: '50%',
+    left: '50%',
   },
   forestInfo: {
     fontSize: 12,
