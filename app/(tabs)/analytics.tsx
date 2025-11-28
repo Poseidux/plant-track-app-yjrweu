@@ -10,6 +10,9 @@ import {
   ImageBackground,
   TouchableOpacity,
   Animated,
+  Modal,
+  Alert,
+  Share,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
@@ -23,11 +26,12 @@ export default function AnalyticsScreen() {
   const { colors, isDark } = useThemeContext();
   const [treeLogs, setTreeLogs] = useState<TreePlantingLog[]>([]);
   const [earningsLogs, setEarningsLogs] = useState<EarningsLog[]>([]);
-  const [expenseLogs, setExpenseLogs] = useState<ExpenseLog[]>([]);
+  const [expenseLogs, setExpenseLog s] = useState<ExpenseLog[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [showAllAchievements, setShowAllAchievements] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [cardRotation] = useState(new Animated.Value(0));
+  const [showFullscreenPerformance, setShowFullscreenPerformance] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -102,6 +106,13 @@ export default function AnalyticsScreen() {
     ? ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100
     : 0;
 
+  // Get today's stats
+  const today = new Date().toISOString().split('T')[0];
+  const todayLog = treeLogs.find(log => log.date === today);
+  const todayTrees = todayLog ? todayLog.totalTrees : 0;
+  const todayHours = todayLog ? (todayLog.hourlyLogs || []).length : 0;
+  const todayRate = todayHours > 0 ? todayTrees / todayHours : 0;
+
   const getSpeciesDistribution = () => {
     const speciesCount: { [key: string]: number } = {};
     
@@ -174,6 +185,34 @@ export default function AnalyticsScreen() {
         data: last7.length > 0 ? last7.map(log => log.averageRate || 0) : [0],
       }],
     };
+  };
+
+  const handleShareStats = async () => {
+    try {
+      const message = `🌲 My Tree Planting Stats 🌲\n\n` +
+        `👤 ${profile?.name || 'Tree Planter'}\n\n` +
+        `📊 Overall Performance:\n` +
+        `• Total Trees: ${formatLargeNumber(totalTrees)}\n` +
+        `• Planting Days: ${totalDays}\n` +
+        `• Personal Best: ${formatLargeNumber(personalBest)} trees/day\n` +
+        `• Average Rate: ${formatLargeNumber(Math.round(averageTreesPerDay))} trees/day\n` +
+        `• Trees/Hour: ${treesPerHour.toFixed(0)}\n\n` +
+        `💰 Earnings:\n` +
+        `• Total: $${totalEarnings >= 100000 ? formatLargeNumber(totalEarnings) : totalEarnings.toFixed(2)}\n` +
+        `• Expenses: $${totalExpenses >= 100000 ? formatLargeNumber(totalExpenses) : totalExpenses.toFixed(2)}\n\n` +
+        `📈 Today's Stats:\n` +
+        `• Trees Planted: ${todayTrees}\n` +
+        `• Hours Worked: ${todayHours}\n` +
+        `• Rate: ${todayRate.toFixed(0)} trees/hour\n\n` +
+        `🏆 Achievements Unlocked: ${unlockedAchievements.length}/${achievements.length}`;
+
+      await Share.share({
+        message: message,
+      });
+    } catch (error) {
+      console.error('Error sharing stats:', error);
+      Alert.alert('Error', 'Failed to share stats');
+    }
   };
 
   const screenWidth = Dimensions.get('window').width;
@@ -602,6 +641,34 @@ export default function AnalyticsScreen() {
                   </Text>
                 </View>
               </View>
+
+              <View style={styles.performanceCardActions}>
+                <TouchableOpacity
+                  style={[styles.performanceCardButton, { backgroundColor: colors.primary }]}
+                  onPress={() => setShowFullscreenPerformance(true)}
+                >
+                  <IconSymbol
+                    ios_icon_name="arrow.up.left.and.arrow.down.right"
+                    android_material_icon_name="fullscreen"
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.performanceCardButtonText}>Fullscreen</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.performanceCardButton, { backgroundColor: colors.secondary }]}
+                  onPress={handleShareStats}
+                >
+                  <IconSymbol
+                    ios_icon_name="square.and.arrow.up"
+                    android_material_icon_name="share"
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.performanceCardButtonText}>Share</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </Animated.View>
         )}
@@ -639,6 +706,150 @@ export default function AnalyticsScreen() {
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+
+      <Modal
+        visible={showFullscreenPerformance}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <View style={[styles.fullscreenContainer, { backgroundColor: colors.background }]}>
+          <ImageBackground
+            source={{ uri: 'https://images.unsplash.com/photo-1511497584788-876760111969?w=800&q=80' }}
+            style={styles.fullscreenBackground}
+            imageStyle={styles.backgroundImageStyle}
+          >
+            <View style={[styles.overlay, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.90)' : 'rgba(255, 255, 255, 0.90)' }]} />
+          </ImageBackground>
+
+          <View style={styles.fullscreenHeader}>
+            <TouchableOpacity
+              style={[styles.closeButton, { backgroundColor: colors.card }]}
+              onPress={() => setShowFullscreenPerformance(false)}
+            >
+              <IconSymbol
+                ios_icon_name="xmark"
+                android_material_icon_name="close"
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.fullscreenContent}>
+            {profile && (
+              <View style={styles.fullscreenPerformanceCard}>
+                <View style={styles.fullscreenCardHeader}>
+                  <IconSymbol
+                    ios_icon_name="person.crop.circle.fill"
+                    android_material_icon_name="account-circle"
+                    size={80}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.fullscreenCardName, { color: colors.text }]}>
+                    {profile.name}
+                  </Text>
+                  <Text style={[styles.fullscreenCardSubtitle, { color: colors.textSecondary }]}>
+                    {profile.province} • {profile.experienceLevel}
+                  </Text>
+                </View>
+
+                <View style={[styles.fullscreenStatsSection, { backgroundColor: colors.card }]}>
+                  <Text style={[styles.fullscreenSectionTitle, { color: colors.text }]}>
+                    Overall Performance
+                  </Text>
+                  <View style={styles.fullscreenStatsGrid}>
+                    <View style={styles.fullscreenStatItem}>
+                      <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
+                        {formatLargeNumber(personalBest)}
+                      </Text>
+                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                        Personal Best
+                      </Text>
+                    </View>
+                    <View style={styles.fullscreenStatItem}>
+                      <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
+                        {formatLargeNumber(Math.round(averageTreesPerDay))}
+                      </Text>
+                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                        Avg Trees/Day
+                      </Text>
+                    </View>
+                    <View style={styles.fullscreenStatItem}>
+                      <Text style={[styles.fullscreenStatValue, { color: colors.accent }]}>
+                        {formatLargeNumber(totalTrees)}
+                      </Text>
+                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                        Total Trees
+                      </Text>
+                    </View>
+                    <View style={styles.fullscreenStatItem}>
+                      <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
+                        {totalDays}
+                      </Text>
+                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                        Planting Days
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={[styles.fullscreenStatsSection, { backgroundColor: colors.card }]}>
+                  <Text style={[styles.fullscreenSectionTitle, { color: colors.text }]}>
+                    Today&apos;s Performance
+                  </Text>
+                  <View style={styles.fullscreenStatsGrid}>
+                    <View style={styles.fullscreenStatItem}>
+                      <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
+                        {todayTrees}
+                      </Text>
+                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                        Trees Planted
+                      </Text>
+                    </View>
+                    <View style={styles.fullscreenStatItem}>
+                      <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
+                        {todayHours}
+                      </Text>
+                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                        Hours Worked
+                      </Text>
+                    </View>
+                    <View style={styles.fullscreenStatItem}>
+                      <Text style={[styles.fullscreenStatValue, { color: colors.accent }]}>
+                        {todayRate.toFixed(0)}
+                      </Text>
+                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                        Trees/Hour
+                      </Text>
+                    </View>
+                    <View style={styles.fullscreenStatItem}>
+                      <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
+                        {personalBest > 0 ? ((todayTrees / personalBest) * 100).toFixed(0) : 0}%
+                      </Text>
+                      <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                        vs PB
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.fullscreenShareButton, { backgroundColor: colors.primary }]}
+                  onPress={handleShareStats}
+                >
+                  <IconSymbol
+                    ios_icon_name="square.and.arrow.up"
+                    android_material_icon_name="share"
+                    size={24}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.fullscreenShareButtonText}>Share Stats</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -889,6 +1100,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
+    marginBottom: 20,
   },
   performanceCardStat: {
     alignItems: 'center',
@@ -911,6 +1123,26 @@ const styles = StyleSheet.create({
     width: 1,
     height: 60,
     marginHorizontal: 8,
+  },
+  performanceCardActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  performanceCardButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  performanceCardButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   tipsCard: {
     borderRadius: 16,
@@ -951,5 +1183,98 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 20,
+  },
+  fullscreenContainer: {
+    flex: 1,
+  },
+  fullscreenBackground: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  fullscreenHeader: {
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    alignItems: 'flex-end',
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  fullscreenContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+  },
+  fullscreenPerformanceCard: {
+    alignItems: 'center',
+  },
+  fullscreenCardHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  fullscreenCardName: {
+    fontSize: 32,
+    fontWeight: '800',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  fullscreenCardSubtitle: {
+    fontSize: 16,
+  },
+  fullscreenStatsSection: {
+    width: '100%',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+  },
+  fullscreenSectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  fullscreenStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  fullscreenStatItem: {
+    width: '48%',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  fullscreenStatValue: {
+    fontSize: 36,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  fullscreenStatLabel: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  fullscreenShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    gap: 12,
+    marginTop: 16,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.2)',
+    elevation: 6,
+  },
+  fullscreenShareButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
   },
 });

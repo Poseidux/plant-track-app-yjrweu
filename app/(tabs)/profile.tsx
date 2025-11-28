@@ -205,8 +205,16 @@ export default function ProfileScreen() {
 
   const renderProvincePicker = () => (
     <Modal visible={showProvincePicker} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
+      <TouchableOpacity 
+        style={styles.modalOverlay} 
+        activeOpacity={1} 
+        onPress={() => setShowProvincePicker(false)}
+      >
+        <TouchableOpacity 
+          activeOpacity={1} 
+          style={[styles.pickerModal, { backgroundColor: colors.card }]}
+          onPress={(e) => e.stopPropagation()}
+        >
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
             <TouchableOpacity onPress={() => setShowProvincePicker(false)}>
@@ -231,6 +239,7 @@ export default function ProfileScreen() {
                 onPress={() => {
                   setSelectedProvince(item);
                   setShowProvincePicker(false);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
                 <Text
@@ -253,15 +262,23 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             )}
           />
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 
   const renderNewSeasonProvincePicker = () => (
     <Modal visible={showNewSeasonProvincePicker} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.pickerModal, { backgroundColor: colors.card }]}>
+      <TouchableOpacity 
+        style={styles.modalOverlay} 
+        activeOpacity={1} 
+        onPress={() => setShowNewSeasonProvincePicker(false)}
+      >
+        <TouchableOpacity 
+          activeOpacity={1} 
+          style={[styles.pickerModal, { backgroundColor: colors.card }]}
+          onPress={(e) => e.stopPropagation()}
+        >
           <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
             <TouchableOpacity onPress={() => setShowNewSeasonProvincePicker(false)}>
@@ -309,8 +326,8 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             )}
           />
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 

@@ -1262,11 +1262,14 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 24,
+    alignItems: 'center',
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
+    width: '100%',
+    position: 'relative',
   },
   headerTitle: {
     fontSize: 28,
@@ -1280,6 +1283,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
+    position: 'absolute',
+    right: 0,
   },
   currentDayCard: {
     borderRadius: 16,

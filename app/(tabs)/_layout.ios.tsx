@@ -44,7 +44,7 @@ export default function TabLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: 'fade',
+          animation: 'none',
         }}
       >
         <Stack.Screen name="(home)" />
