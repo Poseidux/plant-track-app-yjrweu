@@ -69,20 +69,39 @@ export default function MyForest({ treeLogs }: MyForestProps) {
   };
 
   const startDayNightCycle = () => {
-    const cycleDuration = 45000;
+    const dayDuration = 20000;
+    const nightDuration = 20000;
+    const transitionDuration = 4000;
     
     const animate = () => {
       Animated.sequence([
         Animated.timing(dayNightProgress, {
-          toValue: 1,
-          duration: cycleDuration / 2,
+          toValue: 0.25,
+          duration: transitionDuration,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: false,
         }),
         Animated.timing(dayNightProgress, {
-          toValue: 0,
-          duration: cycleDuration / 2,
+          toValue: 0.5,
+          duration: nightDuration,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        }),
+        Animated.timing(dayNightProgress, {
+          toValue: 0.75,
+          duration: transitionDuration,
           easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+        Animated.timing(dayNightProgress, {
+          toValue: 1,
+          duration: dayDuration,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        }),
+        Animated.timing(dayNightProgress, {
+          toValue: 0,
+          duration: 0,
           useNativeDriver: false,
         }),
       ]).start(() => {
@@ -153,8 +172,8 @@ export default function MyForest({ treeLogs }: MyForestProps) {
               width: randomSize,
               height: randomSize,
               opacity: dayNightProgress.interpolate({
-                inputRange: [0, 0.3, 0.7, 1],
-                outputRange: [0, 1, 1, 0],
+                inputRange: [0, 0.25, 0.5, 0.75, 1],
+                outputRange: [0, 0, 1, 0, 0],
               }),
             },
           ]}
@@ -186,13 +205,11 @@ export default function MyForest({ treeLogs }: MyForestProps) {
 
     const backgroundColor = showDayNight && !animationDisabled
       ? dayNightProgress.interpolate({
-          inputRange: [0, 0.15, 0.35, 0.5, 0.65, 0.85, 1],
+          inputRange: [0, 0.25, 0.5, 0.75, 1],
           outputRange: [
             '#87CEEB',
-            '#FFB347',
             '#FF6B6B',
             '#1a1a2e',
-            '#FF6B6B',
             '#FFB347',
             '#87CEEB',
           ],
@@ -252,10 +269,6 @@ export default function MyForest({ treeLogs }: MyForestProps) {
           </Text>
         </TouchableOpacity>
       </View>
-      
-      <Text style={[styles.description, { color: colors.textSecondary }]}>
-        Watch your forest grow as you plant more trees! The forest transitions between day and night every 45 seconds with beautiful sunrise and sunset colors.
-      </Text>
 
       {renderForestGrid(seasonTrees, 'Your Season Forest', 1000, true)}
       {renderForestGrid(careerTrees, 'Your Career Forest', 10000, false)}
@@ -298,11 +311,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
-  },
-  description: {
-    fontSize: 14,
-    marginBottom: 20,
-    lineHeight: 20,
   },
   forestContainer: {
     marginBottom: 24,

@@ -258,6 +258,11 @@ export default function HomeScreen() {
 
   const recentActivityLogs = getRecentActivityLogs();
 
+  const menuItems = [
+    { id: 'themes', label: 'Themes', icon: 'paintbrush.fill', androidIcon: 'palette' },
+    { id: 'shop', label: 'Shop', icon: 'cart.fill', androidIcon: 'shopping-cart' },
+  ];
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ImageBackground
@@ -483,7 +488,7 @@ export default function HomeScreen() {
       >
         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Theme</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Menu</Text>
             <TouchableOpacity onPress={() => setShowThemeMenu(false)}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
@@ -494,45 +499,48 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={APP_THEMES}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.themeList}
-            renderItem={({ item }) => (
+          <View style={styles.menuList}>
+            {menuItems.map((item, index) => (
               <TouchableOpacity
-                style={[
-                  styles.themeCard,
-                  { 
-                    backgroundColor: item.colors.card,
-                    borderColor: selectedTheme === item.id ? colors.primary : item.colors.border,
-                    borderWidth: selectedTheme === item.id ? 3 : 1,
-                  },
-                ]}
-                onPress={() => handleThemeSelect(item.id)}
+                key={`menu-${index}`}
+                style={[styles.menuItem, { backgroundColor: colors.card }]}
+                onPress={() => {
+                  setShowThemeMenu(false);
+                  if (item.id === 'shop') {
+                    router.push('/(tabs)/(home)/shop');
+                  } else if (item.id === 'themes') {
+                    setTimeout(() => {
+                      Alert.alert(
+                        'Themes',
+                        'Visit the Shop to purchase and unlock new themes!',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Go to Shop',
+                            onPress: () => router.push('/(tabs)/(home)/shop'),
+                          },
+                        ]
+                      );
+                    }, 300);
+                  }
+                }}
               >
-                <View style={styles.themeHeader}>
-                  <Text style={[styles.themeName, { color: item.colors.text }]}>{item.name}</Text>
-                  {selectedTheme === item.id && (
-                    <IconSymbol
-                      ios_icon_name="checkmark.circle.fill"
-                      android_material_icon_name="check-circle"
-                      size={24}
-                      color={colors.primary}
-                    />
-                  )}
-                </View>
-                <Text style={[styles.themeDescription, { color: item.colors.textSecondary }]}>
-                  {item.description}
-                </Text>
-                <View style={styles.themeColors}>
-                  <View style={[styles.themeColorDot, { backgroundColor: item.colors.primary }]} />
-                  <View style={[styles.themeColorDot, { backgroundColor: item.colors.secondary }]} />
-                  <View style={[styles.themeColorDot, { backgroundColor: item.colors.accent }]} />
-                  <View style={[styles.themeColorDot, { backgroundColor: item.colors.background }]} />
-                </View>
+                <IconSymbol
+                  ios_icon_name={item.icon}
+                  android_material_icon_name={item.androidIcon}
+                  size={28}
+                  color={colors.primary}
+                />
+                <Text style={[styles.menuItemText, { color: colors.text }]}>{item.label}</Text>
+                <IconSymbol
+                  ios_icon_name="chevron.right"
+                  android_material_icon_name="chevron-right"
+                  size={24}
+                  color={colors.textSecondary}
+                />
               </TouchableOpacity>
-            )}
-          />
+            ))}
+          </View>
         </View>
       </Modal>
 
@@ -876,42 +884,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 24,
   },
-  themeList: {
+  menuList: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 32,
   },
-  themeCard: {
-    borderRadius: 16,
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
-    marginBottom: 16,
+    borderRadius: 16,
+    marginBottom: 12,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
-  themeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  themeName: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  themeDescription: {
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  themeColors: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  themeColorDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+  menuItemText: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 16,
   },
   label: {
     fontSize: 16,

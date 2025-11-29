@@ -15,11 +15,13 @@ import {
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
+import { ShopStorageService } from '@/utils/shopStorage';
 import { UserProfile, PROVINCES, EXPERIENCE_LEVELS } from '@/types/TreePlanting';
 import { Season } from '@/types/Season';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as Haptics from 'expo-haptics';
 import { formatLargeNumber } from '@/utils/formatNumber';
+import { AVATAR_FRAMES, PROFILE_ICONS, PROFILE_EMOJIS } from '@/types/Shop';
 
 export default function ProfileScreen() {
   const { colors, isDark, currentTheme } = useThemeContext();
@@ -37,13 +39,17 @@ export default function ProfileScreen() {
   const [experienceLevel, setExperienceLevel] = useState<'rookie' | 'highballer' | 'vet'>('rookie');
   const [showProvincePicker, setShowProvincePicker] = useState(false);
 
-  const [newSeasonProvince, setNewSeasonProvince] = useState(PROVINCES[0]);
+  const [newSeasonProvince, setNewSeasonProvince] = useState('');
   const [newSeasonYear, setNewSeasonYear] = useState(new Date().getFullYear().toString());
-  const [showNewSeasonProvincePicker, setShowNewSeasonProvincePicker] = useState(false);
+
+  const [equippedFrame, setEquippedFrame] = useState<string | undefined>();
+  const [equippedIcon, setEquippedIcon] = useState<string | undefined>();
+  const [equippedEmoji, setEquippedEmoji] = useState<string | undefined>();
 
   useEffect(() => {
     loadProfile();
     loadSeasons();
+    loadCosmetics();
   }, []);
 
   const loadProfile = async () => {
@@ -64,6 +70,13 @@ export default function ProfileScreen() {
     const active = await StorageService.getActiveSeason();
     setSeasons(allSeasons);
     setActiveSeason(active);
+  };
+
+  const loadCosmetics = async () => {
+    const cosmetics = await ShopStorageService.getUserCosmetics();
+    setEquippedFrame(cosmetics.equippedAvatarFrame);
+    setEquippedIcon(cosmetics.equippedIcon);
+    setEquippedEmoji(cosmetics.equippedEmoji);
   };
 
   const handleSaveProfile = async () => {
@@ -156,8 +169,8 @@ export default function ProfileScreen() {
       return;
     }
 
-    if (!newSeasonProvince) {
-      Alert.alert('Error', 'Please select a province');
+    if (!newSeasonProvince || newSeasonProvince.trim() === '') {
+      Alert.alert('Error', 'Please enter a province name');
       return;
     }
 
@@ -179,7 +192,7 @@ export default function ProfileScreen() {
               await loadSeasons();
               
               setShowSeasonModal(false);
-              setNewSeasonProvince(PROVINCES[0]);
+              setNewSeasonProvince('');
               setNewSeasonYear(new Date().getFullYear().toString());
               setIsCreatingSeason(false);
               
@@ -273,13 +286,6 @@ export default function ProfileScreen() {
     setShowProvincePicker(false);
   };
 
-  const handleNewSeasonProvinceSelect = (province: string) => {
-    console.log('New season province selected:', province);
-    setNewSeasonProvince(province);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowNewSeasonProvincePicker(false);
-  };
-
   const renderProvincePicker = () => (
     <Modal visible={showProvincePicker} transparent animationType="slide">
       <TouchableOpacity 
@@ -338,68 +344,23 @@ export default function ProfileScreen() {
     </Modal>
   );
 
-  const renderNewSeasonProvincePicker = () => (
-    <Modal visible={showNewSeasonProvincePicker} transparent animationType="slide">
-      <TouchableOpacity 
-        style={styles.modalOverlay}
-        activeOpacity={1} 
-        onPress={() => !isCreatingSeason && setShowNewSeasonProvincePicker(false)}
-        disabled={isCreatingSeason}
-      >
-        <View style={styles.modalOverlayBackground} />
-      </TouchableOpacity>
-      <View style={[styles.pickerModal, { backgroundColor: colors.card }]} pointerEvents="box-none">
-        <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
-          <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Province</Text>
-          <TouchableOpacity 
-            onPress={() => !isCreatingSeason && setShowNewSeasonProvincePicker(false)}
-            disabled={isCreatingSeason}
-          >
-            <IconSymbol
-              ios_icon_name="xmark.circle.fill"
-              android_material_icon_name="close"
-              size={28}
-              color={isCreatingSeason ? colors.textSecondary : colors.text}
-            />
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          data={PROVINCES}
-          keyExtractor={(item, index) => `new-season-province-${index}`}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.pickerItem,
-                { borderBottomColor: colors.border },
-                item === newSeasonProvince && { backgroundColor: colors.highlight },
-              ]}
-              onPress={() => handleNewSeasonProvinceSelect(item)}
-              activeOpacity={0.7}
-              disabled={isCreatingSeason}
-            >
-              <Text
-                style={[
-                  styles.pickerItemText,
-                  { color: colors.text },
-                  item === newSeasonProvince && { fontWeight: '600', color: colors.primary },
-                ]}
-              >
-                {item}
-              </Text>
-              {item === newSeasonProvince && (
-                <IconSymbol
-                  ios_icon_name="checkmark"
-                  android_material_icon_name="check"
-                  size={20}
-                  color={colors.primary}
-                />
-              )}
-            </TouchableOpacity>
-          )}
-        />
-      </View>
-    </Modal>
-  );
+  const getFrameEmoji = () => {
+    if (!equippedFrame) return '⚪';
+    const frame = AVATAR_FRAMES.find(f => f.id === equippedFrame);
+    return frame?.emoji || '⚪';
+  };
+
+  const getIconEmoji = () => {
+    if (!equippedIcon) return '👤';
+    const icon = PROFILE_ICONS.find(i => i.id === equippedIcon);
+    return icon?.emoji || '👤';
+  };
+
+  const getEmojiDisplay = () => {
+    if (!equippedEmoji) return '';
+    const emoji = PROFILE_EMOJIS.find(e => e.id === equippedEmoji);
+    return emoji?.emoji || '';
+  };
 
   const canToggleTheme = !currentTheme.forcedMode;
 
@@ -419,12 +380,13 @@ export default function ProfileScreen() {
       >
         <View style={styles.header}>
           <View style={[styles.avatarContainer, { backgroundColor: colors.primary }]}>
-            <IconSymbol
-              ios_icon_name="person.fill"
-              android_material_icon_name="person"
-              size={60}
-              color="#FFFFFF"
-            />
+            <Text style={styles.frameEmoji}>{getFrameEmoji()}</Text>
+            <View style={styles.avatarInner}>
+              <Text style={styles.iconEmoji}>{getIconEmoji()}</Text>
+            </View>
+            {equippedEmoji && (
+              <Text style={styles.emojiDisplay}>{getEmojiDisplay()}</Text>
+            )}
           </View>
           {profile && !isEditing && (
             <>
@@ -541,7 +503,7 @@ export default function ProfileScreen() {
                   if (activeSeason) {
                     Alert.alert('Active Season', 'Please end your current season before creating a new one');
                   } else {
-                    setNewSeasonProvince(PROVINCES[0]);
+                    setNewSeasonProvince('');
                     setNewSeasonYear(new Date().getFullYear().toString());
                     setShowSeasonModal(true);
                   }
@@ -699,7 +661,6 @@ export default function ProfileScreen() {
       </ScrollView>
 
       {renderProvincePicker()}
-      {renderNewSeasonProvincePicker()}
 
       <Modal
         visible={showSeasonModal}
@@ -725,19 +686,14 @@ export default function ProfileScreen() {
 
           <ScrollView style={styles.modalContent}>
             <Text style={[styles.label, { color: colors.text }]}>Province *</Text>
-            <TouchableOpacity
-              style={[styles.pickerButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => !isCreatingSeason && setShowNewSeasonProvincePicker(true)}
-              disabled={isCreatingSeason}
-            >
-              <Text style={[styles.pickerButtonText, { color: colors.text }]}>{newSeasonProvince}</Text>
-              <IconSymbol
-                ios_icon_name="chevron.down"
-                android_material_icon_name="arrow-drop-down"
-                size={24}
-                color={colors.text}
-              />
-            </TouchableOpacity>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+              placeholder="e.g., Ontario, British Columbia"
+              value={newSeasonProvince}
+              onChangeText={setNewSeasonProvince}
+              placeholderTextColor={colors.textSecondary}
+              editable={!isCreatingSeason}
+            />
 
             <Text style={[styles.label, { color: colors.text }]}>Year *</Text>
             <TextInput
@@ -862,6 +818,27 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
     elevation: 6,
+    position: 'relative',
+  },
+  frameEmoji: {
+    fontSize: 100,
+    position: 'absolute',
+  },
+  avatarInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconEmoji: {
+    fontSize: 40,
+  },
+  emojiDisplay: {
+    fontSize: 24,
+    position: 'absolute',
+    bottom: -5,
+    right: -5,
   },
   profileName: {
     fontSize: 28,
@@ -941,38 +918,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  settingText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  toggle: {
-    width: 50,
-    height: 28,
-    borderRadius: 14,
-    padding: 2,
-    justifyContent: 'center',
-  },
-  toggleThumb: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.2)',
-    elevation: 3,
-  },
-  toggleThumbActive: {
-    alignSelf: 'flex-end',
   },
   dangerButton: {
     flexDirection: 'row',

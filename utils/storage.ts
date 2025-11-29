@@ -2,6 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TreePlantingLog, EarningsLog, UserProfile, ExpenseLog, Achievement, TreeCountSettings, DaySettings } from '@/types/TreePlanting';
 import { Season } from '@/types/Season';
+import { ShopStorageService } from './shopStorage';
 
 const KEYS = {
   TREE_LOGS: '@tree_planting_logs',
@@ -47,6 +48,11 @@ export const StorageService = {
       const activeSeason = await this.getActiveSeason();
       if (activeSeason) {
         await this.saveSeasonTreeLog(activeSeason.id, log);
+        
+        const coinsEarned = Math.floor(log.totalTrees / 100);
+        if (coinsEarned > 0) {
+          await ShopStorageService.addCoins(coinsEarned);
+        }
         return;
       }
       
@@ -60,6 +66,11 @@ export const StorageService = {
         logs[existingIndex] = logWithHourlyLogs;
       } else {
         logs.push(logWithHourlyLogs);
+        
+        const coinsEarned = Math.floor(log.totalTrees / 100);
+        if (coinsEarned > 0) {
+          await ShopStorageService.addCoins(coinsEarned);
+        }
       }
       await AsyncStorage.setItem(KEYS.TREE_LOGS, JSON.stringify(logs));
     } catch (error) {
