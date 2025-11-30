@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Dimensions } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { TreePlantingLog } from '@/types/TreePlanting';
@@ -15,22 +15,23 @@ const ANIMATION_DISABLED_KEY = '@forest_animation_disabled';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-export default function MyForest({ treeLogs }: MyForestProps) {
+export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
   const { colors } = useThemeContext();
   const [seasonTrees, setSeasonTrees] = useState<string[]>([]);
   const [careerTrees, setCareerTrees] = useState<string[]>([]);
   const [animationDisabled, setAnimationDisabled] = useState(false);
   
   const dayNightProgress = useRef(new Animated.Value(0)).current;
-  const animationTimeouts = useRef<NodeJS.Timeout[]>([]);
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     generateForests();
     loadAnimationPreference();
     
     return () => {
-      animationTimeouts.current.forEach(timeout => clearTimeout(timeout));
-      animationTimeouts.current = [];
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
     };
   }, [treeLogs]);
 
@@ -38,8 +39,9 @@ export default function MyForest({ treeLogs }: MyForestProps) {
     if (!animationDisabled) {
       startDayNightCycle();
     } else {
-      animationTimeouts.current.forEach(timeout => clearTimeout(timeout));
-      animationTimeouts.current = [];
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
     }
   }, [animationDisabled]);
 
@@ -58,8 +60,9 @@ export default function MyForest({ treeLogs }: MyForestProps) {
     const newValue = !animationDisabled;
     setAnimationDisabled(newValue);
     
-    animationTimeouts.current.forEach(timeout => clearTimeout(timeout));
-    animationTimeouts.current = [];
+    if (animationRef.current) {
+      animationRef.current.stop();
+    }
     
     try {
       await AsyncStorage.setItem(ANIMATION_DISABLED_KEY, newValue.toString());
@@ -69,46 +72,41 @@ export default function MyForest({ treeLogs }: MyForestProps) {
   };
 
   const startDayNightCycle = () => {
+    const sunriseDuration = 2500;
     const dayDuration = 20000;
+    const sunsetDuration = 2500;
     const nightDuration = 20000;
-    const transitionDuration = 4000;
     
     const animate = () => {
-      Animated.sequence([
-        Animated.timing(dayNightProgress, {
-          toValue: 0.25,
-          duration: transitionDuration,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-        Animated.timing(dayNightProgress, {
-          toValue: 0.5,
-          duration: nightDuration,
-          easing: Easing.linear,
-          useNativeDriver: false,
-        }),
-        Animated.timing(dayNightProgress, {
-          toValue: 0.75,
-          duration: transitionDuration,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-        Animated.timing(dayNightProgress, {
-          toValue: 1,
-          duration: dayDuration,
-          easing: Easing.linear,
-          useNativeDriver: false,
-        }),
-        Animated.timing(dayNightProgress, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: false,
-        }),
-      ]).start(() => {
-        if (!animationDisabled) {
-          animate();
-        }
-      });
+      animationRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(dayNightProgress, {
+            toValue: 0.0556,
+            duration: sunriseDuration,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+          Animated.timing(dayNightProgress, {
+            toValue: 0.5,
+            duration: dayDuration,
+            easing: Easing.linear,
+            useNativeDriver: false,
+          }),
+          Animated.timing(dayNightProgress, {
+            toValue: 0.5556,
+            duration: sunsetDuration,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+          Animated.timing(dayNightProgress, {
+            toValue: 1,
+            duration: nightDuration,
+            easing: Easing.linear,
+            useNativeDriver: false,
+          }),
+        ])
+      );
+      animationRef.current.start();
     };
 
     animate();
@@ -154,33 +152,42 @@ export default function MyForest({ treeLogs }: MyForestProps) {
     setCareerTrees(careerTreeArray);
   };
 
-  const renderStars = () => {
-    const stars = [];
+  const stars = useMemo(() => {
+    const starArray = [];
     for (let i = 0; i < 30; i++) {
       const randomTop = Math.random() * 80 + 10;
       const randomLeft = Math.random() * 90 + 5;
       const randomSize = Math.random() * 2 + 1;
       
-      stars.push(
-        <Animated.View
-          key={`star-${i}`}
-          style={[
-            styles.star,
-            {
-              top: `${randomTop}%`,
-              left: `${randomLeft}%`,
-              width: randomSize,
-              height: randomSize,
-              opacity: dayNightProgress.interpolate({
-                inputRange: [0, 0.25, 0.5, 0.75, 1],
-                outputRange: [0, 0, 1, 0, 0],
-              }),
-            },
-          ]}
-        />
-      );
+      starArray.push({
+        key: `star-${i}`,
+        top: randomTop,
+        left: randomLeft,
+        size: randomSize,
+      });
     }
-    return stars;
+    return starArray;
+  }, []);
+
+  const renderStars = () => {
+    return stars.map((star) => (
+      <Animated.View
+        key={star.key}
+        style={[
+          styles.star,
+          {
+            top: `${star.top}%`,
+            left: `${star.left}%`,
+            width: star.size,
+            height: star.size,
+            opacity: dayNightProgress.interpolate({
+              inputRange: [0, 0.0556, 0.5, 0.5556, 1],
+              outputRange: [0, 0, 0, 0, 1],
+            }),
+          },
+        ]}
+      />
+    ));
   };
 
   const renderForestGrid = (trees: string[], title: string, treesPerEmoji: number, showDayNight: boolean = false) => {
@@ -205,13 +212,13 @@ export default function MyForest({ treeLogs }: MyForestProps) {
 
     const backgroundColor = showDayNight && !animationDisabled
       ? dayNightProgress.interpolate({
-          inputRange: [0, 0.25, 0.5, 0.75, 1],
+          inputRange: [0, 0.0556, 0.5, 0.5556, 1],
           outputRange: [
+            '#87CEEB',
+            '#FFB347',
             '#87CEEB',
             '#FF6B6B',
             '#1a1a2e',
-            '#FFB347',
-            '#87CEEB',
           ],
         })
       : colors.highlight;
@@ -274,7 +281,7 @@ export default function MyForest({ treeLogs }: MyForestProps) {
       {renderForestGrid(careerTrees, 'Your Career Forest', 10000, false)}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

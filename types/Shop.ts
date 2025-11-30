@@ -4,7 +4,7 @@ export interface ShopItem {
   name: string;
   description: string;
   price: number;
-  category: 'theme' | 'avatar-frame' | 'icon' | 'emoji' | 'badge';
+  category: 'theme' | 'avatar-frame' | 'avatar' | 'badge';
   icon?: string;
   themeId?: string;
   frameStyle?: string;
@@ -17,8 +17,7 @@ export interface UserCosmetics {
   coins: number;
   purchasedItems: string[];
   equippedAvatarFrame?: string;
-  equippedIcon?: string;
-  equippedEmoji?: string;
+  equippedAvatar?: string;
 }
 
 export const AVATAR_FRAMES = [
@@ -32,30 +31,27 @@ export const AVATAR_FRAMES = [
   { id: 'frame-rainbow', name: 'Rainbow Frame', emoji: '🌈', price: 1500 },
 ];
 
-export const PROFILE_ICONS = [
-  { id: 'icon-tree', name: 'Tree Icon', emoji: '🌲', price: 100 },
-  { id: 'icon-leaf', name: 'Leaf Icon', emoji: '🍃', price: 100 },
-  { id: 'icon-seedling', name: 'Seedling Icon', emoji: '🌱', price: 100 },
-  { id: 'icon-evergreen', name: 'Evergreen Icon', emoji: '🌲', price: 100 },
-  { id: 'icon-deciduous', name: 'Deciduous Icon', emoji: '🌳', price: 100 },
-  { id: 'icon-palm', name: 'Palm Icon', emoji: '🌴', price: 150 },
-  { id: 'icon-cactus', name: 'Cactus Icon', emoji: '🌵', price: 150 },
-  { id: 'icon-flower', name: 'Flower Icon', emoji: '🌸', price: 150 },
-  { id: 'icon-sunflower', name: 'Sunflower Icon', emoji: '🌻', price: 150 },
-  { id: 'icon-rose', name: 'Rose Icon', emoji: '🌹', price: 200 },
-  { id: 'icon-tulip', name: 'Tulip Icon', emoji: '🌷', price: 200 },
-  { id: 'icon-blossom', name: 'Blossom Icon', emoji: '🌺', price: 200 },
-];
-
-export const PROFILE_EMOJIS = [
-  { id: 'emoji-smile', name: 'Smile', emoji: '😊', price: 50 },
-  { id: 'emoji-cool', name: 'Cool', emoji: '😎', price: 50 },
-  { id: 'emoji-star', name: 'Star Eyes', emoji: '🤩', price: 100 },
-  { id: 'emoji-love', name: 'Love', emoji: '😍', price: 100 },
-  { id: 'emoji-party', name: 'Party', emoji: '🥳', price: 150 },
-  { id: 'emoji-fire', name: 'Fire', emoji: '🔥', price: 150 },
-  { id: 'emoji-rocket', name: 'Rocket', emoji: '🚀', price: 200 },
-  { id: 'emoji-trophy', name: 'Trophy', emoji: '🏆', price: 200 },
-  { id: 'emoji-crown', name: 'Crown', emoji: '👑', price: 250 },
-  { id: 'emoji-gem', name: 'Gem', emoji: '💎', price: 300 },
+export const PROFILE_ICONS_EMOJIS = [
+  { id: 'avatar-tree', name: 'Tree', emoji: '🌲', price: 100 },
+  { id: 'avatar-leaf', name: 'Leaf', emoji: '🍃', price: 100 },
+  { id: 'avatar-seedling', name: 'Seedling', emoji: '🌱', price: 100 },
+  { id: 'avatar-evergreen', name: 'Evergreen', emoji: '🌲', price: 100 },
+  { id: 'avatar-deciduous', name: 'Deciduous', emoji: '🌳', price: 100 },
+  { id: 'avatar-palm', name: 'Palm', emoji: '🌴', price: 150 },
+  { id: 'avatar-cactus', name: 'Cactus', emoji: '🌵', price: 150 },
+  { id: 'avatar-flower', name: 'Flower', emoji: '🌸', price: 150 },
+  { id: 'avatar-sunflower', name: 'Sunflower', emoji: '🌻', price: 150 },
+  { id: 'avatar-rose', name: 'Rose', emoji: '🌹', price: 200 },
+  { id: 'avatar-tulip', name: 'Tulip', emoji: '🌷', price: 200 },
+  { id: 'avatar-blossom', name: 'Blossom', emoji: '🌺', price: 200 },
+  { id: 'avatar-smile', name: 'Smile', emoji: '😊', price: 50 },
+  { id: 'avatar-cool', name: 'Cool', emoji: '😎', price: 50 },
+  { id: 'avatar-star', name: 'Star Eyes', emoji: '🤩', price: 100 },
+  { id: 'avatar-love', name: 'Love', emoji: '😍', price: 100 },
+  { id: 'avatar-party', name: 'Party', emoji: '🥳', price: 150 },
+  { id: 'avatar-fire', name: 'Fire', emoji: '🔥', price: 150 },
+  { id: 'avatar-rocket', name: 'Rocket', emoji: '🚀', price: 200 },
+  { id: 'avatar-trophy', name: 'Trophy', emoji: '🏆', price: 200 },
+  { id: 'avatar-crown', name: 'Crown', emoji: '👑', price: 250 },
+  { id: 'avatar-gem', name: 'Gem', emoji: '💎', price: 300 },
 ];

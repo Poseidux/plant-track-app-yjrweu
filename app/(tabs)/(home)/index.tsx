@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
+import { ShopStorageService } from '@/utils/shopStorage';
 import { TreePlantingLog, EarningsLog, PROVINCES, TREE_SPECIES } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import { PieChart, LineChart } from 'react-native-chart-kit';
@@ -23,6 +24,8 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { formatLargeNumber } from '@/utils/formatNumber';
 import { APP_THEMES } from '@/constants/Themes';
+
+const SECRET_CODE = 'TH15APPW45CR34T3D8YG0GG1N5TH15I5MYF1R5TPR0J3CTTH3R35M0R3T0C0M31W1LLT4K30V3R';
 
 export default function HomeScreen() {
   const { colors, isDark, selectedTheme, setSelectedTheme, setThemeMode } = useThemeContext();
@@ -33,11 +36,16 @@ export default function HomeScreen() {
   const [editingLog, setEditingLog] = useState<TreePlantingLog | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [showSecretCodeModal, setShowSecretCodeModal] = useState(false);
+  const [secretCode, setSecretCode] = useState('');
   
   const [editTrees, setEditTrees] = useState('');
   const [editSpecies, setEditSpecies] = useState('');
   const [editProvince, setEditProvince] = useState('');
   const [editLandType, setEditLandType] = useState<'prepped' | 'raw'>('prepped');
+
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const [longPressProgress, setLongPressProgress] = useState(0);
 
   useEffect(() => {
     console.log('HomeScreen mounted');
@@ -126,6 +134,49 @@ export default function HomeScreen() {
         },
       ]
     );
+  };
+
+  const handleMenuLongPressStart = () => {
+    console.log('Long press started');
+    let progress = 0;
+    longPressTimer.current = setInterval(() => {
+      progress += 1;
+      setLongPressProgress(progress);
+      if (progress >= 30) {
+        if (longPressTimer.current) {
+          clearInterval(longPressTimer.current);
+        }
+        setLongPressProgress(0);
+        setShowThemeMenu(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setShowSecretCodeModal(true);
+      }
+    }, 1000);
+  };
+
+  const handleMenuLongPressEnd = () => {
+    console.log('Long press ended');
+    if (longPressTimer.current) {
+      clearInterval(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setLongPressProgress(0);
+  };
+
+  const handleSecretCodeSubmit = async () => {
+    if (secretCode === SECRET_CODE) {
+      await ShopStorageService.unlockAllItems();
+      setShowSecretCodeModal(false);
+      setSecretCode('');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        '🎉 Congratulations!',
+        'All shop items have been unlocked and you now have unlimited tokens!'
+      );
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Invalid Code', 'The code you entered is incorrect.');
+    }
   };
 
   const getSpeciesBreakdown = () => {
@@ -284,6 +335,9 @@ export default function HomeScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setShowThemeMenu(true);
             }}
+            onLongPress={handleMenuLongPressStart}
+            onPressOut={handleMenuLongPressEnd}
+            delayLongPress={100}
           >
             <IconSymbol
               ios_icon_name="line.3.horizontal"
@@ -291,6 +345,11 @@ export default function HomeScreen() {
               size={24}
               color={colors.text}
             />
+            {longPressProgress > 0 && (
+              <View style={[styles.progressOverlay, { backgroundColor: colors.primary }]}>
+                <Text style={styles.progressText}>{30 - longPressProgress}s</Text>
+              </View>
+            )}
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={[styles.headerTitle, { color: colors.text }]}>🌲 Tree Planter 🌲</Text>
@@ -545,6 +604,47 @@ export default function HomeScreen() {
       </Modal>
 
       <Modal
+        visible={showSecretCodeModal}
+        animationType="fade"
+        transparent
+      >
+        <View style={styles.secretModalOverlay}>
+          <View style={[styles.secretModalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.secretModalTitle, { color: colors.text }]}>🔓 Secret Code</Text>
+            <Text style={[styles.secretModalDescription, { color: colors.textSecondary }]}>
+              Enter the secret code to unlock all shop items and get unlimited tokens!
+            </Text>
+            <TextInput
+              style={[styles.secretInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+              placeholder="Enter secret code"
+              value={secretCode}
+              onChangeText={setSecretCode}
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="characters"
+              multiline
+            />
+            <View style={styles.secretModalButtons}>
+              <TouchableOpacity
+                style={[styles.secretModalButton, { backgroundColor: colors.textSecondary }]}
+                onPress={() => {
+                  setShowSecretCodeModal(false);
+                  setSecretCode('');
+                }}
+              >
+                <Text style={styles.secretModalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.secretModalButton, { backgroundColor: colors.primary }]}
+                onPress={handleSecretCodeSubmit}
+              >
+                <Text style={styles.secretModalButtonText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         visible={showEditModal}
         animationType="slide"
         presentationStyle="pageSheet"
@@ -722,6 +822,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  progressOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.9,
+  },
+  progressText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   menuButtonPlaceholder: {
     width: 44,
@@ -902,6 +1019,58 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 16,
+  },
+  secretModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  secretModalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: 24,
+    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.3)',
+    elevation: 8,
+  },
+  secretModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  secretModalDescription: {
+    fontSize: 14,
+    marginBottom: 20,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  secretInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 14,
+    marginBottom: 20,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  secretModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  secretModalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secretModalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   label: {
     fontSize: 16,

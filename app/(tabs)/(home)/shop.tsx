@@ -8,14 +8,25 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { IconSymbol } from '@/components/IconSymbol';
 import { ShopStorageService } from '@/utils/shopStorage';
-import { UserCosmetics, AVATAR_FRAMES, PROFILE_ICONS, PROFILE_EMOJIS } from '@/types/Shop';
+import { UserCosmetics, AVATAR_FRAMES, PROFILE_ICONS_EMOJIS } from '@/types/Shop';
 import { APP_THEMES } from '@/constants/Themes';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+
+const TOKEN_PACKAGES = [
+  { id: 'tokens-50', tokens: 50, price: 5, label: '$5' },
+  { id: 'tokens-120', tokens: 120, price: 10, label: '$10' },
+  { id: 'tokens-300', tokens: 300, price: 25, label: '$25' },
+  { id: 'tokens-650', tokens: 650, price: 50, label: '$50' },
+  { id: 'tokens-1400', tokens: 1400, price: 100, label: '$100' },
+  { id: 'tokens-3000', tokens: 3000, price: 200, label: '$200' },
+];
 
 export default function ShopScreen() {
   const { colors, selectedTheme, setSelectedTheme } = useThemeContext();
@@ -24,7 +35,15 @@ export default function ShopScreen() {
     coins: 0,
     purchasedItems: [],
   });
-  const [selectedCategory, setSelectedCategory] = useState<'themes' | 'frames' | 'icons' | 'emojis'>('themes');
+  const [selectedCategory, setSelectedCategory] = useState<'themes' | 'frames' | 'avatars'>('themes');
+  const [showTokenPurchase, setShowTokenPurchase] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<typeof TOKEN_PACKAGES[0] | null>(null);
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     loadCosmetics();
@@ -42,13 +61,20 @@ export default function ShopScreen() {
     }
 
     if (cosmetics.coins < price) {
-      Alert.alert('Insufficient Coins', `You need ${price - cosmetics.coins} more coins to purchase this item.`);
+      Alert.alert(
+        'Insufficient Tokens', 
+        `You need ${price - cosmetics.coins} more tokens to purchase this item.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Buy Tokens', onPress: () => setShowTokenPurchase(true) },
+        ]
+      );
       return;
     }
 
     Alert.alert(
       'Purchase Item',
-      `Do you want to purchase ${itemName} for ${price} coins?`,
+      `Do you want to purchase ${itemName} for ${price} tokens?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -77,13 +103,20 @@ export default function ShopScreen() {
     }
 
     if (cosmetics.coins < price) {
-      Alert.alert('Insufficient Coins', `You need ${price - cosmetics.coins} more coins to purchase this theme.`);
+      Alert.alert(
+        'Insufficient Tokens', 
+        `You need ${price - cosmetics.coins} more tokens to purchase this theme.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Buy Tokens', onPress: () => setShowTokenPurchase(true) },
+        ]
+      );
       return;
     }
 
     Alert.alert(
       'Purchase Theme',
-      `Do you want to purchase ${themeName} for ${price} coins?`,
+      `Do you want to purchase ${themeName} for ${price} tokens?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -102,6 +135,61 @@ export default function ShopScreen() {
         },
       ]
     );
+  };
+
+  const handlePackageSelect = (pkg: typeof TOKEN_PACKAGES[0]) => {
+    setSelectedPackage(pkg);
+    setShowTokenPurchase(false);
+    setShowPaymentModal(true);
+  };
+
+  const handlePayment = async () => {
+    if (!selectedPackage) return;
+
+    if (!cardNumber || !expiryDate || !cvv || !cardName) {
+      Alert.alert('Error', 'Please fill in all payment details');
+      return;
+    }
+
+    if (cardNumber.replace(/\s/g, '').length < 13) {
+      Alert.alert('Error', 'Please enter a valid card number');
+      return;
+    }
+
+    setProcessing(true);
+
+    setTimeout(async () => {
+      await ShopStorageService.addCoins(selectedPackage.tokens);
+      await loadCosmetics();
+      
+      setProcessing(false);
+      setShowPaymentModal(false);
+      setCardNumber('');
+      setExpiryDate('');
+      setCvv('');
+      setCardName('');
+      setSelectedPackage(null);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        'Purchase Successful!', 
+        `${selectedPackage.tokens} tokens have been added to your account!`
+      );
+    }, 2000);
+  };
+
+  const formatCardNumber = (text: string) => {
+    const cleaned = text.replace(/\s/g, '');
+    const chunks = cleaned.match(/.{1,4}/g);
+    return chunks ? chunks.join(' ') : cleaned;
+  };
+
+  const formatExpiryDate = (text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    if (cleaned.length >= 2) {
+      return cleaned.substring(0, 2) + '/' + cleaned.substring(2, 4);
+    }
+    return cleaned;
   };
 
   const renderThemes = () => {
@@ -217,16 +305,16 @@ export default function ShopScreen() {
     );
   };
 
-  const renderIcons = () => {
+  const renderAvatars = () => {
     return (
       <View style={styles.itemsContainer}>
-        {PROFILE_ICONS.map((icon, index) => {
-          const isPurchased = cosmetics.purchasedItems.includes(icon.id);
-          const isEquipped = cosmetics.equippedIcon === icon.id;
+        {PROFILE_ICONS_EMOJIS.map((avatar, index) => {
+          const isPurchased = cosmetics.purchasedItems.includes(avatar.id);
+          const isEquipped = cosmetics.equippedAvatar === avatar.id;
 
           return (
             <TouchableOpacity
-              key={`icon-${index}`}
+              key={`avatar-${index}`}
               style={[
                 styles.shopItem,
                 { 
@@ -237,16 +325,16 @@ export default function ShopScreen() {
               ]}
               onPress={() => {
                 if (isPurchased) {
-                  ShopStorageService.equipItem('icon', icon.id);
+                  ShopStorageService.equipItem('avatar', avatar.id);
                   loadCosmetics();
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 } else {
-                  handlePurchase(icon.id, icon.price, icon.name);
+                  handlePurchase(avatar.id, avatar.price, avatar.name);
                 }
               }}
             >
-              <Text style={styles.itemEmoji}>{icon.emoji}</Text>
-              <Text style={[styles.itemName, { color: colors.text }]}>{icon.name}</Text>
+              <Text style={styles.itemEmoji}>{avatar.emoji}</Text>
+              <Text style={[styles.itemName, { color: colors.text }]}>{avatar.name}</Text>
               {isEquipped && (
                 <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
                   <Text style={styles.equippedText}>Equipped</Text>
@@ -257,58 +345,7 @@ export default function ShopScreen() {
                   <Text style={[styles.ownedText, { color: colors.success }]}>✓ Owned</Text>
                 ) : (
                   <View style={[styles.priceTag, { backgroundColor: colors.warning }]}>
-                    <Text style={styles.priceText}>{icon.price} 🪙</Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    );
-  };
-
-  const renderEmojis = () => {
-    return (
-      <View style={styles.itemsContainer}>
-        {PROFILE_EMOJIS.map((emoji, index) => {
-          const isPurchased = cosmetics.purchasedItems.includes(emoji.id);
-          const isEquipped = cosmetics.equippedEmoji === emoji.id;
-
-          return (
-            <TouchableOpacity
-              key={`emoji-${index}`}
-              style={[
-                styles.shopItem,
-                { 
-                  backgroundColor: colors.card,
-                  borderColor: isEquipped ? colors.primary : colors.border,
-                  borderWidth: isEquipped ? 3 : 1,
-                },
-              ]}
-              onPress={() => {
-                if (isPurchased) {
-                  ShopStorageService.equipItem('emoji', emoji.id);
-                  loadCosmetics();
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                } else {
-                  handlePurchase(emoji.id, emoji.price, emoji.name);
-                }
-              }}
-            >
-              <Text style={styles.itemEmoji}>{emoji.emoji}</Text>
-              <Text style={[styles.itemName, { color: colors.text }]}>{emoji.name}</Text>
-              {isEquipped && (
-                <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.equippedText}>Equipped</Text>
-                </View>
-              )}
-              <View style={styles.itemFooter}>
-                {isPurchased ? (
-                  <Text style={[styles.ownedText, { color: colors.success }]}>✓ Owned</Text>
-                ) : (
-                  <View style={[styles.priceTag, { backgroundColor: colors.warning }]}>
-                    <Text style={styles.priceText}>{emoji.price} 🪙</Text>
+                    <Text style={styles.priceText}>{avatar.price} 🪙</Text>
                   </View>
                 )}
               </View>
@@ -336,9 +373,18 @@ export default function ShopScreen() {
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Shop</Text>
         </View>
-        <View style={[styles.coinsContainer, { backgroundColor: colors.warning }]}>
+        <TouchableOpacity
+          style={[styles.coinsContainer, { backgroundColor: colors.warning }]}
+          onPress={() => setShowTokenPurchase(true)}
+        >
+          <IconSymbol
+            ios_icon_name="cart.fill"
+            android_material_icon_name="shopping-cart"
+            size={16}
+            color="#FFFFFF"
+          />
           <Text style={styles.coinsText}>{cosmetics.coins} 🪙</Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.categoryContainer}>
@@ -377,33 +423,17 @@ export default function ShopScreen() {
         <TouchableOpacity
           style={[
             styles.categoryButton,
-            { backgroundColor: selectedCategory === 'icons' ? colors.primary : colors.card },
+            { backgroundColor: selectedCategory === 'avatars' ? colors.primary : colors.card },
           ]}
-          onPress={() => setSelectedCategory('icons')}
+          onPress={() => setSelectedCategory('avatars')}
         >
           <Text
             style={[
               styles.categoryText,
-              { color: selectedCategory === 'icons' ? '#FFFFFF' : colors.text },
+              { color: selectedCategory === 'avatars' ? '#FFFFFF' : colors.text },
             ]}
           >
-            Icons
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.categoryButton,
-            { backgroundColor: selectedCategory === 'emojis' ? colors.primary : colors.card },
-          ]}
-          onPress={() => setSelectedCategory('emojis')}
-        >
-          <Text
-            style={[
-              styles.categoryText,
-              { color: selectedCategory === 'emojis' ? '#FFFFFF' : colors.text },
-            ]}
-          >
-            Emojis
+            Avatars
           </Text>
         </TouchableOpacity>
       </View>
@@ -414,11 +444,165 @@ export default function ShopScreen() {
       >
         {selectedCategory === 'themes' && renderThemes()}
         {selectedCategory === 'frames' && renderFrames()}
-        {selectedCategory === 'icons' && renderIcons()}
-        {selectedCategory === 'emojis' && renderEmojis()}
+        {selectedCategory === 'avatars' && renderAvatars()}
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+
+      <Modal
+        visible={showTokenPurchase}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Buy Tokens</Text>
+            <TouchableOpacity onPress={() => setShowTokenPurchase(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={32}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
+              Purchase tokens to unlock exclusive themes, frames, and avatars!
+            </Text>
+
+            <View style={styles.packagesContainer}>
+              {TOKEN_PACKAGES.map((pkg, index) => (
+                <TouchableOpacity
+                  key={`package-${index}`}
+                  style={[styles.packageCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={() => handlePackageSelect(pkg)}
+                >
+                  <Text style={[styles.packageTokens, { color: colors.primary }]}>
+                    {pkg.tokens} 🪙
+                  </Text>
+                  <Text style={[styles.packagePrice, { color: colors.text }]}>
+                    {pkg.label}
+                  </Text>
+                  {pkg.tokens >= 1400 && (
+                    <View style={[styles.bestValueBadge, { backgroundColor: colors.success }]}>
+                      <Text style={styles.bestValueText}>Best Value</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
+              Note: This is a demo payment system. In production, this would integrate with Apple Pay (iOS) and Google Pay (Android) for secure transactions.
+            </Text>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showPaymentModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Payment Details</Text>
+            <TouchableOpacity onPress={() => !processing && setShowPaymentModal(false)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="close"
+                size={32}
+                color={processing ? colors.textSecondary : colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {selectedPackage && (
+              <View style={[styles.purchaseSummary, { backgroundColor: colors.card }]}>
+                <Text style={[styles.summaryText, { color: colors.text }]}>
+                  {selectedPackage.tokens} Tokens
+                </Text>
+                <Text style={[styles.summaryPrice, { color: colors.primary }]}>
+                  {selectedPackage.label}
+                </Text>
+              </View>
+            )}
+
+            <Text style={[styles.label, { color: colors.text }]}>Card Number</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+              placeholder="1234 5678 9012 3456"
+              value={cardNumber}
+              onChangeText={(text) => setCardNumber(formatCardNumber(text))}
+              keyboardType="numeric"
+              maxLength={19}
+              placeholderTextColor={colors.textSecondary}
+              editable={!processing}
+            />
+
+            <View style={styles.row}>
+              <View style={styles.halfWidth}>
+                <Text style={[styles.label, { color: colors.text }]}>Expiry Date</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                  placeholder="MM/YY"
+                  value={expiryDate}
+                  onChangeText={(text) => setExpiryDate(formatExpiryDate(text))}
+                  keyboardType="numeric"
+                  maxLength={5}
+                  placeholderTextColor={colors.textSecondary}
+                  editable={!processing}
+                />
+              </View>
+
+              <View style={styles.halfWidth}>
+                <Text style={[styles.label, { color: colors.text }]}>CVV</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+                  placeholder="123"
+                  value={cvv}
+                  onChangeText={setCvv}
+                  keyboardType="numeric"
+                  maxLength={4}
+                  secureTextEntry
+                  placeholderTextColor={colors.textSecondary}
+                  editable={!processing}
+                />
+              </View>
+            </View>
+
+            <Text style={[styles.label, { color: colors.text }]}>Cardholder Name</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}
+              placeholder="John Doe"
+              value={cardName}
+              onChangeText={setCardName}
+              placeholderTextColor={colors.textSecondary}
+              editable={!processing}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.payButton,
+                { backgroundColor: processing ? colors.textSecondary : colors.primary }
+              ]}
+              onPress={handlePayment}
+              disabled={processing}
+            >
+              <Text style={styles.payButtonText}>
+                {processing ? 'Processing...' : `Pay ${selectedPackage?.label}`}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.secureText, { color: colors.textSecondary }]}>
+              🔒 Secure payment processing
+            </Text>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -452,9 +636,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   coinsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    gap: 4,
   },
   coinsText: {
     fontSize: 14,
@@ -561,5 +748,129 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 20,
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  modalDescription: {
+    fontSize: 16,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  packagesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  packageCard: {
+    width: '48%',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 2,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+    position: 'relative',
+  },
+  packageTokens: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  packagePrice: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  bestValueBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  bestValueText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  disclaimer: {
+    fontSize: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 24,
+  },
+  purchaseSummary: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  summaryText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  summaryPrice: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  halfWidth: {
+    flex: 1,
+  },
+  payButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+    elevation: 4,
+  },
+  payButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  secureText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 48,
   },
 });

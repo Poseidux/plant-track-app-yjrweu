@@ -21,7 +21,7 @@ import { Season } from '@/types/Season';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as Haptics from 'expo-haptics';
 import { formatLargeNumber } from '@/utils/formatNumber';
-import { AVATAR_FRAMES, PROFILE_ICONS, PROFILE_EMOJIS } from '@/types/Shop';
+import { AVATAR_FRAMES, PROFILE_ICONS_EMOJIS } from '@/types/Shop';
 
 export default function ProfileScreen() {
   const { colors, isDark, currentTheme } = useThemeContext();
@@ -43,8 +43,7 @@ export default function ProfileScreen() {
   const [newSeasonYear, setNewSeasonYear] = useState(new Date().getFullYear().toString());
 
   const [equippedFrame, setEquippedFrame] = useState<string | undefined>();
-  const [equippedIcon, setEquippedIcon] = useState<string | undefined>();
-  const [equippedEmoji, setEquippedEmoji] = useState<string | undefined>();
+  const [equippedAvatar, setEquippedAvatar] = useState<string | undefined>();
 
   useEffect(() => {
     loadProfile();
@@ -75,8 +74,7 @@ export default function ProfileScreen() {
   const loadCosmetics = async () => {
     const cosmetics = await ShopStorageService.getUserCosmetics();
     setEquippedFrame(cosmetics.equippedAvatarFrame);
-    setEquippedIcon(cosmetics.equippedIcon);
-    setEquippedEmoji(cosmetics.equippedEmoji);
+    setEquippedAvatar(cosmetics.equippedAvatar);
   };
 
   const handleSaveProfile = async () => {
@@ -345,24 +343,20 @@ export default function ProfileScreen() {
   );
 
   const getFrameEmoji = () => {
-    if (!equippedFrame) return '⚪';
+    if (!equippedFrame) return null;
     const frame = AVATAR_FRAMES.find(f => f.id === equippedFrame);
-    return frame?.emoji || '⚪';
+    return frame?.emoji;
   };
 
-  const getIconEmoji = () => {
-    if (!equippedIcon) return '👤';
-    const icon = PROFILE_ICONS.find(i => i.id === equippedIcon);
-    return icon?.emoji || '👤';
-  };
-
-  const getEmojiDisplay = () => {
-    if (!equippedEmoji) return '';
-    const emoji = PROFILE_EMOJIS.find(e => e.id === equippedEmoji);
-    return emoji?.emoji || '';
+  const getAvatarEmoji = () => {
+    if (!equippedAvatar) return '👤';
+    const avatar = PROFILE_ICONS_EMOJIS.find(i => i.id === equippedAvatar);
+    return avatar?.emoji || '👤';
   };
 
   const canToggleTheme = !currentTheme.forcedMode;
+
+  const frameEmoji = getFrameEmoji();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -379,14 +373,20 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <View style={[styles.avatarContainer, { backgroundColor: colors.primary }]}>
-            <Text style={styles.frameEmoji}>{getFrameEmoji()}</Text>
-            <View style={styles.avatarInner}>
-              <Text style={styles.iconEmoji}>{getIconEmoji()}</Text>
-            </View>
-            {equippedEmoji && (
-              <Text style={styles.emojiDisplay}>{getEmojiDisplay()}</Text>
+          <View style={styles.avatarWrapper}>
+            {frameEmoji && (
+              <Text style={styles.frameEmoji}>{frameEmoji}</Text>
             )}
+            <View style={[
+              styles.avatarContainer, 
+              { 
+                backgroundColor: colors.primary,
+                borderWidth: frameEmoji ? 0 : 3,
+                borderColor: colors.primary,
+              }
+            ]}>
+              <Text style={styles.avatarEmoji}>{getAvatarEmoji()}</Text>
+            </View>
           </View>
           {profile && !isEditing && (
             <>
@@ -809,36 +809,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  avatarWrapper: {
+    position: 'relative',
+    width: 120,
+    height: 120,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
-    elevation: 6,
-    position: 'relative',
   },
   frameEmoji: {
-    fontSize: 100,
+    fontSize: 120,
     position: 'absolute',
   },
-  avatarInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  avatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+    elevation: 6,
   },
-  iconEmoji: {
-    fontSize: 40,
-  },
-  emojiDisplay: {
-    fontSize: 24,
-    position: 'absolute',
-    bottom: -5,
-    right: -5,
+  avatarEmoji: {
+    fontSize: 48,
   },
   profileName: {
     fontSize: 28,

@@ -8,6 +8,8 @@ export async function shareStatsAsImage(viewRef: any): Promise<void> {
   try {
     console.log('Starting image capture...');
     
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     const uri = await captureRef(viewRef, {
       format: 'png',
       quality: 1,

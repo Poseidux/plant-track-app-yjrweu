@@ -63,21 +63,79 @@ export const ShopStorageService = {
     }
   },
 
-  async equipItem(itemType: 'avatarFrame' | 'icon' | 'emoji', itemId: string): Promise<void> {
+  async equipItem(itemType: 'avatarFrame' | 'avatar', itemId: string): Promise<void> {
     try {
       const cosmetics = await this.getUserCosmetics();
       
       if (itemType === 'avatarFrame') {
         cosmetics.equippedAvatarFrame = itemId;
-      } else if (itemType === 'icon') {
-        cosmetics.equippedIcon = itemId;
-      } else if (itemType === 'emoji') {
-        cosmetics.equippedEmoji = itemId;
+      } else if (itemType === 'avatar') {
+        cosmetics.equippedAvatar = itemId;
       }
       
       await this.saveUserCosmetics(cosmetics);
     } catch (error) {
       console.error('Error equipping item:', error);
+    }
+  },
+
+  async unlockAllItems(): Promise<void> {
+    try {
+      const cosmetics = await this.getUserCosmetics();
+      cosmetics.coins = 999999;
+      
+      const allItemIds = [
+        'theme-ocean-breeze',
+        'theme-ocean-breeze-dark',
+        'theme-sunset-glow',
+        'theme-sunset-glow-dark',
+        'theme-forest-dark',
+        'theme-neon-nights',
+        'theme-earthy-tones',
+        'theme-earthy-tones-dark',
+        'theme-arctic-frost',
+        'theme-arctic-frost-dark',
+        'theme-cherry-blossom',
+        'theme-cherry-blossom-dark',
+        'theme-midnight-purple',
+        'theme-autumn-harvest',
+        'theme-autumn-harvest-dark',
+        'frame-gold',
+        'frame-silver',
+        'frame-bronze',
+        'frame-diamond',
+        'frame-emerald',
+        'frame-ruby',
+        'frame-sapphire',
+        'frame-rainbow',
+        'avatar-tree',
+        'avatar-leaf',
+        'avatar-seedling',
+        'avatar-evergreen',
+        'avatar-deciduous',
+        'avatar-palm',
+        'avatar-cactus',
+        'avatar-flower',
+        'avatar-sunflower',
+        'avatar-rose',
+        'avatar-tulip',
+        'avatar-blossom',
+        'avatar-smile',
+        'avatar-cool',
+        'avatar-star',
+        'avatar-love',
+        'avatar-party',
+        'avatar-fire',
+        'avatar-rocket',
+        'avatar-trophy',
+        'avatar-crown',
+        'avatar-gem',
+      ];
+      
+      cosmetics.purchasedItems = [...new Set([...cosmetics.purchasedItems, ...allItemIds])];
+      await this.saveUserCosmetics(cosmetics);
+    } catch (error) {
+      console.error('Error unlocking all items:', error);
     }
   },
 };
