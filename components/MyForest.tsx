@@ -77,23 +77,25 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     const sunsetDuration = 2500;
     const nightDuration = 20000;
     
+    const totalDuration = sunriseDuration + dayDuration + sunsetDuration + nightDuration;
+    
     const animate = () => {
       animationRef.current = Animated.loop(
         Animated.sequence([
           Animated.timing(dayNightProgress, {
-            toValue: 0.0556,
+            toValue: sunriseDuration / totalDuration,
             duration: sunriseDuration,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: false,
           }),
           Animated.timing(dayNightProgress, {
-            toValue: 0.5,
+            toValue: (sunriseDuration + dayDuration) / totalDuration,
             duration: dayDuration,
             easing: Easing.linear,
             useNativeDriver: false,
           }),
           Animated.timing(dayNightProgress, {
-            toValue: 0.5556,
+            toValue: (sunriseDuration + dayDuration + sunsetDuration) / totalDuration,
             duration: sunsetDuration,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: false,
@@ -140,12 +142,12 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
 
     const seasonTreeArray: string[] = [];
     for (let i = 0; i < Math.min(seasonTreeCount, 100); i++) {
-      seasonTreeArray.push('🌲');
+      seasonTreeArray.push('tree');
     }
 
     const careerTreeArray: string[] = [];
     for (let i = 0; i < Math.min(careerTreeCount, 100); i++) {
-      careerTreeArray.push('🌲');
+      careerTreeArray.push('tree');
     }
 
     setSeasonTrees(seasonTreeArray);
@@ -214,10 +216,10 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
       ? dayNightProgress.interpolate({
           inputRange: [0, 0.0556, 0.5, 0.5556, 1],
           outputRange: [
-            '#87CEEB',
             '#FFB347',
             '#87CEEB',
             '#FF6B6B',
+            '#1a1a2e',
             '#1a1a2e',
           ],
         })
@@ -237,13 +239,18 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
           {showDayNight && !animationDisabled && renderStars()}
           
           {trees.map((tree, index) => (
-            <Text key={`tree-${title}-${index}`} style={styles.treeEmoji}>
-              {tree}
-            </Text>
+            <View key={`tree-${title}-${index}`} style={styles.treeIcon}>
+              <IconSymbol
+                ios_icon_name="tree.fill"
+                android_material_icon_name="park"
+                size={20}
+                color={colors.secondary}
+              />
+            </View>
           ))}
         </Animated.View>
         <Text style={[styles.forestInfo, { color: colors.textSecondary }]}>
-          Each tree emoji represents {treesPerEmoji.toLocaleString()} trees planted
+          Each tree icon represents {treesPerEmoji.toLocaleString()} trees planted
         </Text>
       </View>
     );
@@ -338,8 +345,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  treeEmoji: {
-    fontSize: 24,
+  treeIcon: {
     margin: 4,
   },
   star: {

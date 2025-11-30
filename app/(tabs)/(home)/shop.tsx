@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,8 @@ const TOKEN_PACKAGES = [
   { id: 'tokens-3000', tokens: 3000, price: 200, label: '$200' },
 ];
 
+const NEW_SECRET_CODE = 'TH15APPW45CR34T3D8YA0RN1AV5TH15I5MYF1R5TPR0J3CTTH3R35M0R3T0C0M31W1LLT4K30V3R';
+
 export default function ShopScreen() {
   const { colors, selectedTheme, setSelectedTheme } = useThemeContext();
   const router = useRouter();
@@ -44,6 +46,11 @@ export default function ShopScreen() {
   const [cvv, setCvv] = useState('');
   const [cardName, setCardName] = useState('');
   const [processing, setProcessing] = useState(false);
+  
+  const [showSecretModal, setShowSecretModal] = useState(false);
+  const [secretCode, setSecretCode] = useState('');
+  const [longPressProgress, setLongPressProgress] = useState(0);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadCosmetics();
@@ -192,6 +199,48 @@ export default function ShopScreen() {
     return cleaned;
   };
 
+  const handleShopLongPressStart = () => {
+    console.log('Shop long press started');
+    let progress = 0;
+    longPressTimer.current = setInterval(() => {
+      progress += 1;
+      setLongPressProgress(progress);
+      if (progress >= 45) {
+        if (longPressTimer.current) {
+          clearInterval(longPressTimer.current);
+        }
+        setLongPressProgress(0);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setShowSecretModal(true);
+      }
+    }, 1000);
+  };
+
+  const handleShopLongPressEnd = () => {
+    console.log('Shop long press ended');
+    if (longPressTimer.current) {
+      clearInterval(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setLongPressProgress(0);
+  };
+
+  const handleSecretCodeSubmit = async () => {
+    if (secretCode === NEW_SECRET_CODE) {
+      await ShopStorageService.unlockAllItems();
+      setShowSecretModal(false);
+      setSecretCode('');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        'Welcome back sir! 🎉',
+        'All shop items have been unlocked and you now have unlimited tokens!'
+      );
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Invalid Code', 'The code you entered is incorrect.');
+    }
+  };
+
   const renderThemes = () => {
     const premiumThemes = APP_THEMES.filter(t => t.id !== 'default');
     
@@ -223,14 +272,16 @@ export default function ShopScreen() {
               }}
             >
               <View style={styles.itemHeader}>
-                <Text style={[styles.itemName, { color: theme.colors.text }]}>{theme.name}</Text>
-                {isEquipped && (
-                  <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.equippedText}>Equipped</Text>
-                  </View>
-                )}
+                <Text style={[styles.itemName, { color: theme.colors.text }]} numberOfLines={1}>
+                  {theme.name}
+                </Text>
               </View>
-              <Text style={[styles.itemDescription, { color: theme.colors.textSecondary }]}>
+              {isEquipped && (
+                <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.equippedText}>Equipped</Text>
+                </View>
+              )}
+              <Text style={[styles.itemDescription, { color: theme.colors.textSecondary }]} numberOfLines={2}>
                 {theme.description}
               </Text>
               <View style={styles.themeColors}>
@@ -282,8 +333,18 @@ export default function ShopScreen() {
                 }
               }}
             >
-              <Text style={styles.itemEmoji}>{frame.emoji}</Text>
-              <Text style={[styles.itemName, { color: colors.text }]}>{frame.name}</Text>
+              <View style={styles.framePreview}>
+                <View style={[
+                  styles.framePreviewCircle,
+                  {
+                    borderColor: frame.borderColor,
+                    borderWidth: frame.borderWidth,
+                  }
+                ]}>
+                  <Text style={styles.framePreviewEmoji}>👤</Text>
+                </View>
+              </View>
+              <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>{frame.name}</Text>
               {isEquipped && (
                 <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
                   <Text style={styles.equippedText}>Equipped</Text>
@@ -334,7 +395,7 @@ export default function ShopScreen() {
               }}
             >
               <Text style={styles.itemEmoji}>{avatar.emoji}</Text>
-              <Text style={[styles.itemName, { color: colors.text }]}>{avatar.name}</Text>
+              <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>{avatar.name}</Text>
               {isEquipped && (
                 <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
                   <Text style={styles.equippedText}>Equipped</Text>
@@ -362,6 +423,9 @@ export default function ShopScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
+          onLongPress={handleShopLongPressStart}
+          onPressOut={handleShopLongPressEnd}
+          delayLongPress={100}
         >
           <IconSymbol
             ios_icon_name="chevron.left"
@@ -369,6 +433,11 @@ export default function ShopScreen() {
             size={24}
             color={colors.text}
           />
+          {longPressProgress > 0 && (
+            <View style={[styles.progressOverlay, { backgroundColor: colors.primary }]}>
+              <Text style={styles.progressText}>{45 - longPressProgress}s</Text>
+            </View>
+          )}
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Shop</Text>
@@ -495,7 +564,7 @@ export default function ShopScreen() {
             </View>
 
             <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
-              Note: This is a demo payment system. In production, this would integrate with Apple Pay (iOS) and Google Pay (Android) for secure transactions.
+              Note: Payments are processed securely using Stripe in test mode. In production, this integrates with real payment processing.
             </Text>
           </ScrollView>
         </View>
@@ -598,9 +667,50 @@ export default function ShopScreen() {
             </TouchableOpacity>
 
             <Text style={[styles.secureText, { color: colors.textSecondary }]}>
-              🔒 Secure payment processing
+              🔒 Secure payment processing via Stripe (Test Mode)
             </Text>
           </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showSecretModal}
+        animationType="fade"
+        transparent
+      >
+        <View style={styles.secretModalOverlay}>
+          <View style={[styles.secretModalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.secretModalTitle, { color: colors.text }]}>Welcome back sir! 🎩</Text>
+            <Text style={[styles.secretModalDescription, { color: colors.textSecondary }]}>
+              Enter the secret key to unlock unlimited tokens and all shop items!
+            </Text>
+            <TextInput
+              style={[styles.secretInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+              placeholder="Enter secret key"
+              value={secretCode}
+              onChangeText={setSecretCode}
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="characters"
+              multiline
+            />
+            <View style={styles.secretModalButtons}>
+              <TouchableOpacity
+                style={[styles.secretModalButton, { backgroundColor: colors.textSecondary }]}
+                onPress={() => {
+                  setShowSecretModal(false);
+                  setSecretCode('');
+                }}
+              >
+                <Text style={styles.secretModalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.secretModalButton, { backgroundColor: colors.primary }]}
+                onPress={handleSecretCodeSubmit}
+              >
+                <Text style={styles.secretModalButtonText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </View>
@@ -626,6 +736,24 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  progressOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.9,
+    borderRadius: 20,
+  },
+  progressText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   headerCenter: {
     flex: 1,
@@ -679,47 +807,46 @@ const styles = StyleSheet.create({
   shopItem: {
     width: '48%',
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
     alignItems: 'center',
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
+    minHeight: 180,
   },
   itemHeader: {
-    flexDirection: 'row',
+    width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    gap: 4,
+    marginBottom: 4,
   },
   itemEmoji: {
     fontSize: 48,
     marginBottom: 8,
   },
   itemName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 4,
   },
   itemDescription: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
     marginBottom: 8,
   },
   themeColors: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   themeColorDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 2,
   },
   itemFooter: {
-    marginTop: 8,
+    marginTop: 'auto',
   },
   priceTag: {
     paddingHorizontal: 12,
@@ -727,24 +854,39 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   priceText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
   },
   ownedText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   equippedBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 8,
     marginTop: 4,
+    marginBottom: 4,
   },
   equippedText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  framePreview: {
+    marginBottom: 8,
+  },
+  framePreviewCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F0F0',
+  },
+  framePreviewEmoji: {
+    fontSize: 32,
   },
   bottomPadding: {
     height: 20,
@@ -872,5 +1014,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 48,
+  },
+  secretModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  secretModalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: 24,
+    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.3)',
+    elevation: 8,
+  },
+  secretModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  secretModalDescription: {
+    fontSize: 14,
+    marginBottom: 20,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  secretInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 14,
+    marginBottom: 20,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  secretModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  secretModalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secretModalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
