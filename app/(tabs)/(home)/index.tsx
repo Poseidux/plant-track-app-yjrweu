@@ -50,6 +50,13 @@ export default function HomeScreen() {
   useEffect(() => {
     console.log('HomeScreen mounted');
     loadData();
+    
+    return () => {
+      if (longPressTimer.current) {
+        clearInterval(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+    };
   }, []);
 
   const loadData = async () => {
@@ -142,9 +149,10 @@ export default function HomeScreen() {
     longPressTimer.current = setInterval(() => {
       progress += 1;
       setLongPressProgress(progress);
-      if (progress >= 30) {
+      if (progress >= 10) {
         if (longPressTimer.current) {
           clearInterval(longPressTimer.current);
+          longPressTimer.current = null;
         }
         setLongPressProgress(0);
         setShowThemeMenu(false);
@@ -327,6 +335,11 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
       >
         <View style={styles.header}>
           <TouchableOpacity
@@ -347,7 +360,7 @@ export default function HomeScreen() {
             />
             {longPressProgress > 0 && (
               <View style={[styles.progressOverlay, { backgroundColor: colors.primary }]}>
-                <Text style={styles.progressText}>{30 - longPressProgress}s</Text>
+                <Text style={styles.progressText}>{10 - longPressProgress}s</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -662,7 +675,10 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView 
+            style={styles.modalContent}
+            removeClippedSubviews={true}
+          >
             <Text style={[styles.label, { color: colors.text }]}>Total Trees *</Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.text }]}

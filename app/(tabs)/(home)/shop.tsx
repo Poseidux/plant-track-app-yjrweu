@@ -54,6 +54,13 @@ export default function ShopScreen() {
 
   useEffect(() => {
     loadCosmetics();
+    
+    return () => {
+      if (longPressTimer.current) {
+        clearInterval(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+    };
   }, []);
 
   const loadCosmetics = async () => {
@@ -61,7 +68,7 @@ export default function ShopScreen() {
     setCosmetics(data);
   };
 
-  const handlePurchase = async (itemId: string, price: number, itemName: string) => {
+  const handlePurchase = async (itemId: string, price: number, itemName: string, itemType: 'frame' | 'avatar') => {
     if (cosmetics.purchasedItems.includes(itemId)) {
       Alert.alert('Already Owned', 'You already own this item!');
       return;
@@ -89,8 +96,14 @@ export default function ShopScreen() {
           onPress: async () => {
             const success = await ShopStorageService.purchaseItem(itemId, price);
             if (success) {
+              if (itemType === 'frame') {
+                await ShopStorageService.equipItem('avatarFrame', itemId);
+              } else if (itemType === 'avatar') {
+                await ShopStorageService.equipItem('avatar', itemId);
+              }
+              
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert('Success', `You purchased ${itemName}!`);
+              Alert.alert('Success', `You purchased and equipped ${itemName}!`);
               await loadCosmetics();
             } else {
               Alert.alert('Error', 'Failed to purchase item');
@@ -205,9 +218,10 @@ export default function ShopScreen() {
     longPressTimer.current = setInterval(() => {
       progress += 1;
       setLongPressProgress(progress);
-      if (progress >= 45) {
+      if (progress >= 10) {
         if (longPressTimer.current) {
           clearInterval(longPressTimer.current);
+          longPressTimer.current = null;
         }
         setLongPressProgress(0);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -235,6 +249,7 @@ export default function ShopScreen() {
         'Welcome back sir! 🎉',
         'All shop items have been unlocked and you now have unlimited tokens!'
       );
+      await loadCosmetics();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Invalid Code', 'The code you entered is incorrect.');
@@ -275,12 +290,12 @@ export default function ShopScreen() {
                 <Text style={[styles.itemName, { color: theme.colors.text }]} numberOfLines={1}>
                   {theme.name}
                 </Text>
+                {isEquipped && (
+                  <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.equippedText}>Equipped</Text>
+                  </View>
+                )}
               </View>
-              {isEquipped && (
-                <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.equippedText}>Equipped</Text>
-                </View>
-              )}
               <Text style={[styles.itemDescription, { color: theme.colors.textSecondary }]} numberOfLines={2}>
                 {theme.description}
               </Text>
@@ -329,7 +344,7 @@ export default function ShopScreen() {
                   loadCosmetics();
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 } else {
-                  handlePurchase(frame.id, frame.price, frame.name);
+                  handlePurchase(frame.id, frame.price, frame.name, 'frame');
                 }
               }}
             >
@@ -344,12 +359,14 @@ export default function ShopScreen() {
                   <Text style={styles.framePreviewEmoji}>👤</Text>
                 </View>
               </View>
-              <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>{frame.name}</Text>
-              {isEquipped && (
-                <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.equippedText}>Equipped</Text>
-                </View>
-              )}
+              <View style={styles.itemHeader}>
+                <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>{frame.name}</Text>
+                {isEquipped && (
+                  <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.equippedText}>Equipped</Text>
+                  </View>
+                )}
+              </View>
               <View style={styles.itemFooter}>
                 {isPurchased ? (
                   <Text style={[styles.ownedText, { color: colors.success }]}>✓ Owned</Text>
@@ -390,17 +407,19 @@ export default function ShopScreen() {
                   loadCosmetics();
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 } else {
-                  handlePurchase(avatar.id, avatar.price, avatar.name);
+                  handlePurchase(avatar.id, avatar.price, avatar.name, 'avatar');
                 }
               }}
             >
               <Text style={styles.itemEmoji}>{avatar.emoji}</Text>
-              <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>{avatar.name}</Text>
-              {isEquipped && (
-                <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.equippedText}>Equipped</Text>
-                </View>
-              )}
+              <View style={styles.itemHeader}>
+                <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>{avatar.name}</Text>
+                {isEquipped && (
+                  <View style={[styles.equippedBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.equippedText}>Equipped</Text>
+                  </View>
+                )}
+              </View>
               <View style={styles.itemFooter}>
                 {isPurchased ? (
                   <Text style={[styles.ownedText, { color: colors.success }]}>✓ Owned</Text>
@@ -435,13 +454,11 @@ export default function ShopScreen() {
           />
           {longPressProgress > 0 && (
             <View style={[styles.progressOverlay, { backgroundColor: colors.primary }]}>
-              <Text style={styles.progressText}>{45 - longPressProgress}s</Text>
+              <Text style={styles.progressText}>{10 - longPressProgress}s</Text>
             </View>
           )}
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Shop</Text>
-        </View>
+        <View style={styles.headerSpacer} />
         <TouchableOpacity
           style={[styles.coinsContainer, { backgroundColor: colors.warning }]}
           onPress={() => setShowTokenPurchase(true)}
@@ -510,6 +527,11 @@ export default function ShopScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
       >
         {selectedCategory === 'themes' && renderThemes()}
         {selectedCategory === 'frames' && renderFrames()}
@@ -755,13 +777,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
-  headerCenter: {
+  headerSpacer: {
     flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
   },
   coinsContainer: {
     flexDirection: 'row',
@@ -867,7 +884,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
     marginTop: 4,
-    marginBottom: 4,
   },
   equippedText: {
     fontSize: 9,
