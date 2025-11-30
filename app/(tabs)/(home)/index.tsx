@@ -25,7 +25,7 @@ import * as Haptics from 'expo-haptics';
 import { formatLargeNumber } from '@/utils/formatNumber';
 import { APP_THEMES } from '@/constants/Themes';
 
-const SECRET_CODE = 'TH15APPW45CR34T3D8YG0GG1N5TH15I5MYF1R5TPR0J3CTTH3R35M0R3T0C0M31W1LLT4K30V3R';
+const SECRET_CODE = 'TH15APPW45CR34T3D8YA0RN1AV5TH15I5MYF1R5TPR0J3CTTH3R35M0R3T0C0M31W1LLT4K30V3R';
 
 export default function HomeScreen() {
   const { colors, isDark, selectedTheme, setSelectedTheme, setThemeMode } = useThemeContext();
@@ -149,7 +149,7 @@ export default function HomeScreen() {
     longPressTimer.current = setInterval(() => {
       progress += 1;
       setLongPressProgress(progress);
-      if (progress >= 10) {
+      if (progress >= 20) {
         if (longPressTimer.current) {
           clearInterval(longPressTimer.current);
           longPressTimer.current = null;
@@ -360,12 +360,12 @@ export default function HomeScreen() {
             />
             {longPressProgress > 0 && (
               <View style={[styles.progressOverlay, { backgroundColor: colors.primary }]}>
-                <Text style={styles.progressText}>{10 - longPressProgress}s</Text>
+                <Text style={styles.progressText}>{20 - longPressProgress}s</Text>
               </View>
             )}
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>🌲 Tree Planter 🌲</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>🌲 Tree Planter</Text>
             <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
               Track your environmental impact
             </Text>
@@ -503,12 +503,7 @@ export default function HomeScreen() {
 
         {treeLogs.length === 0 && (
           <View style={[styles.emptyCard, { backgroundColor: colors.card }]}>
-            <IconSymbol
-              ios_icon_name="tree.fill"
-              android_material_icon_name="park"
-              size={80}
-              color={colors.secondary}
-            />
+            <Text style={styles.emptyTreeEmoji}>🌲</Text>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>Start Your Journey</Text>
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               Log your first tree planting session to see your progress!
@@ -943,6 +938,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 4,
+  },
+  emptyTreeEmoji: {
+    fontSize: 80,
   },
   emptyTitle: {
     fontSize: 24,

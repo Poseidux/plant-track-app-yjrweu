@@ -15,12 +15,14 @@ import {
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
+import { ShopStorageService } from '@/utils/shopStorage';
 import { TreePlantingLog, EarningsLog, ExpenseLog, Achievement, UserProfile } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { checkAchievements } from '@/utils/achievements';
 import { formatLargeNumber } from '@/utils/formatNumber';
 import { shareStatsAsImage } from '@/utils/shareStatsImage';
+import { AVATAR_FRAMES, PROFILE_ICONS_EMOJIS } from '@/types/Shop';
 
 export default function AnalyticsScreen() {
   const { colors, isDark } = useThemeContext();
@@ -33,6 +35,8 @@ export default function AnalyticsScreen() {
   const [cardRotation] = useState(new Animated.Value(0));
   const [showFullscreenPerformance, setShowFullscreenPerformance] = useState(false);
   const shareViewRef = useRef(null);
+  const [equippedFrame, setEquippedFrame] = useState<string | undefined>();
+  const [equippedAvatar, setEquippedAvatar] = useState<string | undefined>();
 
   useEffect(() => {
     loadData();
@@ -57,17 +61,20 @@ export default function AnalyticsScreen() {
   };
 
   const loadData = async () => {
-    const [trees, earnings, expenses, savedAchievements, userProfile] = await Promise.all([
+    const [trees, earnings, expenses, savedAchievements, userProfile, cosmetics] = await Promise.all([
       StorageService.getTreeLogs(),
       StorageService.getEarningsLogs(),
       StorageService.getExpenseLogs(),
       StorageService.getAchievements(),
       StorageService.getUserProfile(),
+      ShopStorageService.getUserCosmetics(),
     ]);
     setTreeLogs(trees);
     setEarningsLogs(earnings);
     setExpenseLogs(expenses);
     setProfile(userProfile);
+    setEquippedFrame(cosmetics.equippedAvatarFrame);
+    setEquippedAvatar(cosmetics.equippedAvatar);
     
     const updatedAchievements = checkAchievements(trees, earnings, savedAchievements);
     setAchievements(updatedAchievements);
@@ -193,6 +200,18 @@ export default function AnalyticsScreen() {
     }
   };
 
+  const getFrameStyle = () => {
+    if (!equippedFrame) return null;
+    const frame = AVATAR_FRAMES.find(f => f.id === equippedFrame);
+    return frame;
+  };
+
+  const getAvatarEmoji = () => {
+    if (!equippedAvatar) return '👤';
+    const avatar = PROFILE_ICONS_EMOJIS.find(i => i.id === equippedAvatar);
+    return avatar?.emoji || '👤';
+  };
+
   const screenWidth = Dimensions.get('window').width;
 
   const chartConfig = {
@@ -300,6 +319,8 @@ export default function AnalyticsScreen() {
     inputRange: [0, 1],
     outputRange: ['0deg', '5deg'],
   });
+
+  const frameStyle = getFrameStyle();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -567,12 +588,15 @@ export default function AnalyticsScreen() {
             <View style={[styles.performanceCardGlow, { backgroundColor: colors.primary }]} />
             <View style={styles.performanceCardContent}>
               <View style={styles.performanceCardHeader}>
-                <IconSymbol
-                  ios_icon_name="person.crop.circle.fill"
-                  android_material_icon_name="account-circle"
-                  size={48}
-                  color={colors.primary}
-                />
+                <View style={[
+                  styles.performanceAvatarContainer,
+                  {
+                    borderWidth: frameStyle ? frameStyle.borderWidth : 3,
+                    borderColor: frameStyle ? frameStyle.borderColor : colors.primary,
+                  }
+                ]}>
+                  <Text style={styles.performanceAvatarEmoji}>{getAvatarEmoji()}</Text>
+                </View>
                 <Text style={[styles.performanceCardName, { color: colors.text }]}>
                   {profile.name}
                 </Text>
@@ -722,12 +746,15 @@ export default function AnalyticsScreen() {
               >
                 <View style={[styles.shareCardBackground, { backgroundColor: colors.card }]}>
                   <View style={styles.fullscreenCardHeader}>
-                    <IconSymbol
-                      ios_icon_name="person.crop.circle.fill"
-                      android_material_icon_name="account-circle"
-                      size={80}
-                      color={colors.primary}
-                    />
+                    <View style={[
+                      styles.fullscreenAvatarContainer,
+                      {
+                        borderWidth: frameStyle ? frameStyle.borderWidth : 3,
+                        borderColor: frameStyle ? frameStyle.borderColor : colors.primary,
+                      }
+                    ]}>
+                      <Text style={styles.fullscreenAvatarEmoji}>{getAvatarEmoji()}</Text>
+                    </View>
                     <Text style={[styles.fullscreenCardName, { color: colors.text }]}>
                       {profile.name}
                     </Text>
@@ -1081,10 +1108,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  performanceAvatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F0F0',
+    marginBottom: 12,
+  },
+  performanceAvatarEmoji: {
+    fontSize: 48,
+  },
   performanceCardName: {
     fontSize: 24,
     fontWeight: '800',
-    marginTop: 12,
   },
   performanceCardStats: {
     flexDirection: 'row',
@@ -1214,10 +1252,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
   },
+  fullscreenAvatarContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F0F0',
+    marginBottom: 16,
+  },
+  fullscreenAvatarEmoji: {
+    fontSize: 72,
+  },
   fullscreenCardName: {
     fontSize: 32,
     fontWeight: '800',
-    marginTop: 16,
     marginBottom: 8,
   },
   fullscreenCardSubtitle: {

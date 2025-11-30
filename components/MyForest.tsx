@@ -3,7 +3,6 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Dimensions } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { TreePlantingLog } from '@/types/TreePlanting';
-import { IconSymbol } from './IconSymbol';
 import { StorageService } from '@/utils/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -78,6 +77,8 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     const nightDuration = 20000;
     
     const totalDuration = sunriseDuration + dayDuration + sunsetDuration + nightDuration;
+    
+    dayNightProgress.setValue(0);
     
     const animate = () => {
       animationRef.current = Animated.loop(
@@ -196,14 +197,9 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     if (trees.length === 0) {
       return (
         <View style={styles.forestContainer}>
-          <Text style={[styles.forestTitle, { color: colors.text }]}>{title}</Text>
+          <Text style={[styles.forestTitle, { color: colors.text }]}>🌲 {title}</Text>
           <View style={[styles.emptyForestCard, { backgroundColor: colors.highlight }]}>
-            <IconSymbol
-              ios_icon_name="tree.fill"
-              android_material_icon_name="park"
-              size={48}
-              color={colors.textSecondary}
-            />
+            <Text style={styles.emptyTreeEmoji}>🌲</Text>
             <Text style={[styles.emptyForestText, { color: colors.textSecondary }]}>
               Start planting to grow your forest!
             </Text>
@@ -227,7 +223,7 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
 
     return (
       <View style={styles.forestContainer}>
-        <Text style={[styles.forestTitle, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.forestTitle, { color: colors.text }]}>🌲 {title}</Text>
         <Animated.View 
           style={[
             styles.forestGrid, 
@@ -240,12 +236,7 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
           
           {trees.map((tree, index) => (
             <View key={`tree-${title}-${index}`} style={styles.treeIcon}>
-              <IconSymbol
-                ios_icon_name="tree.fill"
-                android_material_icon_name="park"
-                size={20}
-                color={colors.secondary}
-              />
+              <Text style={styles.treeEmoji}>🌲</Text>
             </View>
           ))}
         </Animated.View>
@@ -260,26 +251,15 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     <View style={[styles.container, { backgroundColor: colors.card }]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <IconSymbol
-            ios_icon_name="tree.fill"
-            android_material_icon_name="park"
-            size={32}
-            color={colors.secondary}
-          />
+          <Text style={styles.headerTreeEmoji}>🌲</Text>
           <Text style={[styles.title, { color: colors.text }]}>My Forest</Text>
         </View>
         <TouchableOpacity
           style={[styles.animationToggle, { backgroundColor: animationDisabled ? colors.error : colors.primary }]}
           onPress={toggleAnimation}
         >
-          <IconSymbol
-            ios_icon_name={animationDisabled ? "pause.fill" : "play.fill"}
-            android_material_icon_name={animationDisabled ? "pause" : "play-arrow"}
-            size={20}
-            color="#FFFFFF"
-          />
           <Text style={styles.animationToggleText}>
-            {animationDisabled ? 'Disabled' : 'Enabled'}
+            {animationDisabled ? '⏸ Paused' : '▶ Playing'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -308,6 +288,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  headerTreeEmoji: {
+    fontSize: 32,
   },
   title: {
     fontSize: 22,
@@ -348,6 +331,9 @@ const styles = StyleSheet.create({
   treeIcon: {
     margin: 4,
   },
+  treeEmoji: {
+    fontSize: 20,
+  },
   star: {
     position: 'absolute',
     backgroundColor: '#FFFFFF',
@@ -366,6 +352,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 12,
     marginBottom: 12,
+  },
+  emptyTreeEmoji: {
+    fontSize: 48,
   },
   emptyForestText: {
     fontSize: 14,
