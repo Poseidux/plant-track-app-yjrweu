@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { TreePlantingLog } from '@/types/TreePlanting';
 import { StorageService } from '@/utils/storage';
@@ -11,10 +11,14 @@ interface MyForestProps {
 }
 
 const ANIMATION_DISABLED_KEY = '@forest_animation_disabled';
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
 // Memoized star component
-const Star = React.memo(({ top, left, size, opacity }: { top: number; left: number; size: number; opacity: Animated.AnimatedInterpolation<number> }) => (
+const Star = React.memo(({ top, left, size, opacity }: { 
+  top: number; 
+  left: number; 
+  size: number; 
+  opacity: Animated.AnimatedInterpolation<number> | number;
+}) => (
   <Animated.View
     style={[
       styles.star,
@@ -29,6 +33,8 @@ const Star = React.memo(({ top, left, size, opacity }: { top: number; left: numb
   />
 ));
 
+Star.displayName = 'Star';
+
 export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
   const { colors } = useThemeContext();
   const [seasonTrees, setSeasonTrees] = useState<string[]>([]);
@@ -37,51 +43,67 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
   
   const dayNightProgress = useRef(new Animated.Value(0)).current;
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    
+    return () => {
+      console.log('MyForest unmounting - cleaning up animation');
+      isMountedRef.current = false;
+      if (animationRef.current) {
+        animationRef.current.stop();
+        animationRef.current = null;
+      }
+      dayNightProgress.stopAnimation();
+    };
+  }, []);
 
   useEffect(() => {
     generateForests();
     loadAnimationPreference();
-    
-    return () => {
-      if (animationRef.current) {
-        animationRef.current.stop();
-      }
-    };
   }, [treeLogs]);
 
   useEffect(() => {
-    if (!animationDisabled) {
+    if (!animationDisabled && isMountedRef.current) {
       startDayNightCycle();
     } else {
       if (animationRef.current) {
         animationRef.current.stop();
+        animationRef.current = null;
       }
     }
     
     return () => {
       if (animationRef.current) {
         animationRef.current.stop();
+        animationRef.current = null;
       }
     };
   }, [animationDisabled]);
 
-  const loadAnimationPreference = async () => {
+  const loadAnimationPreference = useCallback(async () => {
     try {
       const value = await AsyncStorage.getItem(ANIMATION_DISABLED_KEY);
-      if (value !== null) {
+      if (value !== null && isMountedRef.current) {
         setAnimationDisabled(value === 'true');
       }
     } catch (error) {
       console.error('Error loading animation preference:', error);
     }
-  };
+  }, []);
 
-  const toggleAnimation = async () => {
+  const toggleAnimation = useCallback(async () => {
     const newValue = !animationDisabled;
-    setAnimationDisabled(newValue);
     
     if (animationRef.current) {
       animationRef.current.stop();
+      animationRef.current = null;
+    }
+    
+    if (isMountedRef.current) {
+      setAnimationDisabled(newValue);
     }
     
     try {
@@ -89,76 +111,93 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     } catch (error) {
       console.error('Error saving animation preference:', error);
     }
-  };
+  }, [animationDisabled]);
 
-  const startDayNightCycle = () => {
-    // Simplified animation: 15s day, 15s night
+  const startDayNightCycle = useCallback(() => {
+    if (!isMountedRef.current) return;
+    
+    // Stop any existing animation
+    if (animationRef.current) {
+      animationRef.current.stop();
+      animationRef.current = null;
+    }
+    
+    // Reset to start
+    dayNightProgress.setValue(0);
+    
+    // Create smooth continuous loop: 15s day, 15s night
     const dayDuration = 15000;
     const nightDuration = 15000;
-    const totalDuration = dayDuration + nightDuration;
-    
-    dayNightProgress.setValue(0);
     
     animationRef.current = Animated.loop(
       Animated.sequence([
-        // Day phase
-        Animated.timing(dayNightProgress, {
-          toValue: 0.5,
-          duration: dayDuration,
-          easing: Easing.linear,
-          useNativeDriver: false,
-        }),
-        // Night phase
+        // Fade to night
         Animated.timing(dayNightProgress, {
           toValue: 1,
+          duration: dayDuration,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+        // Fade back to day
+        Animated.timing(dayNightProgress, {
+          toValue: 0,
           duration: nightDuration,
-          easing: Easing.linear,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: false,
         }),
       ])
     );
-    animationRef.current.start();
-  };
+    
+    if (isMountedRef.current) {
+      animationRef.current.start();
+    }
+  }, [dayNightProgress]);
 
-  const generateForests = async () => {
-    const activeSeason = await StorageService.getActiveSeason();
-    
-    let seasonTotal = 0;
-    if (activeSeason) {
-      const seasonLogs = await StorageService.getSeasonTreeLogs(activeSeason.id);
-      seasonTotal = seasonLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-    } else {
-      seasonTotal = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-    }
-    
-    const allSeasons = await StorageService.getSeasons();
-    let careerTotal = 0;
-    
-    for (const season of allSeasons) {
-      const seasonLogs = await StorageService.getSeasonTreeLogs(season.id);
-      careerTotal += seasonLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-    }
-    
-    if (careerTotal === 0) {
-      careerTotal = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-    }
-    
-    const seasonTreeCount = Math.floor(seasonTotal / 1000);
-    const careerTreeCount = Math.floor(careerTotal / 10000);
+  const generateForests = useCallback(async () => {
+    try {
+      const activeSeason = await StorageService.getActiveSeason();
+      
+      let seasonTotal = 0;
+      if (activeSeason) {
+        const seasonLogs = await StorageService.getSeasonTreeLogs(activeSeason.id);
+        seasonTotal = seasonLogs.reduce((sum, log) => sum + log.totalTrees, 0);
+      } else {
+        seasonTotal = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
+      }
+      
+      const allSeasons = await StorageService.getSeasons();
+      let careerTotal = 0;
+      
+      for (const season of allSeasons) {
+        const seasonLogs = await StorageService.getSeasonTreeLogs(season.id);
+        careerTotal += seasonLogs.reduce((sum, log) => sum + log.totalTrees, 0);
+      }
+      
+      if (careerTotal === 0) {
+        careerTotal = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
+      }
+      
+      const seasonTreeCount = Math.floor(seasonTotal / 1000);
+      const careerTreeCount = Math.floor(careerTotal / 10000);
 
-    const seasonTreeArray: string[] = [];
-    for (let i = 0; i < Math.min(seasonTreeCount, 100); i++) {
-      seasonTreeArray.push('tree');
-    }
+      const seasonTreeArray: string[] = [];
+      for (let i = 0; i < Math.min(seasonTreeCount, 100); i++) {
+        seasonTreeArray.push('tree');
+      }
 
-    const careerTreeArray: string[] = [];
-    for (let i = 0; i < Math.min(careerTreeCount, 100); i++) {
-      careerTreeArray.push('tree');
-    }
+      const careerTreeArray: string[] = [];
+      for (let i = 0; i < Math.min(careerTreeCount, 100); i++) {
+        careerTreeArray.push('tree');
+      }
 
-    setSeasonTrees(seasonTreeArray);
-    setCareerTrees(careerTreeArray);
-  };
+      if (isMountedRef.current) {
+        setSeasonTrees(seasonTreeArray);
+        setCareerTrees(careerTreeArray);
+      }
+    } catch (error) {
+      console.error('Error generating forests:', error);
+    }
+  }, [treeLogs]);
 
   // Memoize stars to prevent recreation
   const stars = useMemo(() => {
@@ -181,12 +220,12 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
   // Memoize star opacity interpolation
   const starOpacity = useMemo(() => 
     dayNightProgress.interpolate({
-      inputRange: [0, 0.4, 0.5, 0.6, 1],
-      outputRange: [0, 0, 0, 1, 1],
+      inputRange: [0, 0.3, 0.7, 1],
+      outputRange: [0, 1, 1, 0],
     })
   , [dayNightProgress]);
 
-  const renderStars = () => {
+  const renderStars = useCallback(() => {
     return stars.map((star) => (
       <Star
         key={star.key}
@@ -196,9 +235,9 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
         opacity={starOpacity}
       />
     ));
-  };
+  }, [stars, starOpacity]);
 
-  const renderForestGrid = (trees: string[], title: string, treesPerEmoji: number, showDayNight: boolean = false) => {
+  const renderForestGrid = useCallback((trees: string[], title: string, treesPerEmoji: number, showDayNight: boolean = false) => {
     if (trees.length === 0) {
       return (
         <View style={styles.forestContainer}>
@@ -215,13 +254,12 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
 
     const backgroundColor = showDayNight && !animationDisabled
       ? dayNightProgress.interpolate({
-          inputRange: [0, 0.4, 0.5, 0.6, 1],
+          inputRange: [0, 0.3, 0.7, 1],
           outputRange: [
             '#87CEEB', // Day - sky blue
+            '#1a1a2e', // Night
+            '#1a1a2e', // Night
             '#87CEEB', // Day
-            '#4A5568', // Transition
-            '#1a1a2e', // Night
-            '#1a1a2e', // Night
           ],
         })
       : colors.highlight;
@@ -250,7 +288,7 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
         </Text>
       </View>
     );
-  };
+  }, [colors, animationDisabled, dayNightProgress, renderStars]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.card }]}>

@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useThemeContext } from '@/contexts/ThemeContext';
@@ -16,25 +16,19 @@ interface FloatingTabBarProps {
   tabs: TabBarItem[];
 }
 
-export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { colors } = useThemeContext();
-
-  useEffect(() => {
-    console.log('FloatingTabBar mounted');
-    console.log('Current pathname:', pathname);
-    console.log('Tab bar colors:', colors);
-  }, [pathname]);
-
-  const isActive = (route: string) => {
-    if (route === '/(tabs)/(home)/') {
-      return pathname === '/' || pathname.startsWith('/(tabs)/(home)');
-    }
-    return pathname.startsWith(route);
-  };
-
-  const getIconName = (icon: string) => {
+// Memoized tab button component
+const TabButton = React.memo(({ 
+  tab, 
+  active, 
+  colors, 
+  onPress 
+}: {
+  tab: TabBarItem;
+  active: boolean;
+  colors: any;
+  onPress: () => void;
+}) => {
+  const getIconName = useCallback((icon: string) => {
     const iconMap: { [key: string]: { ios: string; android: string } } = {
       home: { ios: 'house.fill', android: 'home' },
       eco: { ios: 'leaf.fill', android: 'eco' },
@@ -43,46 +37,74 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
       person: { ios: 'person.fill', android: 'person' },
     };
     return iconMap[icon] || { ios: icon, android: icon };
-  };
+  }, []);
+
+  const iconNames = useMemo(() => getIconName(tab.icon), [tab.icon, getIconName]);
+
+  return (
+    <TouchableOpacity
+      style={styles.tab}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <IconSymbol
+        ios_icon_name={iconNames.ios}
+        android_material_icon_name={iconNames.android}
+        size={24}
+        color={active ? colors.primary : colors.textSecondary}
+      />
+      <Text
+        style={[
+          styles.label,
+          {
+            color: active ? colors.primary : colors.textSecondary,
+            fontWeight: active ? '600' : '400',
+          },
+        ]}
+      >
+        {tab.label}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+TabButton.displayName = 'TabButton';
+
+export default React.memo(function FloatingTabBar({ tabs }: FloatingTabBarProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { colors } = useThemeContext();
+
+  useEffect(() => {
+    console.log('FloatingTabBar mounted');
+  }, []);
+
+  const isActive = useCallback((route: string) => {
+    if (route === '/(tabs)/(home)/') {
+      return pathname === '/' || pathname.startsWith('/(tabs)/(home)');
+    }
+    return pathname.startsWith(route);
+  }, [pathname]);
+
+  const handleTabPress = useCallback((route: string) => {
+    console.log('Tab pressed:', route);
+    router.push(route as any);
+  }, [router]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
-      {tabs.map((tab, index) => {
-        const active = isActive(tab.route);
-        const iconNames = getIconName(tab.icon);
-        
-        return (
-          <TouchableOpacity
-            key={`tab-${tab.route}-${index}`}
-            style={styles.tab}
-            onPress={() => {
-              console.log('Tab pressed:', tab.route);
-              router.push(tab.route as any);
-            }}
-          >
-            <IconSymbol
-              ios_icon_name={iconNames.ios}
-              android_material_icon_name={iconNames.android}
-              size={24}
-              color={active ? colors.primary : colors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.label,
-                {
-                  color: active ? colors.primary : colors.textSecondary,
-                  fontWeight: active ? '600' : '400',
-                },
-              ]}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      {tabs.map((tab, index) => (
+        <TabButton
+          key={`tab-${tab.route}-${index}`}
+          tab={tab}
+          active={isActive(tab.route)}
+          colors={colors}
+          onPress={() => handleTabPress(tab.route)}
+        />
+      ))}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
