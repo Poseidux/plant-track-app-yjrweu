@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,75 @@ import { formatLargeNumber } from '@/utils/formatNumber';
 import { APP_THEMES } from '@/constants/Themes';
 
 const SECRET_CODE = 'TH15APPW45CR34T3D8YA0RN1AV5TH15I5MYF1R5TPR0J3CTTH3R35M0R3T0C0M31W1LLT4K30V3R';
+
+// Memoized stat card component
+const StatCard = React.memo(({ 
+  icon, 
+  androidIcon, 
+  value, 
+  label, 
+  backgroundColor, 
+  onPress 
+}: {
+  icon: string;
+  androidIcon: string;
+  value: string;
+  label: string;
+  backgroundColor: string;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity 
+    style={[styles.statCard, { backgroundColor }]}
+    onPress={onPress}
+  >
+    <IconSymbol
+      ios_icon_name={icon}
+      android_material_icon_name={androidIcon}
+      size={28}
+      color="#FFFFFF"
+    />
+    <Text style={styles.statNumber}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
+  </TouchableOpacity>
+));
+
+// Memoized activity item component
+const ActivityItem = React.memo(({ 
+  log, 
+  colors, 
+  onEdit 
+}: {
+  log: TreePlantingLog;
+  colors: any;
+  onEdit: (log: TreePlantingLog) => void;
+}) => (
+  <View style={[styles.activityItem, { borderBottomColor: colors.border }]}>
+    <View style={[styles.activityIcon, { backgroundColor: colors.highlight }]}>
+      <IconSymbol
+        ios_icon_name="leaf.fill"
+        android_material_icon_name="eco"
+        size={20}
+        color={colors.secondary}
+      />
+    </View>
+    <View style={styles.activityContent}>
+      <Text style={[styles.activityTitle, { color: colors.text }]}>
+        {log.totalTrees} {log.species}
+      </Text>
+      <Text style={[styles.activityDate, { color: colors.textSecondary }]}>
+        {new Date(log.date).toLocaleDateString()} • {log.province}
+      </Text>
+    </View>
+    <TouchableOpacity onPress={() => onEdit(log)}>
+      <IconSymbol
+        ios_icon_name="pencil.circle.fill"
+        android_material_icon_name="edit"
+        size={28}
+        color={colors.primary}
+      />
+    </TouchableOpacity>
+  </View>
+));
 
 export default function HomeScreen() {
   const { colors, isDark, selectedTheme, setSelectedTheme, setThemeMode } = useThemeContext();
@@ -59,7 +128,7 @@ export default function HomeScreen() {
     };
   }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       console.log('Loading home screen data...');
       const [trees, earnings] = await Promise.all([
@@ -74,22 +143,23 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const totalTrees = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-  const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
-  const totalDays = treeLogs.length;
+  // Memoize calculated values
+  const totalTrees = useMemo(() => treeLogs.reduce((sum, log) => sum + log.totalTrees, 0), [treeLogs]);
+  const totalEarnings = useMemo(() => earningsLogs.reduce((sum, log) => sum + log.amount, 0), [earningsLogs]);
+  const totalDays = useMemo(() => treeLogs.length, [treeLogs]);
 
-  const handleEditLog = (log: TreePlantingLog) => {
+  const handleEditLog = useCallback((log: TreePlantingLog) => {
     setEditingLog(log);
     setEditTrees(log.totalTrees.toString());
     setEditSpecies(log.species);
     setEditProvince(log.province);
     setEditLandType((log.hourlyLogs && log.hourlyLogs[0]?.landType) || 'prepped');
     setShowEditModal(true);
-  };
+  }, []);
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = useCallback(async () => {
     if (!editingLog) {
       return;
     }
@@ -117,9 +187,9 @@ export default function HomeScreen() {
     setShowEditModal(false);
     setEditingLog(null);
     Alert.alert('Success', 'Log updated successfully!');
-  };
+  }, [editingLog, editTrees, editSpecies, editProvince, editLandType, loadData]);
 
-  const handleThemeSelect = async (themeId: string) => {
+  const handleThemeSelect = useCallback(async (themeId: string) => {
     const theme = APP_THEMES.find(t => t.id === themeId);
     if (!theme) return;
 
@@ -141,9 +211,9 @@ export default function HomeScreen() {
         },
       ]
     );
-  };
+  }, [setSelectedTheme, setThemeMode]);
 
-  const handleMenuLongPressStart = () => {
+  const handleMenuLongPressStart = useCallback(() => {
     console.log('Long press started');
     let progress = 0;
     longPressTimer.current = setInterval(() => {
@@ -160,18 +230,18 @@ export default function HomeScreen() {
         setShowSecretCodeModal(true);
       }
     }, 1000);
-  };
+  }, []);
 
-  const handleMenuLongPressEnd = () => {
+  const handleMenuLongPressEnd = useCallback(() => {
     console.log('Long press ended');
     if (longPressTimer.current) {
       clearInterval(longPressTimer.current);
       longPressTimer.current = null;
     }
     setLongPressProgress(0);
-  };
+  }, []);
 
-  const handleSecretCodeSubmit = async () => {
+  const handleSecretCodeSubmit = useCallback(async () => {
     if (secretCode === SECRET_CODE) {
       await ShopStorageService.unlockAllItems();
       setShowSecretCodeModal(false);
@@ -185,9 +255,9 @@ export default function HomeScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Invalid Code', 'The code you entered is incorrect.');
     }
-  };
+  }, [secretCode]);
 
-  const getSpeciesBreakdown = () => {
+  const getSpeciesBreakdown = useMemo(() => {
     const speciesCount: { [key: string]: number } = {};
     treeLogs.forEach(log => {
       if (log.hourlyLogs && log.hourlyLogs.length > 0) {
@@ -203,20 +273,19 @@ export default function HomeScreen() {
     return Object.entries(speciesCount)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
-  };
+  }, [treeLogs]);
 
-  const speciesData = getSpeciesBreakdown();
-  const chartColors = ['#3498DB', '#2ECC71', '#F39C12', '#E74C3C', '#9B59B6'];
+  const chartColors = useMemo(() => ['#3498DB', '#2ECC71', '#F39C12', '#E74C3C', '#9B59B6'], []);
 
-  const pieChartData = speciesData.map(([species, count], index) => ({
+  const pieChartData = useMemo(() => getSpeciesBreakdown.map(([species, count], index) => ({
     name: species.length > 12 ? species.substring(0, 10) + '...' : species,
     population: count,
     color: chartColors[index % chartColors.length],
     legendFontColor: colors.text,
     legendFontSize: 11,
-  }));
+  })), [getSpeciesBreakdown, chartColors, colors.text]);
 
-  const getEarningsChartData = () => {
+  const getEarningsChartData = useMemo(() => {
     const sortedLogs = [...earningsLogs].sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
@@ -230,9 +299,9 @@ export default function HomeScreen() {
         data: last7.length > 0 ? last7.map(log => log.amount) : [0],
       }],
     };
-  };
+  }, [earningsLogs]);
 
-  const getTreesChartData = () => {
+  const getTreesChartData = useMemo(() => {
     const sortedLogs = [...treeLogs].sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
@@ -246,9 +315,9 @@ export default function HomeScreen() {
         data: last7.length > 0 ? last7.map(log => log.totalTrees) : [0],
       }],
     };
-  };
+  }, [treeLogs]);
 
-  const getDailyRateChartData = () => {
+  const getDailyRateChartData = useMemo(() => {
     const sortedLogs = [...treeLogs].sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
@@ -262,9 +331,9 @@ export default function HomeScreen() {
         data: last7.length > 0 ? last7.map(log => log.averageRate || 0) : [0],
       }],
     };
-  };
+  }, [treeLogs]);
 
-  const getRecentActivityLogs = () => {
+  const getRecentActivityLogs = useMemo(() => {
     const now = new Date();
     const fiveDaysAgo = new Date(now.getTime() - (5 * 24 * 60 * 60 * 1000));
     
@@ -272,11 +341,11 @@ export default function HomeScreen() {
       .filter(log => new Date(log.date) >= fiveDaysAgo)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5);
-  };
+  }, [treeLogs]);
 
   const screenWidth = Dimensions.get('window').width;
 
-  const chartConfig = {
+  const chartConfig = useMemo(() => ({
     backgroundColor: colors.card,
     backgroundGradientFrom: colors.card,
     backgroundGradientTo: colors.card,
@@ -291,9 +360,9 @@ export default function HomeScreen() {
       strokeWidth: '2',
       stroke: colors.primary,
     },
-  };
+  }), [colors, isDark]);
 
-  const earningsChartConfig = {
+  const earningsChartConfig = useMemo(() => ({
     ...chartConfig,
     color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
     propsForDots: {
@@ -301,9 +370,9 @@ export default function HomeScreen() {
       strokeWidth: '2',
       stroke: colors.secondary,
     },
-  };
+  }), [chartConfig, colors.secondary]);
 
-  const rateChartConfig = {
+  const rateChartConfig = useMemo(() => ({
     ...chartConfig,
     color: (opacity = 1) => `rgba(243, 156, 18, ${opacity})`,
     propsForDots: {
@@ -311,16 +380,21 @@ export default function HomeScreen() {
       strokeWidth: '2',
       stroke: colors.accent,
     },
-  };
+  }), [chartConfig, colors.accent]);
 
   console.log('Rendering HomeScreen with colors:', colors);
 
-  const recentActivityLogs = getRecentActivityLogs();
+  const recentActivityLogs = getRecentActivityLogs;
 
-  const menuItems = [
+  const menuItems = useMemo(() => [
     { id: 'themes', label: 'Themes', icon: 'paintbrush.fill', androidIcon: 'palette' },
     { id: 'shop', label: 'Shop', icon: 'cart.fill', androidIcon: 'shopping-cart' },
-  ];
+  ], []);
+
+  const handleNavigate = useCallback((route: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(route as any);
+  }, [router]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -336,10 +410,10 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={10}
-        windowSize={10}
+        maxToRenderPerBatch={5}
+        updateCellsBatchingPeriod={100}
+        initialNumToRender={5}
+        windowSize={5}
       >
         <View style={styles.header}>
           <TouchableOpacity
@@ -365,7 +439,7 @@ export default function HomeScreen() {
             )}
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>🌲 Tree Planter</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>🌲 Tree Planter 🌲</Text>
             <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
               Track your environmental impact
             </Text>
@@ -374,65 +448,37 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.statsContainer}>
-          <TouchableOpacity 
-            style={[styles.statCard, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/(tabs)/(home)/trees-summary');
-            }}
-          >
-            <IconSymbol
-              ios_icon_name="leaf.fill"
-              android_material_icon_name="eco"
-              size={28}
-              color="#FFFFFF"
-            />
-            <Text style={styles.statNumber}>{formatLargeNumber(totalTrees)}</Text>
-            <Text style={styles.statLabel}>Trees Planted</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.statCard, { backgroundColor: colors.secondary }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/(tabs)/(home)/earnings-summary');
-            }}
-          >
-            <IconSymbol
-              ios_icon_name="dollarsign.circle.fill"
-              android_material_icon_name="attach-money"
-              size={28}
-              color="#FFFFFF"
-            />
-            <Text style={styles.statNumber}>
-              {totalEarnings >= 100000 ? `$${formatLargeNumber(totalEarnings)}` : `$${totalEarnings.toFixed(2)}`}
-            </Text>
-            <Text style={styles.statLabel}>Total Earnings</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.statCard, { backgroundColor: colors.accent }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/(tabs)/(home)/planting-days');
-            }}
-          >
-            <IconSymbol
-              ios_icon_name="calendar.badge.clock"
-              android_material_icon_name="event"
-              size={28}
-              color="#FFFFFF"
-            />
-            <Text style={styles.statNumber}>{totalDays}</Text>
-            <Text style={styles.statLabel}>Planting Days</Text>
-          </TouchableOpacity>
+          <StatCard
+            icon="leaf.fill"
+            androidIcon="eco"
+            value={formatLargeNumber(totalTrees)}
+            label="Trees Planted"
+            backgroundColor={colors.primary}
+            onPress={() => handleNavigate('/(tabs)/(home)/trees-summary')}
+          />
+          <StatCard
+            icon="dollarsign.circle.fill"
+            androidIcon="attach-money"
+            value={totalEarnings >= 100000 ? `$${formatLargeNumber(totalEarnings)}` : `$${totalEarnings.toFixed(2)}`}
+            label="Total Earnings"
+            backgroundColor={colors.secondary}
+            onPress={() => handleNavigate('/(tabs)/(home)/earnings-summary')}
+          />
+          <StatCard
+            icon="calendar.badge.clock"
+            androidIcon="event"
+            value={totalDays.toString()}
+            label="Planting Days"
+            backgroundColor={colors.accent}
+            onPress={() => handleNavigate('/(tabs)/(home)/planting-days')}
+          />
         </View>
 
         {earningsLogs.length >= 2 && (
           <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.chartTitle, { color: colors.text }]}>💰 Earnings Trend (Last 7 Days)</Text>
             <LineChart
-              data={getEarningsChartData()}
+              data={getEarningsChartData}
               width={screenWidth - 64}
               height={200}
               chartConfig={earningsChartConfig}
@@ -446,7 +492,7 @@ export default function HomeScreen() {
           <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.chartTitle, { color: colors.text }]}>🌳 Total Trees Planted (Last 7 Days)</Text>
             <LineChart
-              data={getTreesChartData()}
+              data={getTreesChartData}
               width={screenWidth - 64}
               height={200}
               chartConfig={chartConfig}
@@ -460,7 +506,7 @@ export default function HomeScreen() {
           <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.chartTitle, { color: colors.text }]}>⚡ Daily Planting Rate (Last 7 Days)</Text>
             <LineChart
-              data={getDailyRateChartData()}
+              data={getDailyRateChartData}
               width={screenWidth - 64}
               height={200}
               chartConfig={rateChartConfig}
@@ -489,7 +535,7 @@ export default function HomeScreen() {
               absolute
             />
             <View style={styles.speciesLegend}>
-              {speciesData.map(([species, count], index) => (
+              {getSpeciesBreakdown.map(([species, count], index) => (
                 <View key={`species-legend-${index}-${species}`} style={styles.speciesLegendItem}>
                   <View style={[styles.speciesLegendColor, { backgroundColor: chartColors[index % chartColors.length] }]} />
                   <Text style={[styles.speciesLegendText, { color: colors.text }]} numberOfLines={1}>
@@ -515,32 +561,12 @@ export default function HomeScreen() {
           <View style={[styles.recentCard, { backgroundColor: colors.card }]}>
             <Text style={[styles.recentTitle, { color: colors.text }]}>Recent Activity (Last 5 Days)</Text>
             {recentActivityLogs.map((log, index) => (
-              <View key={`activity-${log.id}-${index}`} style={[styles.activityItem, { borderBottomColor: colors.border }]}>
-                <View style={[styles.activityIcon, { backgroundColor: colors.highlight }]}>
-                  <IconSymbol
-                    ios_icon_name="leaf.fill"
-                    android_material_icon_name="eco"
-                    size={20}
-                    color={colors.secondary}
-                  />
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={[styles.activityTitle, { color: colors.text }]}>
-                    {log.totalTrees} {log.species}
-                  </Text>
-                  <Text style={[styles.activityDate, { color: colors.textSecondary }]}>
-                    {new Date(log.date).toLocaleDateString()} • {log.province}
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => handleEditLog(log)}>
-                  <IconSymbol
-                    ios_icon_name="pencil.circle.fill"
-                    android_material_icon_name="edit"
-                    size={28}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
-              </View>
+              <ActivityItem
+                key={`activity-${log.id}-${index}`}
+                log={log}
+                colors={colors}
+                onEdit={handleEditLog}
+              />
             ))}
           </View>
         )}

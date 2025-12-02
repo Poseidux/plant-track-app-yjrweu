@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,178 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DONT_ASK_SPECIES_KEY = '@dont_ask_species';
+
+// Memoized hourly log item
+const HourlyLogItem = React.memo(({ 
+  hourlyLog, 
+  colors, 
+  onEdit, 
+  onDelete 
+}: {
+  hourlyLog: HourlyLog;
+  colors: any;
+  onEdit: (log: HourlyLog) => void;
+  onDelete: () => void;
+}) => (
+  <View style={[styles.hourlyLogItem, { backgroundColor: colors.highlight }]}>
+    <View style={styles.hourlyLogInfo}>
+      <Text style={[styles.hourlyLogTime, { color: colors.text }]}>
+        {hourlyLog.startTime} - {hourlyLog.endTime}
+      </Text>
+      <Text style={[styles.hourlyLogTrees, { color: colors.secondary }]}>
+        {hourlyLog.treesPlanted} trees
+      </Text>
+      {hourlyLog.species && (
+        <Text style={[styles.hourlyLogDetail, { color: colors.textSecondary }]}>
+          {hourlyLog.species} • {hourlyLog.landType === 'prepped' ? 'Prepped' : 'Raw'} land
+        </Text>
+      )}
+    </View>
+    <View style={styles.hourlyLogActions}>
+      <TouchableOpacity 
+        onPress={() => onEdit(hourlyLog)}
+        style={styles.iconButton}
+      >
+        <IconSymbol
+          ios_icon_name="pencil.circle.fill"
+          android_material_icon_name="edit"
+          size={24}
+          color={colors.primary}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity 
+        onPress={onDelete}
+        style={styles.iconButton}
+      >
+        <IconSymbol
+          ios_icon_name="trash.fill"
+          android_material_icon_name="delete"
+          size={20}
+          color={colors.error}
+        />
+      </TouchableOpacity>
+    </View>
+  </View>
+));
+
+// Memoized log card
+const LogCard = React.memo(({ 
+  log, 
+  colors, 
+  onDelete 
+}: {
+  log: TreePlantingLog;
+  colors: any;
+  onDelete: () => void;
+}) => {
+  const getDayTypeColor = (dayType?: 'normal' | 'sick' | 'dayoff') => {
+    if (dayType === 'sick') return colors.error;
+    if (dayType === 'dayoff') return colors.accent;
+    return colors.secondary;
+  };
+
+  const getDayTypeLabel = (dayType?: 'normal' | 'sick' | 'dayoff') => {
+    if (dayType === 'sick') return 'Sick Day';
+    if (dayType === 'dayoff') return 'Day Off';
+    return '';
+  };
+
+  return (
+    <View style={[styles.logCard, { backgroundColor: colors.card, borderLeftColor: getDayTypeColor(log.dayType) }]}>
+      <View style={styles.logHeader}>
+        <View style={styles.logHeaderLeft}>
+          <Text style={[styles.logDate, { color: colors.text }]}>
+            {new Date(log.date).toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </Text>
+          {log.dayType && log.dayType !== 'normal' && (
+            <Text style={[styles.logDayType, { color: getDayTypeColor(log.dayType) }]}>
+              {getDayTypeLabel(log.dayType)}
+            </Text>
+          )}
+          {log.province && (
+            <Text style={[styles.logProvince, { color: colors.textSecondary }]}>
+              {log.province}
+            </Text>
+          )}
+        </View>
+        <TouchableOpacity onPress={onDelete}>
+          <IconSymbol
+            ios_icon_name="trash.fill"
+            android_material_icon_name="delete"
+            size={24}
+            color={colors.error}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {(log.dayType === 'normal' || !log.dayType) && (
+        <>
+          <View style={[styles.logStats, { borderTopColor: colors.border }]}>
+            <View style={styles.logStat}>
+              <IconSymbol
+                ios_icon_name="leaf.fill"
+                android_material_icon_name="eco"
+                size={20}
+                color={colors.secondary}
+              />
+              <Text style={[styles.logStatNumber, { color: colors.text }]}>
+                {log.totalTrees}
+              </Text>
+              <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
+                Trees
+              </Text>
+            </View>
+
+            <View style={styles.logStat}>
+              <IconSymbol
+                ios_icon_name="clock.fill"
+                android_material_icon_name="schedule"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={[styles.logStatNumber, { color: colors.text }]}>
+                {(log.hourlyLogs || []).length}
+              </Text>
+              <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
+                Hours
+              </Text>
+            </View>
+
+            {log.dayRating && (
+              <View style={styles.logStat}>
+                <IconSymbol
+                  ios_icon_name="star.fill"
+                  android_material_icon_name="star"
+                  size={20}
+                  color={colors.accent}
+                />
+                <Text style={[styles.logStatNumber, { color: colors.text }]}>
+                  {log.dayRating}/5
+                </Text>
+                <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
+                  Rating
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {log.notes && (
+            <View style={[styles.logNotes, { backgroundColor: colors.highlight }]}>
+              <Text style={[styles.logNotesText, { color: colors.text }]}>
+                {log.notes}
+              </Text>
+            </View>
+          )}
+        </>
+      )}
+    </View>
+  );
+});
 
 export default function TrackerScreen() {
   const { colors, isDark } = useThemeContext();
@@ -125,7 +297,7 @@ export default function TrackerScreen() {
     setRefreshKey(prev => prev + 1);
   }, []);
 
-  const startSession = () => {
+  const startSession = useCallback(() => {
     setSessionStartTime(new Date());
     
     if (currentDayLog && currentDayLog.hourlyLogs && currentDayLog.hourlyLogs.length > 0) {
@@ -143,9 +315,9 @@ export default function TrackerScreen() {
     setTrays('0');
     setIndividualTrees('0');
     setShowAddHourlyModal(true);
-  };
+  }, [currentDayLog]);
 
-  const calculateTotalTrees = () => {
+  const calculateTotalTrees = useCallback(() => {
     const bundleCount = parseInt(bundles) || 0;
     const boxCount = parseInt(boxes) || 0;
     const trayCount = parseInt(trays) || 0;
@@ -156,9 +328,9 @@ export default function TrackerScreen() {
     const trayValue = parseInt(treesPerTray) || 25;
     
     return (bundleCount * bundleValue) + (boxCount * boxValue) + (trayCount * trayValue) + individualCount;
-  };
+  }, [bundles, boxes, trays, individualTrees, treesPerBundle, treesPerBox, treesPerTray]);
 
-  const handleAddHourlyLog = async () => {
+  const handleAddHourlyLog = useCallback(async () => {
     const totalTrees = calculateTotalTrees();
     
     if (totalTrees <= 0) {
@@ -207,9 +379,9 @@ export default function TrackerScreen() {
     } else {
       await saveHourlyLogWithSpecies(startTimeStr, endTimeStr, totalTrees, selectedSpecies);
     }
-  };
+  }, [calculateTotalTrees, sessionStartTime, saveDaySettings, bundles, boxes, trays, individualTrees, dontAskSpecies, selectedSpecies]);
 
-  const saveHourlyLogWithSpecies = async (startTimeStr: string, endTimeStr: string, trees: number, species: string) => {
+  const saveHourlyLogWithSpecies = useCallback(async (startTimeStr: string, endTimeStr: string, trees: number, species: string) => {
     const today = new Date().toISOString().split('T')[0];
     const newHourlyLog: HourlyLog = {
       id: Date.now().toString(),
@@ -251,14 +423,14 @@ export default function TrackerScreen() {
     await loadLogs();
     
     Alert.alert('Success', 'Hourly log added successfully!');
-  };
+  }, [currentDayLog, selectedLandType, tempBundles, tempBoxes, tempTrays, tempIndividual, loadLogs]);
 
-  const handleSpeciesPopupConfirm = async () => {
+  const handleSpeciesPopupConfirm = useCallback(async () => {
     await saveHourlyLogWithSpecies(tempStartTime, tempEndTime, tempTreesPlanted, selectedSpecies);
     setShowSpeciesPopup(false);
-  };
+  }, [saveHourlyLogWithSpecies, tempStartTime, tempEndTime, tempTreesPlanted, selectedSpecies]);
 
-  const handleMarkSickDay = async () => {
+  const handleMarkSickDay = useCallback(async () => {
     Alert.alert(
       'Mark as Sick Day',
       'Are you sure you want to mark today as a sick day?',
@@ -286,9 +458,9 @@ export default function TrackerScreen() {
         },
       ]
     );
-  };
+  }, [loadLogs]);
 
-  const handleMarkDayOff = async () => {
+  const handleMarkDayOff = useCallback(async () => {
     Alert.alert(
       'Mark as Day Off',
       'Are you sure you want to mark today as a day off?',
@@ -316,15 +488,15 @@ export default function TrackerScreen() {
         },
       ]
     );
-  };
+  }, [loadLogs]);
 
-  const handleEditHourlyLog = (hourlyLog: HourlyLog) => {
+  const handleEditHourlyLog = useCallback((hourlyLog: HourlyLog) => {
     setEditingHourlyLog(hourlyLog);
     setEditTrees(hourlyLog.treesPlanted.toString());
     setShowEditModal(true);
-  };
+  }, []);
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = useCallback(async () => {
     if (!editingHourlyLog || !currentDayLog) {
       return;
     }
@@ -354,9 +526,9 @@ export default function TrackerScreen() {
     setShowEditModal(false);
     setEditingHourlyLog(null);
     Alert.alert('Success', 'Log updated successfully!');
-  };
+  }, [editingHourlyLog, currentDayLog, editTrees, loadLogs]);
 
-  const handleEndDay = async () => {
+  const handleEndDay = useCallback(async () => {
     if (!currentDayLog) {
       Alert.alert('Error', 'No logs for today to end');
       return;
@@ -388,9 +560,9 @@ export default function TrackerScreen() {
       `Total Trees: ${currentDayLog.totalTrees}\nAverage Rate: ${averageRate.toFixed(0)} trees/hour\nRating: ${dayRating}/5`,
       [{ text: 'Great!', style: 'default' }]
     );
-  };
+  }, [currentDayLog, notes, dayRating, loadLogs]);
 
-  const handleDeleteHourlyLog = (logId: string, hourlyLogId: string) => {
+  const handleDeleteHourlyLog = useCallback((logId: string, hourlyLogId: string) => {
     Alert.alert(
       'Delete Hourly Log',
       'Are you sure you want to delete this hourly log?',
@@ -406,9 +578,9 @@ export default function TrackerScreen() {
         },
       ]
     );
-  };
+  }, [loadLogs]);
 
-  const handleDeleteLog = (id: string) => {
+  const handleDeleteLog = useCallback((id: string) => {
     Alert.alert(
       'Delete Log',
       'Are you sure you want to delete this entire day log?',
@@ -424,7 +596,7 @@ export default function TrackerScreen() {
         },
       ]
     );
-  };
+  }, [loadLogs]);
 
   const renderPicker = (
     visible: boolean,
@@ -496,17 +668,10 @@ export default function TrackerScreen() {
     </Modal>
   );
 
-  const getDayTypeColor = (dayType?: 'normal' | 'sick' | 'dayoff') => {
-    if (dayType === 'sick') return colors.error;
-    if (dayType === 'dayoff') return colors.accent;
-    return colors.secondary;
-  };
-
-  const getDayTypeLabel = (dayType?: 'normal' | 'sick' | 'dayoff') => {
-    if (dayType === 'sick') return 'Sick Day';
-    if (dayType === 'dayoff') return 'Day Off';
-    return '';
-  };
+  // Memoize previous logs
+  const previousLogs = useMemo(() => 
+    treeLogs.filter(log => log.date !== new Date().toISOString().split('T')[0])
+  , [treeLogs]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]} key={`tracker-${refreshKey}`}>
@@ -521,6 +686,11 @@ export default function TrackerScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={5}
+        updateCellsBatchingPeriod={100}
+        initialNumToRender={5}
+        windowSize={5}
       >
         <View style={styles.header}>
           <View style={styles.headerRow}>
@@ -589,48 +759,13 @@ export default function TrackerScreen() {
 
             <View style={styles.hourlyLogsList}>
               {(currentDayLog.hourlyLogs || []).map((hourlyLog, index) => (
-                <View 
+                <HourlyLogItem
                   key={`hourly-${hourlyLog.id}-${index}`}
-                  style={[styles.hourlyLogItem, { backgroundColor: colors.highlight }]}
-                >
-                  <View style={styles.hourlyLogInfo}>
-                    <Text style={[styles.hourlyLogTime, { color: colors.text }]}>
-                      {hourlyLog.startTime} - {hourlyLog.endTime}
-                    </Text>
-                    <Text style={[styles.hourlyLogTrees, { color: colors.secondary }]}>
-                      {hourlyLog.treesPlanted} trees
-                    </Text>
-                    {hourlyLog.species && (
-                      <Text style={[styles.hourlyLogDetail, { color: colors.textSecondary }]}>
-                        {hourlyLog.species} • {hourlyLog.landType === 'prepped' ? 'Prepped' : 'Raw'} land
-                      </Text>
-                    )}
-                  </View>
-                  <View style={styles.hourlyLogActions}>
-                    <TouchableOpacity 
-                      onPress={() => handleEditHourlyLog(hourlyLog)}
-                      style={styles.iconButton}
-                    >
-                      <IconSymbol
-                        ios_icon_name="pencil.circle.fill"
-                        android_material_icon_name="edit"
-                        size={24}
-                        color={colors.primary}
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      onPress={() => handleDeleteHourlyLog(currentDayLog.id, hourlyLog.id)}
-                      style={styles.iconButton}
-                    >
-                      <IconSymbol
-                        ios_icon_name="trash.fill"
-                        android_material_icon_name="delete"
-                        size={20}
-                        color={colors.error}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                  hourlyLog={hourlyLog}
+                  colors={colors}
+                  onEdit={handleEditHourlyLog}
+                  onDelete={() => handleDeleteHourlyLog(currentDayLog.id, hourlyLog.id)}
+                />
               ))}
             </View>
 
@@ -665,15 +800,15 @@ export default function TrackerScreen() {
         )}
 
         {currentDayLog && (currentDayLog.dayType === 'sick' || currentDayLog.dayType === 'dayoff') && (
-          <View style={[styles.specialDayCard, { backgroundColor: colors.card, borderColor: getDayTypeColor(currentDayLog.dayType) }]}>
+          <View style={[styles.specialDayCard, { backgroundColor: colors.card, borderColor: currentDayLog.dayType === 'sick' ? colors.error : colors.accent }]}>
             <IconSymbol
               ios_icon_name={currentDayLog.dayType === 'sick' ? 'cross.case.fill' : 'beach.umbrella.fill'}
               android_material_icon_name={currentDayLog.dayType === 'sick' ? 'local-hospital' : 'beach-access'}
               size={48}
-              color={getDayTypeColor(currentDayLog.dayType)}
+              color={currentDayLog.dayType === 'sick' ? colors.error : colors.accent}
             />
             <Text style={[styles.specialDayTitle, { color: colors.text }]}>
-              {getDayTypeLabel(currentDayLog.dayType)}
+              {currentDayLog.dayType === 'sick' ? 'Sick Day' : 'Day Off'}
             </Text>
             <Text style={[styles.specialDaySubtitle, { color: colors.textSecondary }]}>
               {new Date().toLocaleDateString('en-US', { 
@@ -736,7 +871,7 @@ export default function TrackerScreen() {
           <MyForest treeLogs={treeLogs} />
         )}
 
-        {treeLogs.filter(log => log.date !== new Date().toISOString().split('T')[0]).length === 0 ? (
+        {previousLogs.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: colors.card }]}>
             <IconSymbol
               ios_icon_name="tree.fill"
@@ -744,109 +879,20 @@ export default function TrackerScreen() {
               size={64}
               color={colors.textSecondary}
             />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>No Previous Logs</Text>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>🌲 No Previous Logs</Text>
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               Your previous planting days will appear here
             </Text>
           </View>
         ) : (
-          treeLogs
-            .filter(log => log.date !== new Date().toISOString().split('T')[0])
-            .map((log, logIndex) => (
-              <View key={`log-${log.id}-${logIndex}`} style={[styles.logCard, { backgroundColor: colors.card, borderLeftColor: getDayTypeColor(log.dayType) }]}>
-                <View style={styles.logHeader}>
-                  <View style={styles.logHeaderLeft}>
-                    <Text style={[styles.logDate, { color: colors.text }]}>
-                      {new Date(log.date).toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </Text>
-                    {log.dayType && log.dayType !== 'normal' && (
-                      <Text style={[styles.logDayType, { color: getDayTypeColor(log.dayType) }]}>
-                        {getDayTypeLabel(log.dayType)}
-                      </Text>
-                    )}
-                    {log.province && (
-                      <Text style={[styles.logProvince, { color: colors.textSecondary }]}>
-                        {log.province}
-                      </Text>
-                    )}
-                  </View>
-                  <TouchableOpacity onPress={() => handleDeleteLog(log.id)}>
-                    <IconSymbol
-                      ios_icon_name="trash.fill"
-                      android_material_icon_name="delete"
-                      size={24}
-                      color={colors.error}
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {log.dayType === 'normal' || !log.dayType ? (
-                  <>
-                    <View style={[styles.logStats, { borderTopColor: colors.border }]}>
-                      <View style={styles.logStat}>
-                        <IconSymbol
-                          ios_icon_name="leaf.fill"
-                          android_material_icon_name="eco"
-                          size={20}
-                          color={colors.secondary}
-                        />
-                        <Text style={[styles.logStatNumber, { color: colors.text }]}>
-                          {log.totalTrees}
-                        </Text>
-                        <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
-                          Trees
-                        </Text>
-                      </View>
-
-                      <View style={styles.logStat}>
-                        <IconSymbol
-                          ios_icon_name="clock.fill"
-                          android_material_icon_name="schedule"
-                          size={20}
-                          color={colors.primary}
-                        />
-                        <Text style={[styles.logStatNumber, { color: colors.text }]}>
-                          {(log.hourlyLogs || []).length}
-                        </Text>
-                        <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
-                          Hours
-                        </Text>
-                      </View>
-
-                      {log.dayRating && (
-                        <View style={styles.logStat}>
-                          <IconSymbol
-                            ios_icon_name="star.fill"
-                            android_material_icon_name="star"
-                            size={20}
-                            color={colors.accent}
-                          />
-                          <Text style={[styles.logStatNumber, { color: colors.text }]}>
-                            {log.dayRating}/5
-                          </Text>
-                          <Text style={[styles.logStatLabel, { color: colors.textSecondary }]}>
-                            Rating
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-
-                    {log.notes && (
-                      <View style={[styles.logNotes, { backgroundColor: colors.highlight }]}>
-                        <Text style={[styles.logNotesText, { color: colors.text }]}>
-                          {log.notes}
-                        </Text>
-                      </View>
-                    )}
-                  </>
-                ) : null}
-              </View>
-            ))
+          previousLogs.map((log, logIndex) => (
+            <LogCard
+              key={`log-${log.id}-${logIndex}`}
+              log={log}
+              colors={colors}
+              onDelete={() => handleDeleteLog(log.id)}
+            />
+          ))
         )}
 
         <View style={styles.bottomPadding} />

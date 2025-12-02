@@ -11,8 +11,23 @@ interface MyForestProps {
 }
 
 const ANIMATION_DISABLED_KEY = '@forest_animation_disabled';
-
 const SCREEN_WIDTH = Dimensions.get('window').width;
+
+// Memoized star component
+const Star = React.memo(({ top, left, size, opacity }: { top: number; left: number; size: number; opacity: Animated.AnimatedInterpolation<number> }) => (
+  <Animated.View
+    style={[
+      styles.star,
+      {
+        top: `${top}%`,
+        left: `${left}%`,
+        width: size,
+        height: size,
+        opacity,
+      },
+    ]}
+  />
+));
 
 export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
   const { colors } = useThemeContext();
@@ -42,6 +57,12 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
         animationRef.current.stop();
       }
     }
+    
+    return () => {
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
+    };
   }, [animationDisabled]);
 
   const loadAnimationPreference = async () => {
@@ -71,48 +92,32 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
   };
 
   const startDayNightCycle = () => {
-    const sunriseDuration = 2500;
-    const dayDuration = 20000;
-    const sunsetDuration = 2500;
-    const nightDuration = 20000;
-    
-    const totalDuration = sunriseDuration + dayDuration + sunsetDuration + nightDuration;
+    // Simplified animation: 15s day, 15s night
+    const dayDuration = 15000;
+    const nightDuration = 15000;
+    const totalDuration = dayDuration + nightDuration;
     
     dayNightProgress.setValue(0);
     
-    const animate = () => {
-      animationRef.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(dayNightProgress, {
-            toValue: sunriseDuration / totalDuration,
-            duration: sunriseDuration,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(dayNightProgress, {
-            toValue: (sunriseDuration + dayDuration) / totalDuration,
-            duration: dayDuration,
-            easing: Easing.linear,
-            useNativeDriver: false,
-          }),
-          Animated.timing(dayNightProgress, {
-            toValue: (sunriseDuration + dayDuration + sunsetDuration) / totalDuration,
-            duration: sunsetDuration,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(dayNightProgress, {
-            toValue: 1,
-            duration: nightDuration,
-            easing: Easing.linear,
-            useNativeDriver: false,
-          }),
-        ])
-      );
-      animationRef.current.start();
-    };
-
-    animate();
+    animationRef.current = Animated.loop(
+      Animated.sequence([
+        // Day phase
+        Animated.timing(dayNightProgress, {
+          toValue: 0.5,
+          duration: dayDuration,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        }),
+        // Night phase
+        Animated.timing(dayNightProgress, {
+          toValue: 1,
+          duration: nightDuration,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    animationRef.current.start();
   };
 
   const generateForests = async () => {
@@ -155,6 +160,7 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     setCareerTrees(careerTreeArray);
   };
 
+  // Memoize stars to prevent recreation
   const stars = useMemo(() => {
     const starArray = [];
     for (let i = 0; i < 30; i++) {
@@ -172,23 +178,22 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     return starArray;
   }, []);
 
+  // Memoize star opacity interpolation
+  const starOpacity = useMemo(() => 
+    dayNightProgress.interpolate({
+      inputRange: [0, 0.4, 0.5, 0.6, 1],
+      outputRange: [0, 0, 0, 1, 1],
+    })
+  , [dayNightProgress]);
+
   const renderStars = () => {
     return stars.map((star) => (
-      <Animated.View
+      <Star
         key={star.key}
-        style={[
-          styles.star,
-          {
-            top: `${star.top}%`,
-            left: `${star.left}%`,
-            width: star.size,
-            height: star.size,
-            opacity: dayNightProgress.interpolate({
-              inputRange: [0, 0.0556, 0.5, 0.5556, 1],
-              outputRange: [0, 0, 0, 0, 1],
-            }),
-          },
-        ]}
+        top={star.top}
+        left={star.left}
+        size={star.size}
+        opacity={starOpacity}
       />
     ));
   };
@@ -210,13 +215,13 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
 
     const backgroundColor = showDayNight && !animationDisabled
       ? dayNightProgress.interpolate({
-          inputRange: [0, 0.0556, 0.5, 0.5556, 1],
+          inputRange: [0, 0.4, 0.5, 0.6, 1],
           outputRange: [
-            '#FFB347',
-            '#87CEEB',
-            '#FF6B6B',
-            '#1a1a2e',
-            '#1a1a2e',
+            '#87CEEB', // Day - sky blue
+            '#87CEEB', // Day
+            '#4A5568', // Transition
+            '#1a1a2e', // Night
+            '#1a1a2e', // Night
           ],
         })
       : colors.highlight;
