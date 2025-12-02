@@ -22,13 +22,15 @@ export interface AppTheme {
   fontFamily?: string;
   borderRadius?: number;
   pixelated?: boolean;
+  isDefault?: boolean;
 }
 
 export const APP_THEMES: AppTheme[] = [
   {
     id: 'default',
     name: 'Default',
-    description: 'Clean and modern forest theme',
+    description: 'Clean and modern forest theme with adaptive light/dark mode',
+    isDefault: true,
     colors: {
       background: '#F0F4F7',
       text: '#2D3436',

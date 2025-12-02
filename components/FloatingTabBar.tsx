@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useThemeContext } from '@/contexts/ThemeContext';
@@ -74,9 +74,18 @@ export default React.memo(function FloatingTabBar({ tabs }: FloatingTabBarProps)
   const router = useRouter();
   const pathname = usePathname();
   const { colors } = useThemeContext();
+  
+  // Navigation throttling to prevent crashes
+  const lastNavigationRef = useRef(0);
+  const isNavigatingRef = useRef(false);
 
   useEffect(() => {
     console.log('FloatingTabBar mounted');
+    
+    return () => {
+      console.log('FloatingTabBar unmounting');
+      isNavigatingRef.current = false;
+    };
   }, []);
 
   const isActive = useCallback((route: string) => {
@@ -87,8 +96,30 @@ export default React.memo(function FloatingTabBar({ tabs }: FloatingTabBarProps)
   }, [pathname]);
 
   const handleTabPress = useCallback((route: string) => {
+    const now = Date.now();
+    const timeSinceLastNav = now - lastNavigationRef.current;
+    
+    // Throttle navigation to prevent rapid taps causing crashes
+    if (isNavigatingRef.current || timeSinceLastNav < 300) {
+      console.log('Navigation throttled - too fast');
+      return;
+    }
+    
+    isNavigatingRef.current = true;
+    lastNavigationRef.current = now;
+    
     console.log('Tab pressed:', route);
-    router.push(route as any);
+    
+    try {
+      router.push(route as any);
+    } catch (error) {
+      console.error('Navigation error:', error);
+    } finally {
+      // Reset navigation flag after delay
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 300);
+    }
   }, [router]);
 
   return (

@@ -58,7 +58,7 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
       }
       dayNightProgress.stopAnimation();
     };
-  }, []);
+  }, [dayNightProgress]);
 
   useEffect(() => {
     generateForests();
@@ -122,30 +122,37 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
       animationRef.current = null;
     }
     
-    // Reset to start
+    // Reset to start (day)
     dayNightProgress.setValue(0);
     
-    // Create smooth continuous loop: 15s day, 15s night
-    const dayDuration = 15000;
-    const nightDuration = 15000;
+    // CORRECTED TIMING: 15 seconds day, fade to night, 15 seconds night, fade to day
+    // Total cycle: 30 seconds (15s day + 15s night)
+    // Progress: 0 = day, 0.5 = night, 1 = day (loop)
+    
+    const cycleDuration = 30000; // 30 seconds total
     
     animationRef.current = Animated.loop(
       Animated.sequence([
-        // Fade to night
+        // Stay at day (0) for a moment
+        Animated.delay(0),
+        // Fade from day (0) to night (0.5) over 15 seconds
+        Animated.timing(dayNightProgress, {
+          toValue: 0.5,
+          duration: 15000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+        // Fade from night (0.5) to day (1) over 15 seconds
         Animated.timing(dayNightProgress, {
           toValue: 1,
-          duration: dayDuration,
+          duration: 15000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: false,
         }),
-        // Fade back to day
-        Animated.timing(dayNightProgress, {
-          toValue: 0,
-          duration: nightDuration,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-      ])
+      ]),
+      {
+        resetBeforeIteration: true, // Reset to 0 before each iteration for smooth loop
+      }
     );
     
     if (isMountedRef.current) {
@@ -217,11 +224,11 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     return starArray;
   }, []);
 
-  // Memoize star opacity interpolation
+  // Memoize star opacity interpolation with CORRECTED timing
   const starOpacity = useMemo(() => 
     dayNightProgress.interpolate({
-      inputRange: [0, 0.3, 0.7, 1],
-      outputRange: [0, 1, 1, 0],
+      inputRange: [0, 0.25, 0.5, 0.75, 1],
+      outputRange: [0, 0, 1, 0, 0], // Stars visible only during night (0.5)
     })
   , [dayNightProgress]);
 
@@ -241,7 +248,7 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     if (trees.length === 0) {
       return (
         <View style={styles.forestContainer}>
-          <Text style={[styles.forestTitle, { color: colors.text }]}>🌲 {title}</Text>
+          <Text style={[styles.forestTitle, { color: colors.text }]}>🌲 {title} 🌲</Text>
           <View style={[styles.emptyForestCard, { backgroundColor: colors.highlight }]}>
             <Text style={styles.emptyTreeEmoji}>🌲</Text>
             <Text style={[styles.emptyForestText, { color: colors.textSecondary }]}>
@@ -252,21 +259,23 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
       );
     }
 
+    // CORRECTED background color interpolation
     const backgroundColor = showDayNight && !animationDisabled
       ? dayNightProgress.interpolate({
-          inputRange: [0, 0.3, 0.7, 1],
+          inputRange: [0, 0.25, 0.5, 0.75, 1],
           outputRange: [
-            '#87CEEB', // Day - sky blue
-            '#1a1a2e', // Night
-            '#1a1a2e', // Night
-            '#87CEEB', // Day
+            '#87CEEB', // Day - sky blue (0)
+            '#4A5F7F', // Transition to night (0.25)
+            '#1a1a2e', // Night - dark blue (0.5)
+            '#4A5F7F', // Transition to day (0.75)
+            '#87CEEB', // Day - sky blue (1)
           ],
         })
       : colors.highlight;
 
     return (
       <View style={styles.forestContainer}>
-        <Text style={[styles.forestTitle, { color: colors.text }]}>🌲 {title}</Text>
+        <Text style={[styles.forestTitle, { color: colors.text }]}>🌲 {title} 🌲</Text>
         <Animated.View 
           style={[
             styles.forestGrid, 
@@ -296,6 +305,7 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
         <View style={styles.headerLeft}>
           <Text style={styles.headerTreeEmoji}>🌲</Text>
           <Text style={[styles.title, { color: colors.text }]}>My Forest</Text>
+          <Text style={styles.headerTreeEmoji}>🌲</Text>
         </View>
         <TouchableOpacity
           style={[styles.animationToggle, { backgroundColor: animationDisabled ? colors.error : colors.primary }]}
@@ -330,10 +340,10 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   headerTreeEmoji: {
-    fontSize: 32,
+    fontSize: 24,
   },
   title: {
     fontSize: 22,
@@ -359,6 +369,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 12,
+    textAlign: 'center',
   },
   forestGrid: {
     flexDirection: 'row',
