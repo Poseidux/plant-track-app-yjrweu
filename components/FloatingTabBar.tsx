@@ -4,6 +4,7 @@ import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native
 import { useRouter, usePathname } from 'expo-router';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { IconSymbol } from './IconSymbol';
+import { ErrorBoundary } from './ErrorBoundary';
 
 export interface TabBarItem {
   name: string;
@@ -70,14 +71,16 @@ const TabButton = React.memo(({
 
 TabButton.displayName = 'TabButton';
 
-export default React.memo(function FloatingTabBar({ tabs }: FloatingTabBarProps) {
+function FloatingTabBarContent({ tabs }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { colors } = useThemeContext();
   
-  // Navigation throttling to prevent crashes
+  // Navigation throttling to prevent crashes - ENHANCED
   const lastNavigationRef = useRef(0);
   const isNavigatingRef = useRef(false);
+  const navigationQueueRef = useRef<string | null>(null);
+  const THROTTLE_DELAY = 300;
 
   useEffect(() => {
     console.log('FloatingTabBar mounted');
@@ -85,6 +88,7 @@ export default React.memo(function FloatingTabBar({ tabs }: FloatingTabBarProps)
     return () => {
       console.log('FloatingTabBar unmounting');
       isNavigatingRef.current = false;
+      navigationQueueRef.current = null;
     };
   }, []);
 
@@ -99,9 +103,27 @@ export default React.memo(function FloatingTabBar({ tabs }: FloatingTabBarProps)
     const now = Date.now();
     const timeSinceLastNav = now - lastNavigationRef.current;
     
+    // If already navigating, queue the next navigation
+    if (isNavigatingRef.current) {
+      console.log('Navigation in progress, queueing:', route);
+      navigationQueueRef.current = route;
+      return;
+    }
+    
     // Throttle navigation to prevent rapid taps causing crashes
-    if (isNavigatingRef.current || timeSinceLastNav < 300) {
+    if (timeSinceLastNav < THROTTLE_DELAY) {
       console.log('Navigation throttled - too fast');
+      navigationQueueRef.current = route;
+      
+      // Schedule the queued navigation
+      setTimeout(() => {
+        if (navigationQueueRef.current && !isNavigatingRef.current) {
+          const queuedRoute = navigationQueueRef.current;
+          navigationQueueRef.current = null;
+          handleTabPress(queuedRoute);
+        }
+      }, THROTTLE_DELAY - timeSinceLastNav);
+      
       return;
     }
     
@@ -118,7 +140,14 @@ export default React.memo(function FloatingTabBar({ tabs }: FloatingTabBarProps)
       // Reset navigation flag after delay
       setTimeout(() => {
         isNavigatingRef.current = false;
-      }, 300);
+        
+        // Process queued navigation if any
+        if (navigationQueueRef.current) {
+          const queuedRoute = navigationQueueRef.current;
+          navigationQueueRef.current = null;
+          handleTabPress(queuedRoute);
+        }
+      }, THROTTLE_DELAY);
     }
   }, [router]);
 
@@ -134,6 +163,14 @@ export default React.memo(function FloatingTabBar({ tabs }: FloatingTabBarProps)
         />
       ))}
     </View>
+  );
+}
+
+export default React.memo(function FloatingTabBar({ tabs }: FloatingTabBarProps) {
+  return (
+    <ErrorBoundary fallbackTitle="Navigation Error">
+      <FloatingTabBarContent tabs={tabs} />
+    </ErrorBoundary>
   );
 });
 
