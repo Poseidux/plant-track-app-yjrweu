@@ -116,18 +116,6 @@ export default function HomeScreen() {
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const [longPressProgress, setLongPressProgress] = useState(0);
 
-  useEffect(() => {
-    console.log('HomeScreen mounted');
-    loadData();
-    
-    return () => {
-      if (longPressTimer.current) {
-        clearInterval(longPressTimer.current);
-        longPressTimer.current = null;
-      }
-    };
-  }, [loadData]);
-
   const loadData = useCallback(async () => {
     try {
       console.log('Loading home screen data...');
@@ -144,6 +132,18 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    console.log('HomeScreen mounted');
+    loadData();
+    
+    return () => {
+      if (longPressTimer.current) {
+        clearInterval(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+    };
+  }, [loadData]);
 
   // Memoize calculated values
   const totalTrees = useMemo(() => treeLogs.reduce((sum, log) => sum + log.totalTrees, 0), [treeLogs]);
