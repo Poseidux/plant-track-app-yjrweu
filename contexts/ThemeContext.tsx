@@ -21,6 +21,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemColorScheme = useColorScheme();
+  // FIXED: Default to 'light' instead of 'dark'
   const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
   const [selectedTheme, setSelectedThemeState] = useState<string>('default');
   const [isLoaded, setIsLoaded] = useState(false);
@@ -40,6 +41,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setSelectedThemeState(savedTheme);
     } catch (error) {
       console.error('Error loading theme settings:', error);
+      // FIXED: Default to 'light' mode
       setThemeModeState('light');
       setSelectedThemeState('default');
     } finally {
@@ -84,6 +86,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     : currentTheme.colors;
 
   if (!isLoaded) {
+    // FIXED: Default to light mode while loading
     const defaultColors = getColors(false);
     const defaultTheme = APP_THEMES[0];
     return (
