@@ -417,6 +417,8 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
          prevProps.treeLogs[0]?.id === nextProps.treeLogs[0]?.id;
 });
 
+MyForest.displayName = 'MyForest';
+
 const styles = StyleSheet.create({
   container: {
     borderRadius: 16,

@@ -330,6 +330,50 @@ export default function TrackerScreen() {
     return (bundleCount * bundleValue) + (boxCount * boxValue) + (trayCount * trayValue) + individualCount;
   }, [bundles, boxes, trays, individualTrees, treesPerBundle, treesPerBox, treesPerTray]);
 
+  const saveHourlyLogWithSpecies = useCallback(async (startTimeStr: string, endTimeStr: string, trees: number, species: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    const newHourlyLog: HourlyLog = {
+      id: Date.now().toString(),
+      startTime: startTimeStr,
+      endTime: endTimeStr,
+      treesPlanted: trees,
+      species: species,
+      landType: selectedLandType,
+      bundles: tempBundles,
+      boxes: tempBoxes,
+      trays: tempTrays,
+      individualTrees: tempIndividual,
+    };
+
+    let updatedLog: TreePlantingLog;
+
+    if (currentDayLog) {
+      const existingHourlyLogs = currentDayLog.hourlyLogs || [];
+      updatedLog = {
+        ...currentDayLog,
+        hourlyLogs: [...existingHourlyLogs, newHourlyLog],
+        totalTrees: currentDayLog.totalTrees + trees,
+      };
+    } else {
+      updatedLog = {
+        id: Date.now().toString(),
+        date: today,
+        hourlyLogs: [newHourlyLog],
+        totalTrees: trees,
+        species: species,
+        province: '',
+        weatherCondition: '',
+        notes: '',
+        dayType: 'normal',
+      };
+    }
+
+    await StorageService.saveTreeLog(updatedLog);
+    await loadLogs();
+    
+    Alert.alert('Success', 'Hourly log added successfully!');
+  }, [currentDayLog, selectedLandType, tempBundles, tempBoxes, tempTrays, tempIndividual, loadLogs]);
+
   const handleAddHourlyLog = useCallback(async () => {
     const totalTrees = calculateTotalTrees();
     
@@ -379,51 +423,7 @@ export default function TrackerScreen() {
     } else {
       await saveHourlyLogWithSpecies(startTimeStr, endTimeStr, totalTrees, selectedSpecies);
     }
-  }, [calculateTotalTrees, sessionStartTime, saveDaySettings, bundles, boxes, trays, individualTrees, dontAskSpecies, selectedSpecies]);
-
-  const saveHourlyLogWithSpecies = useCallback(async (startTimeStr: string, endTimeStr: string, trees: number, species: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const newHourlyLog: HourlyLog = {
-      id: Date.now().toString(),
-      startTime: startTimeStr,
-      endTime: endTimeStr,
-      treesPlanted: trees,
-      species: species,
-      landType: selectedLandType,
-      bundles: tempBundles,
-      boxes: tempBoxes,
-      trays: tempTrays,
-      individualTrees: tempIndividual,
-    };
-
-    let updatedLog: TreePlantingLog;
-
-    if (currentDayLog) {
-      const existingHourlyLogs = currentDayLog.hourlyLogs || [];
-      updatedLog = {
-        ...currentDayLog,
-        hourlyLogs: [...existingHourlyLogs, newHourlyLog],
-        totalTrees: currentDayLog.totalTrees + trees,
-      };
-    } else {
-      updatedLog = {
-        id: Date.now().toString(),
-        date: today,
-        hourlyLogs: [newHourlyLog],
-        totalTrees: trees,
-        species: species,
-        province: '',
-        weatherCondition: '',
-        notes: '',
-        dayType: 'normal',
-      };
-    }
-
-    await StorageService.saveTreeLog(updatedLog);
-    await loadLogs();
-    
-    Alert.alert('Success', 'Hourly log added successfully!');
-  }, [currentDayLog, selectedLandType, tempBundles, tempBoxes, tempTrays, tempIndividual, loadLogs]);
+  }, [calculateTotalTrees, sessionStartTime, saveDaySettings, bundles, boxes, trays, individualTrees, dontAskSpecies, selectedSpecies, saveHourlyLogWithSpecies]);
 
   const handleSpeciesPopupConfirm = useCallback(async () => {
     await saveHourlyLogWithSpecies(tempStartTime, tempEndTime, tempTreesPlanted, selectedSpecies);
