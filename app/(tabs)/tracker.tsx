@@ -238,6 +238,16 @@ export default function TrackerScreen() {
   const [editingHourlyLog, setEditingHourlyLog] = useState<HourlyLog | null>(null);
   const [editTrees, setEditTrees] = useState('');
 
+  const loadLogs = useCallback(async () => {
+    const logs = await StorageService.getTreeLogs();
+    setTreeLogs(logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    
+    const today = new Date().toISOString().split('T')[0];
+    const todayLog = logs.find(log => log.date === today);
+    setCurrentDayLog(todayLog || null);
+    setRefreshKey(prev => prev + 1);
+  }, []);
+
   useEffect(() => {
     console.log('TrackerScreen mounted');
     loadLogs();
@@ -276,7 +286,7 @@ export default function TrackerScreen() {
     }
   };
 
-  const saveDaySettings = async () => {
+  const saveDaySettings = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
     const settings: DaySettings = {
       treesPerBundle: parseInt(treesPerBundle) || 100,
@@ -285,17 +295,7 @@ export default function TrackerScreen() {
     };
     await StorageService.saveDaySettings(today, settings);
     setDaySettings(settings);
-  };
-
-  const loadLogs = useCallback(async () => {
-    const logs = await StorageService.getTreeLogs();
-    setTreeLogs(logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    
-    const today = new Date().toISOString().split('T')[0];
-    const todayLog = logs.find(log => log.date === today);
-    setCurrentDayLog(todayLog || null);
-    setRefreshKey(prev => prev + 1);
-  }, []);
+  }, [treesPerBundle, treesPerBox, treesPerTray]);
 
   const startSession = useCallback(() => {
     setSessionStartTime(new Date());
