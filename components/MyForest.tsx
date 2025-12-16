@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, AppState, AppStateStatus } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { TreePlantingLog } from '@/types/TreePlanting';
 import { StorageService } from '@/utils/storage';
@@ -12,7 +12,7 @@ interface MyForestProps {
 
 const ANIMATION_DISABLED_KEY = '@forest_animation_disabled';
 
-// Memoized star component
+// Memoized star component with stable props
 const Star = React.memo(({ top, left, size, opacity }: { 
   top: number; 
   left: number; 
@@ -40,10 +40,12 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
   const [seasonTrees, setSeasonTrees] = useState<string[]>([]);
   const [careerTrees, setCareerTrees] = useState<string[]>([]);
   const [animationDisabled, setAnimationDisabled] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
   
   const dayNightProgress = useRef(new Animated.Value(0)).current;
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
   const isMountedRef = useRef(true);
+  const appState = useRef(AppState.currentState);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -52,13 +54,31 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     return () => {
       console.log('MyForest unmounting - cleaning up animation');
       isMountedRef.current = false;
-      if (animationRef.current) {
-        animationRef.current.stop();
-        animationRef.current = null;
-      }
-      dayNightProgress.stopAnimation();
+      stopAnimation();
     };
-  }, [dayNightProgress]);
+  }, []);
+
+  // Monitor app state to pause animation when app is in background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription.remove();
+    };
+  }, [animationDisabled]);
+
+  const handleAppStateChange = useCallback((nextAppState: AppStateStatus) => {
+    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+      // App has come to foreground
+      if (!animationDisabled && isMountedRef.current) {
+        startDayNightCycle();
+      }
+    } else if (nextAppState.match(/inactive|background/)) {
+      // App has gone to background - pause animation
+      stopAnimation();
+    }
+    appState.current = nextAppState;
+  }, [animationDisabled]);
 
   useEffect(() => {
     generateForests();
@@ -66,22 +86,24 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
   }, [treeLogs]);
 
   useEffect(() => {
-    if (!animationDisabled && isMountedRef.current) {
+    if (!animationDisabled && isMountedRef.current && isVisible) {
       startDayNightCycle();
     } else {
-      if (animationRef.current) {
-        animationRef.current.stop();
-        animationRef.current = null;
-      }
+      stopAnimation();
     }
     
     return () => {
-      if (animationRef.current) {
-        animationRef.current.stop();
-        animationRef.current = null;
-      }
+      stopAnimation();
     };
-  }, [animationDisabled]);
+  }, [animationDisabled, isVisible]);
+
+  const stopAnimation = useCallback(() => {
+    if (animationRef.current) {
+      animationRef.current.stop();
+      animationRef.current = null;
+    }
+    dayNightProgress.stopAnimation();
+  }, [dayNightProgress]);
 
   const loadAnimationPreference = useCallback(async () => {
     try {
@@ -97,10 +119,7 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
   const toggleAnimation = useCallback(async () => {
     const newValue = !animationDisabled;
     
-    if (animationRef.current) {
-      animationRef.current.stop();
-      animationRef.current = null;
-    }
+    stopAnimation();
     
     if (isMountedRef.current) {
       setAnimationDisabled(newValue);
@@ -111,36 +130,26 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     } catch (error) {
       console.error('Error saving animation preference:', error);
     }
-  }, [animationDisabled]);
+  }, [animationDisabled, stopAnimation]);
 
   const startDayNightCycle = useCallback(() => {
-    if (!isMountedRef.current) return;
+    if (!isMountedRef.current || appState.current !== 'active') return;
     
     // Stop any existing animation
-    if (animationRef.current) {
-      animationRef.current.stop();
-      animationRef.current = null;
-    }
+    stopAnimation();
     
     // Reset to start (day)
     dayNightProgress.setValue(0);
     
-    // CORRECTED TIMING: 15 seconds day, fade to night, 15 seconds night, fade to day
-    // Total cycle: 30 seconds (15s day + 15s night)
-    // Progress: 0 = day, 0.5 = night, 1 = day (loop)
-    
-    const cycleDuration = 30000; // 30 seconds total
-    
+    // Use native driver for better performance
     animationRef.current = Animated.loop(
       Animated.sequence([
-        // Stay at day (0) for a moment
-        Animated.delay(0),
         // Fade from day (0) to night (0.5) over 15 seconds
         Animated.timing(dayNightProgress, {
           toValue: 0.5,
           duration: 15000,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
+          useNativeDriver: false, // Can't use native driver for backgroundColor
         }),
         // Fade from night (0.5) to day (1) over 15 seconds
         Animated.timing(dayNightProgress, {
@@ -151,14 +160,14 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
         }),
       ]),
       {
-        resetBeforeIteration: true, // Reset to 0 before each iteration for smooth loop
+        resetBeforeIteration: true,
       }
     );
     
     if (isMountedRef.current) {
       animationRef.current.start();
     }
-  }, [dayNightProgress]);
+  }, [dayNightProgress, stopAnimation]);
 
   const generateForests = useCallback(async () => {
     try {
@@ -172,6 +181,7 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
         seasonTotal = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
       }
       
+      // Calculate career total from ALL seasons
       const allSeasons = await StorageService.getSeasons();
       let careerTotal = 0;
       
@@ -180,6 +190,7 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
         careerTotal += seasonLogs.reduce((sum, log) => sum + log.totalTrees, 0);
       }
       
+      // If no seasons exist, use current logs
       if (careerTotal === 0) {
         careerTotal = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
       }
@@ -206,7 +217,7 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
     }
   }, [treeLogs]);
 
-  // Memoize stars to prevent recreation
+  // Memoize stars to prevent recreation - stable reference
   const stars = useMemo(() => {
     const starArray = [];
     for (let i = 0; i < 30; i++) {
@@ -222,13 +233,13 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
       });
     }
     return starArray;
-  }, []);
+  }, []); // Empty deps - only create once
 
-  // Memoize star opacity interpolation with CORRECTED timing
+  // Memoize star opacity interpolation
   const starOpacity = useMemo(() => 
     dayNightProgress.interpolate({
       inputRange: [0, 0.25, 0.5, 0.75, 1],
-      outputRange: [0, 0, 1, 0, 0], // Stars visible only during night (0.5)
+      outputRange: [0, 0, 1, 0, 0],
     })
   , [dayNightProgress]);
 
@@ -259,16 +270,15 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
       );
     }
 
-    // CORRECTED background color interpolation
     const backgroundColor = showDayNight && !animationDisabled
       ? dayNightProgress.interpolate({
           inputRange: [0, 0.25, 0.5, 0.75, 1],
           outputRange: [
-            '#87CEEB', // Day - sky blue (0)
-            '#4A5F7F', // Transition to night (0.25)
-            '#1a1a2e', // Night - dark blue (0.5)
-            '#4A5F7F', // Transition to day (0.75)
-            '#87CEEB', // Day - sky blue (1)
+            '#87CEEB',
+            '#4A5F7F',
+            '#1a1a2e',
+            '#4A5F7F',
+            '#87CEEB',
           ],
         })
       : colors.highlight;
@@ -321,6 +331,10 @@ export default React.memo(function MyForest({ treeLogs }: MyForestProps) {
       {renderForestGrid(careerTrees, 'Your Career Forest', 10000, false)}
     </View>
   );
+}, (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders
+  return prevProps.treeLogs.length === nextProps.treeLogs.length &&
+         prevProps.treeLogs[0]?.id === nextProps.treeLogs[0]?.id;
 });
 
 const styles = StyleSheet.create({

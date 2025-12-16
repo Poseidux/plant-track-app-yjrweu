@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   Animated,
   Modal,
-  Alert,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
@@ -23,6 +22,36 @@ import { checkAchievements } from '@/utils/achievements';
 import { formatLargeNumber } from '@/utils/formatNumber';
 import { shareStatsAsImage } from '@/utils/shareStatsImage';
 import { AVATAR_FRAMES, PROFILE_ICONS_EMOJIS } from '@/types/Shop';
+
+// Memoized performance item component
+const PerformanceItem = React.memo(({ 
+  icon, 
+  androidIcon, 
+  color, 
+  label, 
+  value 
+}: {
+  icon: string;
+  androidIcon: string;
+  color: string;
+  label: string;
+  value: string;
+}) => (
+  <View style={styles.overviewItem}>
+    <IconSymbol
+      ios_icon_name={icon}
+      android_material_icon_name={androidIcon}
+      size={20}
+      color={color}
+    />
+    <Text style={[styles.overviewLabel, { color: '#747A7C' }]}>
+      {label}
+    </Text>
+    <Text style={[styles.overviewValue, { color: '#2D3436' }]}>
+      {value}
+    </Text>
+  </View>
+));
 
 export default function AnalyticsScreen() {
   const { colors, isDark } = useThemeContext();
@@ -43,7 +72,7 @@ export default function AnalyticsScreen() {
     startCardAnimation();
   }, []);
 
-  const startCardAnimation = () => {
+  const startCardAnimation = useCallback(() => {
     Animated.loop(
       Animated.sequence([
         Animated.timing(cardRotation, {
@@ -58,9 +87,9 @@ export default function AnalyticsScreen() {
         }),
       ])
     ).start();
-  };
+  }, [cardRotation]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const [trees, earnings, expenses, savedAchievements, userProfile, cosmetics] = await Promise.all([
       StorageService.getTreeLogs(),
       StorageService.getEarningsLogs(),
@@ -79,48 +108,62 @@ export default function AnalyticsScreen() {
     const updatedAchievements = checkAchievements(trees, earnings, savedAchievements);
     setAchievements(updatedAchievements);
     await StorageService.saveAchievements(updatedAchievements);
-  };
+  }, []);
 
-  const totalTrees = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-  const totalEarnings = earningsLogs.reduce((sum, log) => sum + log.amount, 0);
-  const totalExpenses = expenseLogs.reduce((sum, log) => sum + log.amount, 0);
-  const totalDays = treeLogs.filter(log => log.dayType !== 'sick' && log.dayType !== 'dayoff').length;
-  const averageTreesPerDay = totalDays > 0 ? totalTrees / totalDays : 0;
-  const unlockedAchievements = achievements.filter(a => a.progress >= a.target);
+  // Memoize calculated values
+  const totalTrees = useMemo(() => treeLogs.reduce((sum, log) => sum + log.totalTrees, 0), [treeLogs]);
+  const totalEarnings = useMemo(() => earningsLogs.reduce((sum, log) => sum + log.amount, 0), [earningsLogs]);
+  const totalExpenses = useMemo(() => expenseLogs.reduce((sum, log) => sum + log.amount, 0), [expenseLogs]);
+  const totalDays = useMemo(() => treeLogs.filter(log => log.dayType !== 'sick' && log.dayType !== 'dayoff').length, [treeLogs]);
+  const averageTreesPerDay = useMemo(() => totalDays > 0 ? totalTrees / totalDays : 0, [totalTrees, totalDays]);
+  const unlockedAchievements = useMemo(() => achievements.filter(a => a.progress >= a.target), [achievements]);
 
-  const personalBest = treeLogs.length > 0 
+  const personalBest = useMemo(() => treeLogs.length > 0 
     ? Math.max(...treeLogs.map(log => log.totalTrees))
-    : 0;
+    : 0, [treeLogs]);
 
-  const totalHours = treeLogs.reduce((sum, log) => {
-    return sum + (log.hourlyLogs || []).reduce((hourSum, hourLog) => {
-      const start = new Date(`2000-01-01T${hourLog.startTime}`);
-      const end = new Date(`2000-01-01T${hourLog.endTime}`);
-      return hourSum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+  // FIXED: Calculate total hours and trees per hour/minute correctly
+  const totalHours = useMemo(() => {
+    return treeLogs.reduce((sum, log) => {
+      if (!log.hourlyLogs || log.hourlyLogs.length === 0) {
+        return sum;
+      }
+      
+      return sum + log.hourlyLogs.reduce((hourSum, hourLog) => {
+        try {
+          const start = new Date(`2000-01-01T${hourLog.startTime}`);
+          const end = new Date(`2000-01-01T${hourLog.endTime}`);
+          const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+          return hourSum + (isNaN(hours) ? 0 : hours);
+        } catch (error) {
+          console.error('Error calculating hours:', error);
+          return hourSum;
+        }
+      }, 0);
     }, 0);
-  }, 0);
+  }, [treeLogs]);
   
-  const treesPerHour = totalHours > 0 ? totalTrees / totalHours : 0;
-  const treesPerMinute = treesPerHour / 60;
+  const treesPerHour = useMemo(() => totalHours > 0 ? totalTrees / totalHours : 0, [totalTrees, totalHours]);
+  const treesPerMinute = useMemo(() => treesPerHour / 60, [treesPerHour]);
 
-  const midPoint = Math.floor(treeLogs.length / 2);
-  const firstHalfAvg = midPoint > 0 
+  const midPoint = useMemo(() => Math.floor(treeLogs.length / 2), [treeLogs]);
+  const firstHalfAvg = useMemo(() => midPoint > 0 
     ? treeLogs.slice(0, midPoint).reduce((sum, log) => sum + log.totalTrees, 0) / midPoint
-    : 0;
-  const secondHalfAvg = treeLogs.length > midPoint
+    : 0, [treeLogs, midPoint]);
+  const secondHalfAvg = useMemo(() => treeLogs.length > midPoint
     ? treeLogs.slice(midPoint).reduce((sum, log) => sum + log.totalTrees, 0) / (treeLogs.length - midPoint)
-    : 0;
-  const percentageImprovement = firstHalfAvg > 0 
+    : 0, [treeLogs, midPoint]);
+  const percentageImprovement = useMemo(() => firstHalfAvg > 0 
     ? ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100
-    : 0;
+    : 0, [firstHalfAvg, secondHalfAvg]);
 
   const today = new Date().toISOString().split('T')[0];
-  const todayLog = treeLogs.find(log => log.date === today);
-  const todayTrees = todayLog ? todayLog.totalTrees : 0;
-  const todayHours = todayLog ? (todayLog.hourlyLogs || []).length : 0;
-  const todayRate = todayHours > 0 ? todayTrees / todayHours : 0;
+  const todayLog = useMemo(() => treeLogs.find(log => log.date === today), [treeLogs, today]);
+  const todayTrees = useMemo(() => todayLog ? todayLog.totalTrees : 0, [todayLog]);
+  const todayHours = useMemo(() => todayLog ? (todayLog.hourlyLogs || []).length : 0, [todayLog]);
+  const todayRate = useMemo(() => todayHours > 0 ? todayTrees / todayHours : 0, [todayTrees, todayHours]);
 
-  const getSpeciesDistribution = () => {
+  const getSpeciesDistribution = useCallback(() => {
     const speciesCount: { [key: string]: number } = {};
     
     treeLogs.forEach(log => {
@@ -133,20 +176,20 @@ export default function AnalyticsScreen() {
     return Object.entries(speciesCount)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6);
-  };
+  }, [treeLogs]);
 
-  const speciesData = getSpeciesDistribution();
-  const speciesColors = ['#3498DB', '#2ECC71', '#F39C12', '#E74C3C', '#9B59B6', '#1ABC9C'];
+  const speciesData = useMemo(() => getSpeciesDistribution(), [getSpeciesDistribution]);
+  const speciesColors = useMemo(() => ['#3498DB', '#2ECC71', '#F39C12', '#E74C3C', '#9B59B6', '#1ABC9C'], []);
 
-  const pieChartData = speciesData.map(([species, count], index) => ({
+  const pieChartData = useMemo(() => speciesData.map(([species, count], index) => ({
     name: species.length > 12 ? species.substring(0, 10) + '...' : species,
     population: count,
     color: speciesColors[index % speciesColors.length],
     legendFontColor: colors.text,
     legendFontSize: 11,
-  }));
+  })), [speciesData, speciesColors, colors.text]);
 
-  const getTreesChartData = () => {
+  const getTreesChartData = useMemo(() => {
     const sortedLogs = [...treeLogs].sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
@@ -160,9 +203,9 @@ export default function AnalyticsScreen() {
         data: last7.length > 0 ? last7.map(log => log.totalTrees) : [0],
       }],
     };
-  };
+  }, [treeLogs]);
 
-  const getEarningsChartData = () => {
+  const getEarningsChartData = useMemo(() => {
     const sortedLogs = [...earningsLogs].sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
@@ -176,9 +219,9 @@ export default function AnalyticsScreen() {
         data: last7.length > 0 ? last7.map(log => log.amount) : [0],
       }],
     };
-  };
+  }, [earningsLogs]);
 
-  const getRateChartData = () => {
+  const getRateChartData = useMemo(() => {
     const sortedLogs = [...treeLogs].sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
@@ -192,29 +235,29 @@ export default function AnalyticsScreen() {
         data: last7.length > 0 ? last7.map(log => log.averageRate || 0) : [0],
       }],
     };
-  };
+  }, [treeLogs]);
 
-  const handleShareStats = async () => {
+  const handleShareStats = useCallback(async () => {
     if (shareViewRef.current) {
       await shareStatsAsImage(shareViewRef.current);
     }
-  };
+  }, []);
 
-  const getFrameStyle = () => {
+  const getFrameStyle = useCallback(() => {
     if (!equippedFrame) return null;
     const frame = AVATAR_FRAMES.find(f => f.id === equippedFrame);
     return frame;
-  };
+  }, [equippedFrame]);
 
-  const getAvatarEmoji = () => {
+  const getAvatarEmoji = useCallback(() => {
     if (!equippedAvatar) return '👤';
     const avatar = PROFILE_ICONS_EMOJIS.find(i => i.id === equippedAvatar);
     return avatar?.emoji || '👤';
-  };
+  }, [equippedAvatar]);
 
   const screenWidth = Dimensions.get('window').width;
 
-  const chartConfig = {
+  const chartConfig = useMemo(() => ({
     backgroundColor: colors.card,
     backgroundGradientFrom: colors.card,
     backgroundGradientTo: colors.card,
@@ -229,9 +272,9 @@ export default function AnalyticsScreen() {
       strokeWidth: '2',
       stroke: colors.primary,
     },
-  };
+  }), [colors, isDark]);
 
-  const earningsChartConfig = {
+  const earningsChartConfig = useMemo(() => ({
     ...chartConfig,
     color: (opacity = 1) => `rgba(46, 204, 113, ${opacity})`,
     propsForDots: {
@@ -239,9 +282,9 @@ export default function AnalyticsScreen() {
       strokeWidth: '2',
       stroke: colors.secondary,
     },
-  };
+  }), [chartConfig, colors.secondary]);
 
-  const rateChartConfig = {
+  const rateChartConfig = useMemo(() => ({
     ...chartConfig,
     color: (opacity = 1) => `rgba(243, 156, 18, ${opacity})`,
     propsForDots: {
@@ -249,9 +292,9 @@ export default function AnalyticsScreen() {
       strokeWidth: '2',
       stroke: colors.accent,
     },
-  };
+  }), [chartConfig, colors.accent]);
 
-  const performanceItems = [
+  const performanceItems = useMemo(() => [
     {
       icon: 'leaf.fill',
       androidIcon: 'eco',
@@ -285,14 +328,14 @@ export default function AnalyticsScreen() {
       androidIcon: 'schedule',
       color: colors.accent,
       label: 'Trees/Hour',
-      value: treesPerHour.toFixed(0),
+      value: treesPerHour > 0 ? treesPerHour.toFixed(0) : '0',
     },
     {
       icon: 'timer',
       androidIcon: 'timer',
       color: colors.warning,
       label: 'Trees/Minute',
-      value: treesPerMinute.toFixed(1),
+      value: treesPerMinute > 0 ? treesPerMinute.toFixed(1) : '0.0',
     },
     {
       icon: 'chart.line.uptrend.xyaxis',
@@ -308,12 +351,12 @@ export default function AnalyticsScreen() {
       label: 'Improvement',
       value: `${percentageImprovement >= 0 ? '+' : ''}${percentageImprovement.toFixed(1)}%`,
     },
-  ];
+  ], [colors, totalTrees, totalDays, totalEarnings, totalExpenses, treesPerHour, treesPerMinute, averageTreesPerDay, percentageImprovement]);
 
-  const incompleteAchievements = achievements.filter(a => a.progress < a.target);
-  const displayedAchievements = showAllAchievements 
+  const incompleteAchievements = useMemo(() => achievements.filter(a => a.progress < a.target), [achievements]);
+  const displayedAchievements = useMemo(() => showAllAchievements 
     ? achievements 
-    : incompleteAchievements.slice(0, 10);
+    : incompleteAchievements.slice(0, 10), [showAllAchievements, achievements, incompleteAchievements]);
 
   const rotateInterpolate = cardRotation.interpolate({
     inputRange: [0, 1],
@@ -335,6 +378,11 @@ export default function AnalyticsScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={5}
+        updateCellsBatchingPeriod={100}
+        initialNumToRender={5}
+        windowSize={5}
       >
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Analytics & Achievements</Text>
@@ -345,20 +393,14 @@ export default function AnalyticsScreen() {
           
           <View style={styles.overviewGrid}>
             {performanceItems.map((item, index) => (
-              <View key={`perf-item-${index}`} style={styles.overviewItem}>
-                <IconSymbol
-                  ios_icon_name={item.icon}
-                  android_material_icon_name={item.androidIcon}
-                  size={20}
-                  color={item.color}
-                />
-                <Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>
-                  {item.label}
-                </Text>
-                <Text style={[styles.overviewValue, { color: colors.text }]}>
-                  {item.value}
-                </Text>
-              </View>
+              <PerformanceItem
+                key={`perf-item-${index}`}
+                icon={item.icon}
+                androidIcon={item.androidIcon}
+                color={item.color}
+                label={item.label}
+                value={item.value}
+              />
             ))}
           </View>
         </View>
@@ -369,7 +411,7 @@ export default function AnalyticsScreen() {
               Trees Planted (Last 7 Days)
             </Text>
             <LineChart
-              data={getTreesChartData()}
+              data={getTreesChartData}
               width={screenWidth - 64}
               height={220}
               chartConfig={chartConfig}
@@ -385,7 +427,7 @@ export default function AnalyticsScreen() {
               Earnings (Last 7 Days)
             </Text>
             <BarChart
-              data={getEarningsChartData()}
+              data={getEarningsChartData}
               width={screenWidth - 64}
               height={220}
               chartConfig={earningsChartConfig}
@@ -402,7 +444,7 @@ export default function AnalyticsScreen() {
               Planting Rate (Last 7 Days)
             </Text>
             <LineChart
-              data={getRateChartData()}
+              data={getRateChartData}
               width={screenWidth - 64}
               height={220}
               chartConfig={rateChartConfig}
@@ -471,22 +513,6 @@ export default function AnalyticsScreen() {
               <View style={styles.achievementsList}>
                 {displayedAchievements.map((achievement, index) => {
                   const isUnlocked = achievement.progress >= achievement.target;
-                  const scaleAnim = new Animated.Value(1);
-                  
-                  Animated.loop(
-                    Animated.sequence([
-                      Animated.timing(scaleAnim, {
-                        toValue: 1.1,
-                        duration: 1000,
-                        useNativeDriver: true,
-                      }),
-                      Animated.timing(scaleAnim, {
-                        toValue: 1,
-                        duration: 1000,
-                        useNativeDriver: true,
-                      }),
-                    ])
-                  ).start();
 
                   return (
                     <View 
@@ -497,7 +523,7 @@ export default function AnalyticsScreen() {
                         { borderColor: colors.border }
                       ]}
                     >
-                      <Animated.View style={[styles.achievementIcon, { transform: [{ scale: scaleAnim }] }]}>
+                      <View style={styles.achievementIcon}>
                         <Text style={styles.achievementEmoji}>{achievement.icon}</Text>
                         {isUnlocked && (
                           <View style={[styles.achievementBadge, { backgroundColor: colors.gold }]}>
@@ -509,7 +535,7 @@ export default function AnalyticsScreen() {
                             />
                           </View>
                         )}
-                      </Animated.View>
+                      </View>
                       <View style={styles.achievementContent}>
                         <Text style={[styles.achievementTitle, { color: colors.text }]}>
                           {achievement.title}
