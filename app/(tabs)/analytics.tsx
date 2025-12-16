@@ -9,8 +9,8 @@ import {
   Platform,
   ImageBackground,
   TouchableOpacity,
-  Animated,
   Modal,
+  Animated,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
@@ -131,10 +131,26 @@ export default function AnalyticsScreen() {
       
       return sum + log.hourlyLogs.reduce((hourSum, hourLog) => {
         try {
-          const start = new Date(`2000-01-01T${hourLog.startTime}`);
-          const end = new Date(`2000-01-01T${hourLog.endTime}`);
-          const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-          return hourSum + (isNaN(hours) ? 0 : hours);
+          // Parse time strings like "9:00 AM" or "2:30 PM"
+          const parseTime = (timeStr: string) => {
+            const [time, period] = timeStr.split(' ');
+            const [hours, minutes] = time.split(':').map(Number);
+            let hour24 = hours;
+            
+            if (period === 'PM' && hours !== 12) {
+              hour24 = hours + 12;
+            } else if (period === 'AM' && hours === 12) {
+              hour24 = 0;
+            }
+            
+            return hour24 + (minutes || 0) / 60;
+          };
+          
+          const startHour = parseTime(hourLog.startTime);
+          const endHour = parseTime(hourLog.endTime);
+          const hours = endHour - startHour;
+          
+          return hourSum + (isNaN(hours) || hours < 0 ? 0 : hours);
         } catch (error) {
           console.error('Error calculating hours:', error);
           return hourSum;
@@ -403,6 +419,20 @@ export default function AnalyticsScreen() {
               />
             ))}
           </View>
+          
+          {treeLogs.length === 0 && (
+            <View style={[styles.emptyHint, { backgroundColor: colors.highlight }]}>
+              <IconSymbol
+                ios_icon_name="info.circle.fill"
+                android_material_icon_name="info"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={[styles.emptyHintText, { color: colors.text }]}>
+                Start logging trees in the Log tab to see your performance metrics update!
+              </Text>
+            </View>
+          )}
         </View>
 
         {treeLogs.length >= 2 && (
@@ -961,6 +991,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     marginTop: 4,
+  },
+  emptyHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  emptyHintText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
   chartCard: {
     borderRadius: 16,
