@@ -496,6 +496,12 @@ export default function TrackerScreen() {
     setShowEditModal(true);
   }, []);
 
+  const handleCancelEdit = useCallback(() => {
+    setShowEditModal(false);
+    setEditingHourlyLog(null);
+    setEditTrees('');
+  }, []);
+
   const handleSaveEdit = useCallback(async () => {
     if (!editingHourlyLog || !currentDayLog) {
       return;
@@ -525,6 +531,7 @@ export default function TrackerScreen() {
     await loadLogs();
     setShowEditModal(false);
     setEditingHourlyLog(null);
+    setEditTrees('');
     Alert.alert('Success', 'Log updated successfully!');
   }, [editingHourlyLog, currentDayLog, editTrees, loadLogs]);
 
@@ -1064,10 +1071,7 @@ export default function TrackerScreen() {
             <View style={styles.popupButtons}>
               <TouchableOpacity
                 style={[styles.popupButton, { backgroundColor: colors.textSecondary, flex: 1, marginRight: 8 }]}
-                onPress={() => {
-                  setShowEditModal(false);
-                  setEditingHourlyLog(null);
-                }}
+                onPress={handleCancelEdit}
               >
                 <Text style={styles.popupButtonText}>Cancel</Text>
               </TouchableOpacity>
