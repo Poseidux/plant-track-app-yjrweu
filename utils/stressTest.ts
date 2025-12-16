@@ -17,14 +17,14 @@ export interface StressTestResult {
   successfulActions: number;
   failedActions: number;
   averageResponseTime: number;
-  errors: Array<{ action: string; error: string; timestamp: number }>;
+  errors: { action: string; error: string; timestamp: number }[];
 }
 
 /**
  * Run a stress test with random actions
  */
 export async function runStressTest(
-  actions: Array<{ name: string; action: () => Promise<void> }>,
+  actions: { name: string; action: () => Promise<void> }[],
   config: StressTestConfig
 ): Promise<StressTestResult> {
   const result: StressTestResult = {
@@ -116,7 +116,7 @@ export async function stressTestNavigation(
  * Simulate rapid button taps
  */
 export async function stressTestButtonTaps(
-  buttons: Array<{ name: string; onPress: () => void }>,
+  buttons: { name: string; onPress: () => void }[],
   config: StressTestConfig
 ): Promise<StressTestResult> {
   const actions = buttons.map(button => ({
@@ -134,7 +134,7 @@ export async function stressTestButtonTaps(
  * Simulate heavy data operations
  */
 export async function stressTestDataOperations(
-  operations: Array<{ name: string; operation: () => Promise<void> }>,
+  operations: { name: string; operation: () => Promise<void> }[],
   config: StressTestConfig
 ): Promise<StressTestResult> {
   return runStressTest(operations, config);
@@ -144,7 +144,7 @@ export async function stressTestDataOperations(
  * Memory leak detector
  */
 export class MemoryLeakDetector {
-  private snapshots: Array<{ timestamp: number; description: string }> = [];
+  private snapshots: { timestamp: number; description: string }[] = [];
   private maxSnapshots: number = 10;
 
   takeSnapshot(description: string): void {

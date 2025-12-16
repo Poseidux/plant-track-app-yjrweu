@@ -134,6 +134,6 @@ export const EXPENSE_CATEGORIES = [
   'Other',
 ];
 
-export const LAND_TYPES: Array<'prepped' | 'raw'> = ['prepped', 'raw'];
+export const LAND_TYPES: ('prepped' | 'raw')[] = ['prepped', 'raw'];
 
-export const EXPERIENCE_LEVELS: Array<'rookie' | 'highballer' | 'vet'> = ['rookie', 'highballer', 'vet'];
+export const EXPERIENCE_LEVELS: ('rookie' | 'highballer' | 'vet')[] = ['rookie', 'highballer', 'vet'];

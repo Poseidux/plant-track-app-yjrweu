@@ -180,7 +180,7 @@ export async function retryWithBackoff<T>(
  * Queue for sequential async operations
  */
 export class AsyncQueue {
-  private queue: Array<() => Promise<any>> = [];
+  private queue: (() => Promise<any>)[] = [];
   private processing: boolean = false;
 
   async add<T>(operation: () => Promise<T>): Promise<T> {

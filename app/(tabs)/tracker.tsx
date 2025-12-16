@@ -243,7 +243,7 @@ export default function TrackerScreen() {
     loadLogs();
     loadDontAskPreference();
     loadDaySettings();
-  }, []);
+  }, [loadLogs]);
 
   const loadDontAskPreference = async () => {
     try {

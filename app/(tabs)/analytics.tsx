@@ -70,7 +70,7 @@ export default function AnalyticsScreen() {
   useEffect(() => {
     loadData();
     startCardAnimation();
-  }, []);
+  }, [loadData, startCardAnimation]);
 
   const startCardAnimation = useCallback(() => {
     Animated.loop(

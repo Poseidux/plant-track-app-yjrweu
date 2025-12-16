@@ -1,4 +1,6 @@
 
+import { useEffect, useRef } from 'react';
+
 /**
  * Centralized cleanup manager for preventing memory leaks
  */
@@ -81,8 +83,6 @@ export class CleanupManager {
 /**
  * Hook to use cleanup manager in components
  */
-import { useEffect, useRef } from 'react';
-
 export function useCleanupManager(): CleanupManager {
   const managerRef = useRef<CleanupManager>(new CleanupManager());
 

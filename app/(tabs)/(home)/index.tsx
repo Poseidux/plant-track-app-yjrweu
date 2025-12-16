@@ -126,7 +126,7 @@ export default function HomeScreen() {
         longPressTimer.current = null;
       }
     };
-  }, []);
+  }, [loadData]);
 
   const loadData = useCallback(async () => {
     try {

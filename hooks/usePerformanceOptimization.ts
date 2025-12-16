@@ -83,7 +83,7 @@ export function useRateLimited<T extends (...args: any[]) => any>(
  * Hook to batch multiple state updates
  */
 export function useBatchedUpdates(): (callback: () => void) => void {
-  const batchRef = useRef<Array<() => void>>([]);
+  const batchRef = useRef<(() => void)[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
