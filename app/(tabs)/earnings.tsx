@@ -20,6 +20,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
+import { formatEarnings } from '@/utils/formatNumber';
 
 export default function EarningsScreen() {
   const { colors, isDark } = useThemeContext();
@@ -325,7 +326,7 @@ export default function EarningsScreen() {
               size={24}
               color="#FFFFFF"
             />
-            <Text style={styles.summaryAmount}>${totalEarnings.toFixed(2)}</Text>
+            <Text style={styles.summaryAmount}>{formatEarnings(totalEarnings)}</Text>
             <Text style={styles.summaryLabel}>Total Earnings</Text>
           </View>
 
@@ -336,7 +337,7 @@ export default function EarningsScreen() {
               size={24}
               color="#FFFFFF"
             />
-            <Text style={styles.summaryAmount}>${totalExpenses.toFixed(2)}</Text>
+            <Text style={styles.summaryAmount}>{formatEarnings(totalExpenses)}</Text>
             <Text style={styles.summaryLabel}>Total Expenses</Text>
           </View>
 
@@ -347,7 +348,7 @@ export default function EarningsScreen() {
               size={24}
               color="#FFFFFF"
             />
-            <Text style={styles.summaryAmount}>${netIncome.toFixed(2)}</Text>
+            <Text style={styles.summaryAmount}>{formatEarnings(netIncome)}</Text>
             <Text style={styles.summaryLabel}>Net Income</Text>
           </View>
         </View>
@@ -465,8 +466,8 @@ export default function EarningsScreen() {
             </Text>
           </View>
         ) : (
-          earningsLogs.slice(0, 10).map((log, index) => (
-            <View key={`earnings-${log.id}-${index}`} style={[styles.logCard, { backgroundColor: colors.card }]}>
+          earningsLogs.slice(0, 10).map((log) => (
+            <View key={log.id} style={[styles.logCard, { backgroundColor: colors.card }]}>
               <View style={styles.logHeader}>
                 <View style={styles.logHeaderLeft}>
                   <Text style={[styles.logAmount, { color: colors.secondary }]}>
@@ -515,8 +516,8 @@ export default function EarningsScreen() {
             </Text>
           </View>
         ) : (
-          expenseLogs.slice(0, 10).map((log, index) => (
-            <View key={`expense-${log.id}-${index}`} style={[styles.logCard, { backgroundColor: colors.card }]}>
+          expenseLogs.slice(0, 10).map((log) => (
+            <View key={log.id} style={[styles.logCard, { backgroundColor: colors.card }]}>
               <View style={styles.logHeader}>
                 <View style={styles.logHeaderLeft}>
                   <Text style={[styles.logAmount, { color: colors.error }]}>
@@ -699,7 +700,7 @@ export default function EarningsScreen() {
             <View style={styles.categoryContainer}>
               {EXPENSE_CATEGORIES.map((category) => (
                 <TouchableOpacity
-                  key={`expense-category-${category}`}
+                  key={category}
                   style={[
                     styles.categoryButton,
                     { borderColor: colors.border },

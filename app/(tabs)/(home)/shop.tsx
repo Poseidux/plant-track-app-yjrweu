@@ -352,33 +352,32 @@ export default function ShopScreen() {
             >
               <View style={styles.framePreview}>
                 {(frame as any).isGradient ? (
-                  <LinearGradient
-                    colors={(frame as any).gradientColors}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={[
-                      styles.framePreviewCircle,
-                      {
-                        borderWidth: frame.borderWidth,
-                      }
-                    ]}
-                  >
-                    <Text style={styles.framePreviewEmoji}>👤</Text>
-                  </LinearGradient>
+                  <View style={styles.framePreviewCircle}>
+                    <LinearGradient
+                      colors={(frame as any).gradientColors}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={[
+                        styles.frameGradientBorder,
+                        {
+                          borderRadius: 30,
+                        }
+                      ]}
+                    >
+                      <View style={styles.frameInnerCircle}>
+                        <Text style={styles.framePreviewEmoji}>👤</Text>
+                      </View>
+                    </LinearGradient>
+                  </View>
                 ) : (frame as any).isHalfHalf ? (
-                  <View style={[
-                    styles.framePreviewCircle,
-                    {
-                      borderWidth: frame.borderWidth,
-                      borderColor: 'transparent',
-                      overflow: 'hidden',
-                    }
-                  ]}>
-                    <View style={styles.halfHalfContainer}>
-                      <View style={[styles.halfTop, { backgroundColor: (frame as any).topColor }]} />
-                      <View style={[styles.halfBottom, { backgroundColor: (frame as any).bottomColor }]} />
+                  <View style={styles.framePreviewCircle}>
+                    <View style={styles.halfHalfBorderContainer}>
+                      <View style={[styles.halfTopBorder, { backgroundColor: (frame as any).topColor }]} />
+                      <View style={[styles.halfBottomBorder, { backgroundColor: (frame as any).bottomColor }]} />
                     </View>
-                    <Text style={[styles.framePreviewEmoji, { position: 'absolute', zIndex: 1 }]}>👤</Text>
+                    <View style={styles.frameInnerCircle}>
+                      <Text style={styles.framePreviewEmoji}>👤</Text>
+                    </View>
                   </View>
                 ) : (
                   <View style={[
@@ -388,7 +387,9 @@ export default function ShopScreen() {
                       borderWidth: frame.borderWidth,
                     }
                   ]}>
-                    <Text style={styles.framePreviewEmoji}>👤</Text>
+                    <View style={styles.frameInnerCircle}>
+                      <Text style={styles.framePreviewEmoji}>👤</Text>
+                    </View>
                   </View>
                 )}
               </View>
@@ -933,25 +934,41 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  frameGradientBorder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 5,
+  },
+  frameInnerCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: '#F0F0F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   framePreviewEmoji: {
     fontSize: 32,
   },
-  halfHalfContainer: {
+  halfHalfBorderContainer: {
     position: 'absolute',
-    width: '100%',
-    height: '100%',
+    width: 60,
+    height: 60,
     borderRadius: 30,
     overflow: 'hidden',
   },
-  halfTop: {
-    width: '100%',
-    height: '50%',
+  halfTopBorder: {
+    width: 60,
+    height: 30,
   },
-  halfBottom: {
-    width: '100%',
-    height: '50%',
+  halfBottomBorder: {
+    width: 60,
+    height: 30,
   },
   bottomPadding: {
     height: 20,

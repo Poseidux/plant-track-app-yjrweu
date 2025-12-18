@@ -33,12 +33,12 @@ export const AVATAR_FRAMES = [
   { id: 'frame-ice', name: 'Ice Frame', emoji: '❄️', borderColor: '#00FFFF', borderWidth: 4, price: 600 },
   { id: 'frame-nature', name: 'Nature Frame', emoji: '🌿', borderColor: '#228B22', borderWidth: 4, price: 600 },
   { id: 'frame-cosmic', name: 'Cosmic Frame', emoji: '✨', borderColor: '#9370DB', borderWidth: 5, price: 900 },
-  { id: 'frame-blue-green', name: 'Ocean Wave', emoji: '🌊', borderColor: '#00CED1', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#0000FF', bottomColor: '#00FF00' },
-  { id: 'frame-red-yellow', name: 'Sunset Blaze', emoji: '🌅', borderColor: '#FF4500', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#FF0000', bottomColor: '#FFD700' },
-  { id: 'frame-purple-pink', name: 'Twilight Dream', emoji: '🌸', borderColor: '#FF69B4', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#9370DB', bottomColor: '#FF69B4' },
-  { id: 'frame-orange-blue', name: 'Fire & Ice', emoji: '🔥❄️', borderColor: '#FF8C00', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#FF4500', bottomColor: '#00BFFF' },
-  { id: 'frame-green-yellow', name: 'Forest Sun', emoji: '🌳☀️', borderColor: '#32CD32', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#228B22', bottomColor: '#FFD700' },
-  { id: 'frame-cyan-magenta', name: 'Neon Glow', emoji: '✨', borderColor: '#00FFFF', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#00FFFF', bottomColor: '#FF00FF' },
+  { id: 'frame-blue-green', name: 'Ocean Wave', emoji: '🌊', borderColor: 'transparent', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#0000FF', bottomColor: '#00FF00' },
+  { id: 'frame-red-yellow', name: 'Sunset Blaze', emoji: '🌅', borderColor: 'transparent', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#FF0000', bottomColor: '#FFD700' },
+  { id: 'frame-purple-pink', name: 'Twilight Dream', emoji: '🌸', borderColor: 'transparent', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#9370DB', bottomColor: '#FF69B4' },
+  { id: 'frame-orange-blue', name: 'Fire & Ice', emoji: '🔥❄️', borderColor: 'transparent', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#FF4500', bottomColor: '#00BFFF' },
+  { id: 'frame-green-yellow', name: 'Forest Sun', emoji: '🌳☀️', borderColor: 'transparent', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#228B22', bottomColor: '#FFD700' },
+  { id: 'frame-cyan-magenta', name: 'Neon Glow', emoji: '✨', borderColor: 'transparent', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#00FFFF', bottomColor: '#FF00FF' },
 ];
 
 export const PROFILE_ICONS_EMOJIS = [
