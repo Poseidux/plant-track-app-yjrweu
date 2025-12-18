@@ -23,6 +23,7 @@ import { checkAchievements } from '@/utils/achievements';
 import { formatLargeNumber, formatEarnings } from '@/utils/formatNumber';
 import { shareStatsAsImage } from '@/utils/shareStatsImage';
 import { AVATAR_FRAMES, PROFILE_ICONS_EMOJIS } from '@/types/Shop';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Memoized performance item component
 const PerformanceItem = React.memo(({ 
@@ -395,14 +396,14 @@ export default function AnalyticsScreen() {
   const blockTalkQuotes = useMemo(() => [
     { quote: 'The reward for our work is not what we get, but who we become.', author: 'Cam L.' },
     { quote: 'Plant hard and you will become hard. Plant softly and you will remain soft.', author: 'Plantations 3:16' },
-    { quote: 'And the Lord Treesus said unto them, \'Fret not the double plant, my child, for the checker cannot check them all.\' Thus were his words spoken.', author: 'Revalations 25:37' },
+    { quote: 'And the Lord Treesus said unto them, "Fret not the double plant, my child, for the checker cannot check them all." Thus were his words spoken.', author: 'Revalations 25:37' },
     { quote: 'In the forest no one can hear you scream', author: 'J.K.' },
-    { quote: 'Now the Lord Treesus spoke to them, his faithful, his followers; he doth speak: \'What more doth one need?\'', author: 'Reflections 69:420' },
+    { quote: 'Now the Lord Treesus spoke to them, his faithful, his followers; he doth speak: "What more doth one need?"', author: 'Reflections 69:420' },
     { quote: 'I love the smell of DEET in the morning', author: 'Big Bertha' },
     { quote: 'I saw a cougar and ran. I didn\'t tell the planter next to me because they\'re faster. I regret nothing.', author: 'Fred E. (Bonne Bonne Bonne)' },
     { quote: 'If chocolate milk can\'t fix it, it\'s probably terminal.', author: 'Liam S.' },
     { quote: 'It\'s 5am, it\'s freezing, my ribs have slipped, my wrist is swollen… and somehow the worst part is that the coffee tastes like ass.', author: 'A.K. (Peanut Butter)' },
-    { quote: 'After 9 hours on the block, I realized \'tree\' is just a very honest word. That\'s it. That\'s the thought.', author: 'H.A.' },
+    { quote: 'After 9 hours on the block, I realized "tree" is just a very honest word. That\'s it. That\'s the thought.', author: 'H.A.' },
     { quote: 'After high-balling you for two shifts, I can confidently say the secret to planting more trees is planting more trees.', author: 'S.A.' },
     { quote: 'If you want to plant 3K, you\'ve gotta walk like your bag-up depends on it.', author: 'Sean K.' },
     { quote: 'I don\'t want revenge. I want balance. That\'s why I\'ll be a state checker.', author: 'S.E.' },
@@ -412,8 +413,145 @@ export default function AnalyticsScreen() {
     { quote: 'I\'m 90% DEET at this point. A horse wouldn\'t survive this! And these bugs are still completely unbothered!!!', author: 'N.L.' },
     { quote: 'Give him the entire pack of flagger. He will use all of it. Trust me.', author: 'L.G.' },
     { quote: 'Rocks hurt. Wasp nests hurt. Super bitch after 10 hours? That changes you.', author: 'B.E. (Guwbs)' },
-    { quote: 'I loved today. All I heard was \'ting ting ahhhhhh, ting ting ahhhhh\' on repeat… all day. I\'m happy now.', author: 'A.K.' },
+    { quote: 'I loved today. All I heard was "ting ting ahhhhhh, ting ting ahhhhh" on repeat… all day. I\'m happy now.', author: 'A.K.' },
   ], []);
+
+  // FIXED: Render avatar with frame correctly
+  const renderAvatarWithFrame = () => {
+    if (!frameStyle) {
+      return (
+        <View style={[
+          styles.performanceAvatarContainer, 
+          { 
+            backgroundColor: '#F0F0F0',
+            borderWidth: 3,
+            borderColor: colors.primary,
+          }
+        ]}>
+          <Text style={styles.performanceAvatarEmoji}>{getAvatarEmoji()}</Text>
+        </View>
+      );
+    }
+
+    if ((frameStyle as any).isGradient) {
+      return (
+        <View style={styles.performanceAvatarContainer}>
+          <LinearGradient
+            colors={(frameStyle as any).gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              styles.avatarGradientBorder,
+              {
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+              }
+            ]}
+          >
+            <View style={[styles.avatarInner, { backgroundColor: '#F0F0F0' }]}>
+              <Text style={styles.performanceAvatarEmoji}>{getAvatarEmoji()}</Text>
+            </View>
+          </LinearGradient>
+        </View>
+      );
+    }
+
+    if ((frameStyle as any).isHalfHalf) {
+      return (
+        <View style={styles.performanceAvatarContainer}>
+          <View style={styles.halfHalfBorderContainer}>
+            <View style={[styles.halfTopBorder, { backgroundColor: (frameStyle as any).topColor }]} />
+            <View style={[styles.halfBottomBorder, { backgroundColor: (frameStyle as any).bottomColor }]} />
+          </View>
+          <View style={[styles.avatarInner, { backgroundColor: '#F0F0F0' }]}>
+            <Text style={styles.performanceAvatarEmoji}>{getAvatarEmoji()}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[
+        styles.performanceAvatarContainer, 
+        { 
+          backgroundColor: '#F0F0F0',
+          borderWidth: frameStyle.borderWidth,
+          borderColor: frameStyle.borderColor,
+        }
+      ]}>
+        <Text style={styles.performanceAvatarEmoji}>{getAvatarEmoji()}</Text>
+      </View>
+    );
+  };
+
+  const renderFullscreenAvatarWithFrame = () => {
+    if (!frameStyle) {
+      return (
+        <View style={[
+          styles.fullscreenAvatarContainer, 
+          { 
+            backgroundColor: '#F0F0F0',
+            borderWidth: 3,
+            borderColor: colors.primary,
+          }
+        ]}>
+          <Text style={styles.fullscreenAvatarEmoji}>{getAvatarEmoji()}</Text>
+        </View>
+      );
+    }
+
+    if ((frameStyle as any).isGradient) {
+      return (
+        <View style={styles.fullscreenAvatarContainer}>
+          <LinearGradient
+            colors={(frameStyle as any).gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              styles.avatarGradientBorder,
+              {
+                width: 120,
+                height: 120,
+                borderRadius: 60,
+              }
+            ]}
+          >
+            <View style={[styles.avatarInner, { backgroundColor: '#F0F0F0', width: 110, height: 110, borderRadius: 55 }]}>
+              <Text style={styles.fullscreenAvatarEmoji}>{getAvatarEmoji()}</Text>
+            </View>
+          </LinearGradient>
+        </View>
+      );
+    }
+
+    if ((frameStyle as any).isHalfHalf) {
+      return (
+        <View style={styles.fullscreenAvatarContainer}>
+          <View style={[styles.halfHalfBorderContainer, { width: 120, height: 120, borderRadius: 60 }]}>
+            <View style={[styles.halfTopBorder, { width: 120, height: 60 }]} />
+            <View style={[styles.halfBottomBorder, { width: 120, height: 60 }]} />
+          </View>
+          <View style={[styles.avatarInner, { backgroundColor: '#F0F0F0', width: 110, height: 110, borderRadius: 55 }]}>
+            <Text style={styles.fullscreenAvatarEmoji}>{getAvatarEmoji()}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[
+        styles.fullscreenAvatarContainer, 
+        { 
+          backgroundColor: '#F0F0F0',
+          borderWidth: frameStyle.borderWidth,
+          borderColor: frameStyle.borderColor,
+        }
+      ]}>
+        <Text style={styles.fullscreenAvatarEmoji}>{getAvatarEmoji()}</Text>
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -683,15 +821,7 @@ export default function AnalyticsScreen() {
               collapsable={false}
             >
               <View style={styles.performanceCardHeader}>
-                <View style={[
-                  styles.performanceAvatarContainer,
-                  {
-                    borderWidth: frameStyle ? frameStyle.borderWidth : 3,
-                    borderColor: frameStyle ? frameStyle.borderColor : colors.primary,
-                  }
-                ]}>
-                  <Text style={styles.performanceAvatarEmoji}>{getAvatarEmoji()}</Text>
-                </View>
+                {renderAvatarWithFrame()}
                 <Text style={[styles.performanceCardName, { color: colors.text }]}>
                   {profile.name}
                 </Text>
@@ -800,7 +930,13 @@ export default function AnalyticsScreen() {
             <View style={styles.tipItem}>
               <Text style={[styles.tipNumber, { color: colors.primary }]}>2</Text>
               <Text style={[styles.tipText, { color: colors.text }]}>
-                Follow step 1. Seriously, you&apos;ll have all the information you&apos;ll ever need.
+                Visit King Kong Reforestation — even more information and resources there.
+              </Text>
+            </View>
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipNumber, { color: colors.primary }]}>3</Text>
+              <Text style={[styles.tipText, { color: colors.text }]}>
+                Follow steps 1 and 2. Seriously, between the two, you&apos;ll have all the information you&apos;ll ever need.
               </Text>
             </View>
           </View>
@@ -896,15 +1032,7 @@ export default function AnalyticsScreen() {
               >
                 <View style={[styles.shareCardBackground, { backgroundColor: colors.card }]}>
                   <View style={styles.fullscreenCardHeader}>
-                    <View style={[
-                      styles.fullscreenAvatarContainer,
-                      {
-                        borderWidth: frameStyle ? frameStyle.borderWidth : 3,
-                        borderColor: frameStyle ? frameStyle.borderColor : colors.primary,
-                      }
-                    ]}>
-                      <Text style={styles.fullscreenAvatarEmoji}>{getAvatarEmoji()}</Text>
-                    </View>
+                    {renderFullscreenAvatarWithFrame()}
                     <Text style={[styles.fullscreenCardName, { color: colors.text }]}>
                       {profile.name}
                     </Text>
@@ -1277,8 +1405,36 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F0F0F0',
     marginBottom: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  avatarGradientBorder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 5,
+  },
+  avatarInner: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  halfHalfBorderContainer: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    overflow: 'hidden',
+  },
+  halfTopBorder: {
+    width: 80,
+    height: 40,
+  },
+  halfBottomBorder: {
+    width: 80,
+    height: 40,
   },
   performanceAvatarEmoji: {
     fontSize: 48,
@@ -1490,8 +1646,9 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F0F0F0',
     marginBottom: 16,
+    overflow: 'hidden',
+    position: 'relative',
   },
   fullscreenAvatarEmoji: {
     fontSize: 72,

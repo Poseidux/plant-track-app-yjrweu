@@ -13,6 +13,7 @@ import {
   Platform,
   ImageBackground,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
 import { ShopStorageService } from '@/utils/shopStorage';
@@ -358,6 +359,75 @@ export default function ProfileScreen() {
 
   const frameStyle = getFrameStyle();
 
+  const renderAvatarWithFrame = () => {
+    if (!frameStyle) {
+      return (
+        <View style={[
+          styles.avatarContainer, 
+          { 
+            backgroundColor: colors.primary,
+            borderWidth: 3,
+            borderColor: colors.primary,
+          }
+        ]}>
+          <Text style={styles.avatarEmoji}>{getAvatarEmoji()}</Text>
+        </View>
+      );
+    }
+
+    // FIXED: Render frames correctly with proper gradient and half-half styles
+    if ((frameStyle as any).isGradient) {
+      return (
+        <View style={styles.avatarContainer}>
+          <LinearGradient
+            colors={(frameStyle as any).gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              styles.avatarGradientBorder,
+              {
+                width: 100,
+                height: 100,
+                borderRadius: 50,
+              }
+            ]}
+          >
+            <View style={[styles.avatarInner, { backgroundColor: colors.primary }]}>
+              <Text style={styles.avatarEmoji}>{getAvatarEmoji()}</Text>
+            </View>
+          </LinearGradient>
+        </View>
+      );
+    }
+
+    if ((frameStyle as any).isHalfHalf) {
+      return (
+        <View style={styles.avatarContainer}>
+          <View style={styles.halfHalfBorderContainer}>
+            <View style={[styles.halfTopBorder, { backgroundColor: (frameStyle as any).topColor }]} />
+            <View style={[styles.halfBottomBorder, { backgroundColor: (frameStyle as any).bottomColor }]} />
+          </View>
+          <View style={[styles.avatarInner, { backgroundColor: colors.primary }]}>
+            <Text style={styles.avatarEmoji}>{getAvatarEmoji()}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[
+        styles.avatarContainer, 
+        { 
+          backgroundColor: colors.primary,
+          borderWidth: frameStyle.borderWidth,
+          borderColor: frameStyle.borderColor,
+        }
+      ]}>
+        <Text style={styles.avatarEmoji}>{getAvatarEmoji()}</Text>
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ImageBackground
@@ -374,16 +444,7 @@ export default function ProfileScreen() {
         removeClippedSubviews={true}
       >
         <View style={styles.header}>
-          <View style={[
-            styles.avatarContainer, 
-            { 
-              backgroundColor: colors.primary,
-              borderWidth: frameStyle ? frameStyle.borderWidth : 3,
-              borderColor: frameStyle ? frameStyle.borderColor : colors.primary,
-            }
-          ]}>
-            <Text style={styles.avatarEmoji}>{getAvatarEmoji()}</Text>
-          </View>
+          {renderAvatarWithFrame()}
           {profile && !isEditing && (
             <>
               <Text style={[styles.profileName, { color: colors.text }]}>{profile.name}</Text>
@@ -814,6 +875,35 @@ const styles = StyleSheet.create({
     boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
     elevation: 6,
     marginBottom: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  avatarGradientBorder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 5,
+  },
+  avatarInner: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  halfHalfBorderContainer: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    overflow: 'hidden',
+  },
+  halfTopBorder: {
+    width: 100,
+    height: 50,
+  },
+  halfBottomBorder: {
+    width: 100,
+    height: 50,
   },
   avatarEmoji: {
     fontSize: 56,

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Switch } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { TreePlantingLog } from '@/types/TreePlanting';
 import { StorageService } from '@/utils/storage';
@@ -46,8 +46,8 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
     }
   }, []);
 
-  const toggleBackgroundMode = useCallback(async () => {
-    const newMode = backgroundMode === 'day' ? 'night' : 'day';
+  const toggleBackgroundMode = useCallback(async (value: boolean) => {
+    const newMode = value ? 'night' : 'day';
     
     if (isMountedRef.current) {
       setBackgroundMode(newMode);
@@ -58,7 +58,7 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
     } catch (error) {
       console.error('Error saving background mode:', error);
     }
-  }, [backgroundMode]);
+  }, []);
 
   const generateForests = useCallback(async () => {
     try {
@@ -208,14 +208,16 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
           <Text style={styles.headerTreeEmoji}>🌲</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={[styles.backgroundToggle, { backgroundColor: backgroundMode === 'day' ? '#FFD700' : '#4A5F7F' }]}
-            onPress={toggleBackgroundMode}
-          >
-            <Text style={styles.backgroundToggleText}>
-              {backgroundMode === 'day' ? '☀️ Day' : '🌙 Night'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.toggleContainer}>
+            <Text style={[styles.toggleLabel, { color: colors.text }]}>☀️</Text>
+            <Switch
+              value={backgroundMode === 'night'}
+              onValueChange={toggleBackgroundMode}
+              trackColor={{ false: '#FFD700', true: '#4A5F7F' }}
+              thumbColor="#FFFFFF"
+            />
+            <Text style={[styles.toggleLabel, { color: colors.text }]}>🌙</Text>
+          </View>
         </View>
       </View>
 
@@ -264,18 +266,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
   },
-  backgroundToggle: {
+  toggleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
     gap: 6,
   },
-  backgroundToggleText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
+  toggleLabel: {
+    fontSize: 16,
   },
   forestContainer: {
     marginBottom: 24,
