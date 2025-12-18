@@ -1,7 +1,6 @@
 
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, TouchableOpacity, AppState, AppStateStatus } from 'react-native';
-import { useIsFocused } from '@react-navigation/native';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { TreePlantingLog } from '@/types/TreePlanting';
 import { StorageService } from '@/utils/storage';
@@ -11,223 +10,61 @@ interface MyForestProps {
   treeLogs: TreePlantingLog[];
 }
 
-const ANIMATION_DISABLED_KEY = '@forest_animation_disabled';
-
-// Memoized star component with stable props
-const Star = React.memo(({ top, left, size, opacity }: { 
-  top: number; 
-  left: number; 
-  size: number; 
-  opacity: Animated.AnimatedInterpolation<number> | number;
-}) => (
-  <Animated.View
-    style={[
-      styles.star,
-      {
-        top: `${top}%`,
-        left: `${left}%`,
-        width: size,
-        height: size,
-        opacity,
-      },
-    ]}
-  />
-));
-
-Star.displayName = 'Star';
+const BACKGROUND_MODE_KEY = '@forest_background_mode';
 
 const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
   const { colors } = useThemeContext();
   const [seasonTrees, setSeasonTrees] = useState<string[]>([]);
   const [careerTrees, setCareerTrees] = useState<string[]>([]);
-  const [animationDisabled, setAnimationDisabled] = useState(false);
-  const [lowPowerMode, setLowPowerMode] = useState(false);
+  const [backgroundMode, setBackgroundMode] = useState<'day' | 'night'>('day');
   
-  const isFocused = useIsFocused();
-  const dayNightProgress = useRef(new Animated.Value(0)).current;
-  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
-  const isMountedRef = useRef(true);
-  const appState = useRef(AppState.currentState);
-  const lastInteractionRef = useRef(Date.now());
-  const interactionCheckTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = React.useRef(true);
 
   // Cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
     
     return () => {
-      console.log('MyForest unmounting - cleaning up animation');
+      console.log('MyForest unmounting');
       isMountedRef.current = false;
-      stopAnimation();
-      if (interactionCheckTimerRef.current) {
-        clearInterval(interactionCheckTimerRef.current);
-        interactionCheckTimerRef.current = null;
-      }
     };
   }, []);
-
-  // Monitor app state to pause animation when app is in background
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
-    return () => {
-      subscription.remove();
-    };
-  }, [animationDisabled]);
-
-  // Monitor screen focus to pause animation when screen is not visible
-  useEffect(() => {
-    console.log('MyForest screen focus changed:', isFocused);
-    if (!isFocused) {
-      stopAnimation();
-    } else if (!animationDisabled && appState.current === 'active' && isMountedRef.current) {
-      startDayNightCycle();
-    }
-  }, [isFocused, animationDisabled]);
-
-  // Low power mode: detect rapid interactions and pause animation temporarily
-  useEffect(() => {
-    interactionCheckTimerRef.current = setInterval(() => {
-      const timeSinceLastInteraction = Date.now() - lastInteractionRef.current;
-      
-      // If there was interaction in the last 2 seconds, enable low power mode
-      if (timeSinceLastInteraction < 2000 && !lowPowerMode) {
-        console.log('Enabling low power mode due to rapid interactions');
-        setLowPowerMode(true);
-        stopAnimation();
-      } else if (timeSinceLastInteraction >= 2000 && lowPowerMode) {
-        console.log('Disabling low power mode - interactions slowed down');
-        setLowPowerMode(false);
-        if (isFocused && !animationDisabled && appState.current === 'active' && isMountedRef.current) {
-          startDayNightCycle();
-        }
-      }
-    }, 500);
-
-    return () => {
-      if (interactionCheckTimerRef.current) {
-        clearInterval(interactionCheckTimerRef.current);
-        interactionCheckTimerRef.current = null;
-      }
-    };
-  }, [lowPowerMode, isFocused, animationDisabled]);
-
-  const handleAppStateChange = useCallback((nextAppState: AppStateStatus) => {
-    console.log('App state changed:', appState.current, '->', nextAppState);
-    
-    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-      // App has come to foreground
-      if (!animationDisabled && isFocused && !lowPowerMode && isMountedRef.current) {
-        console.log('Resuming animation - app active');
-        startDayNightCycle();
-      }
-    } else if (nextAppState.match(/inactive|background/)) {
-      // App has gone to background - pause animation
-      console.log('Pausing animation - app backgrounded');
-      stopAnimation();
-    }
-    appState.current = nextAppState;
-  }, [animationDisabled, isFocused, lowPowerMode]);
 
   useEffect(() => {
     generateForests();
-    loadAnimationPreference();
+    loadBackgroundMode();
   }, [treeLogs]);
 
-  useEffect(() => {
-    if (!animationDisabled && !lowPowerMode && isFocused && isMountedRef.current && appState.current === 'active') {
-      startDayNightCycle();
-    } else {
-      stopAnimation();
-    }
-    
-    return () => {
-      stopAnimation();
-    };
-  }, [animationDisabled, lowPowerMode, isFocused]);
-
-  const stopAnimation = useCallback(() => {
-    if (animationRef.current) {
-      animationRef.current.stop();
-      animationRef.current = null;
-    }
-    dayNightProgress.stopAnimation();
-  }, [dayNightProgress]);
-
-  const loadAnimationPreference = useCallback(async () => {
+  const loadBackgroundMode = useCallback(async () => {
     try {
-      const value = await AsyncStorage.getItem(ANIMATION_DISABLED_KEY);
+      const value = await AsyncStorage.getItem(BACKGROUND_MODE_KEY);
       if (value !== null && isMountedRef.current) {
-        setAnimationDisabled(value === 'true');
+        setBackgroundMode(value as 'day' | 'night');
       }
     } catch (error) {
-      console.error('Error loading animation preference:', error);
+      console.error('Error loading background mode:', error);
     }
   }, []);
 
-  const toggleAnimation = useCallback(async () => {
-    const newValue = !animationDisabled;
-    
-    stopAnimation();
+  const toggleBackgroundMode = useCallback(async () => {
+    const newMode = backgroundMode === 'day' ? 'night' : 'day';
     
     if (isMountedRef.current) {
-      setAnimationDisabled(newValue);
+      setBackgroundMode(newMode);
     }
     
     try {
-      await AsyncStorage.setItem(ANIMATION_DISABLED_KEY, newValue.toString());
+      await AsyncStorage.setItem(BACKGROUND_MODE_KEY, newMode);
     } catch (error) {
-      console.error('Error saving animation preference:', error);
+      console.error('Error saving background mode:', error);
     }
-  }, [animationDisabled, stopAnimation]);
-
-  const startDayNightCycle = useCallback(() => {
-    if (!isMountedRef.current || appState.current !== 'active' || !isFocused) {
-      console.log('Skipping animation start - conditions not met');
-      return;
-    }
-    
-    console.log('Starting day/night cycle animation');
-    
-    // Stop any existing animation
-    stopAnimation();
-    
-    // Reset to start (day)
-    dayNightProgress.setValue(0);
-    
-    // Use native driver for better performance where possible
-    animationRef.current = Animated.loop(
-      Animated.sequence([
-        // Fade from day (0) to night (0.5) over 15 seconds with smooth easing
-        Animated.timing(dayNightProgress, {
-          toValue: 0.5,
-          duration: 15000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false, // Can't use native driver for backgroundColor
-        }),
-        // Fade from night (0.5) to day (1) over 15 seconds with smooth easing
-        Animated.timing(dayNightProgress, {
-          toValue: 1,
-          duration: 15000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-      ]),
-      {
-        resetBeforeIteration: true,
-      }
-    );
-    
-    if (isMountedRef.current) {
-      animationRef.current.start();
-    }
-  }, [dayNightProgress, stopAnimation, isFocused]);
+  }, [backgroundMode]);
 
   const generateForests = useCallback(async () => {
     try {
       const activeSeason = await StorageService.getActiveSeason();
       
-      // FIXED: Calculate Season Forest from current season logs only
+      // Calculate Season Forest from current season logs only
       let seasonTotal = 0;
       if (activeSeason) {
         const seasonLogs = await StorageService.getSeasonTreeLogs(activeSeason.id);
@@ -238,7 +75,7 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
         console.log('Season Forest total (no active season):', seasonTotal);
       }
       
-      // FIXED: Calculate Career Forest from ALL seasons correctly
+      // Calculate Career Forest from ALL seasons correctly
       const allSeasons = await StorageService.getSeasons();
       let careerTotal = 0;
       
@@ -281,11 +118,6 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
     }
   }, [treeLogs]);
 
-  // Track user interactions for low power mode
-  const handleUserInteraction = useCallback(() => {
-    lastInteractionRef.current = Date.now();
-  }, []);
-
   // Memoize stars to prevent recreation - stable reference
   const stars = useMemo(() => {
     const starArray = [];
@@ -305,25 +137,24 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
     return starArray;
   }, []); // Empty deps - only create once
 
-  // Memoize star opacity interpolation
-  const starOpacity = useMemo(() => 
-    dayNightProgress.interpolate({
-      inputRange: [0, 0.25, 0.5, 0.75, 1],
-      outputRange: [0, 0, 1, 0, 0],
-    })
-  , [dayNightProgress]);
-
   const renderStars = useCallback(() => {
+    if (backgroundMode !== 'night') return null;
+    
     return stars.map((star) => (
-      <Star
+      <View
         key={star.key}
-        top={star.top}
-        left={star.left}
-        size={star.size}
-        opacity={starOpacity}
+        style={[
+          styles.star,
+          {
+            top: `${star.top}%`,
+            left: `${star.left}%`,
+            width: star.size,
+            height: star.size,
+          },
+        ]}
       />
     ));
-  }, [stars, starOpacity]);
+  }, [stars, backgroundMode]);
 
   const renderForestGrid = useCallback((trees: string[], title: string, treesPerEmoji: number, showDayNight: boolean = false) => {
     if (trees.length === 0) {
@@ -340,47 +171,33 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
       );
     }
 
-    const shouldAnimate = showDayNight && !animationDisabled && !lowPowerMode && isFocused && appState.current === 'active';
-    
-    const backgroundColor = shouldAnimate
-      ? dayNightProgress.interpolate({
-          inputRange: [0, 0.25, 0.5, 0.75, 1],
-          outputRange: [
-            '#87CEEB', // Day - sky blue
-            '#4A5F7F', // Dusk - darker blue
-            '#1a1a2e', // Night - dark blue
-            '#4A5F7F', // Dawn - darker blue
-            '#87CEEB', // Day - sky blue
-          ],
-        })
+    const backgroundColor = showDayNight
+      ? (backgroundMode === 'day' ? '#87CEEB' : '#1a1a2e')
       : colors.highlight;
 
     return (
       <View style={styles.forestContainer}>
         <Text style={[styles.forestTitle, { color: colors.text }]}>🌲 {title} 🌲</Text>
-        <Animated.View 
+        <View 
           style={[
             styles.forestGrid, 
-            shouldAnimate
-              ? { backgroundColor } 
-              : { backgroundColor: colors.highlight }
+            { backgroundColor }
           ]}
-          onTouchStart={handleUserInteraction}
         >
-          {shouldAnimate && renderStars()}
+          {showDayNight && renderStars()}
           
           {trees.map((tree, index) => (
             <View key={`tree-${title}-${index}`} style={styles.treeIcon}>
               <Text style={styles.treeEmoji}>🌲</Text>
             </View>
           ))}
-        </Animated.View>
+        </View>
         <Text style={[styles.forestInfo, { color: colors.textSecondary }]}>
           Each tree icon represents {treesPerEmoji.toLocaleString()} trees planted
         </Text>
       </View>
     );
-  }, [colors, animationDisabled, lowPowerMode, isFocused, dayNightProgress, renderStars, handleUserInteraction]);
+  }, [colors, backgroundMode, renderStars]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.card }]}>
@@ -391,17 +208,12 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
           <Text style={styles.headerTreeEmoji}>🌲</Text>
         </View>
         <View style={styles.headerRight}>
-          {lowPowerMode && (
-            <View style={[styles.lowPowerBadge, { backgroundColor: colors.warning }]}>
-              <Text style={styles.lowPowerText}>⚡ Low Power</Text>
-            </View>
-          )}
           <TouchableOpacity
-            style={[styles.animationToggle, { backgroundColor: animationDisabled ? colors.error : colors.primary }]}
-            onPress={toggleAnimation}
+            style={[styles.backgroundToggle, { backgroundColor: backgroundMode === 'day' ? '#FFD700' : '#4A5F7F' }]}
+            onPress={toggleBackgroundMode}
           >
-            <Text style={styles.animationToggleText}>
-              {animationDisabled ? '⏸ Paused' : '▶ Playing'}
+            <Text style={styles.backgroundToggleText}>
+              {backgroundMode === 'day' ? '☀️ Day' : '🌙 Night'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -452,17 +264,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
   },
-  lowPowerBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  lowPowerText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  animationToggle: {
+  backgroundToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -470,7 +272,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 6,
   },
-  animationToggleText: {
+  backgroundToggleText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',

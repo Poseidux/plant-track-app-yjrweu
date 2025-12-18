@@ -22,7 +22,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { PieChart, LineChart } from 'react-native-chart-kit';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { formatLargeNumber } from '@/utils/formatNumber';
+import { formatLargeNumber, formatEarnings } from '@/utils/formatNumber';
 import { APP_THEMES } from '@/constants/Themes';
 
 const SECRET_CODE = 'TH15APPW45CR34T3D8YA0RN1AV5TH15I5MYF1R5TPR0J3CTTH3R35M0R3T0C0M31W1LLT4K30V3R';
@@ -396,6 +396,14 @@ export default function HomeScreen() {
     router.push(route as any);
   }, [router]);
 
+  // FIXED: Format total earnings in K format when above 1000
+  const formattedEarnings = useMemo(() => {
+    if (totalEarnings >= 1000) {
+      return formatEarnings(totalEarnings);
+    }
+    return `$${totalEarnings.toFixed(2)}`;
+  }, [totalEarnings]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ImageBackground
@@ -459,7 +467,7 @@ export default function HomeScreen() {
           <StatCard
             icon="dollarsign.circle.fill"
             androidIcon="attach-money"
-            value={totalEarnings >= 100000 ? `$${formatLargeNumber(totalEarnings)}` : `$${totalEarnings.toFixed(2)}`}
+            value={formattedEarnings}
             label="Total Earnings"
             backgroundColor={colors.secondary}
             onPress={() => handleNavigate('/(tabs)/(home)/earnings-summary')}

@@ -19,7 +19,7 @@ import { TreePlantingLog, EarningsLog, ExpenseLog, Achievement, UserProfile } fr
 import { IconSymbol } from '@/components/IconSymbol';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { checkAchievements } from '@/utils/achievements';
-import { formatLargeNumber } from '@/utils/formatNumber';
+import { formatLargeNumber, formatEarnings } from '@/utils/formatNumber';
 import { shareStatsAsImage } from '@/utils/shareStatsImage';
 import { AVATAR_FRAMES, PROFILE_ICONS_EMOJIS } from '@/types/Shop';
 
@@ -29,13 +29,15 @@ const PerformanceItem = React.memo(({
   androidIcon, 
   color, 
   label, 
-  value 
+  value,
+  textColor
 }: {
   icon: string;
   androidIcon: string;
   color: string;
   label: string;
   value: string;
+  textColor: string;
 }) => (
   <View style={styles.overviewItem}>
     <IconSymbol
@@ -44,10 +46,10 @@ const PerformanceItem = React.memo(({
       size={20}
       color={color}
     />
-    <Text style={[styles.overviewLabel, { color: '#747A7C' }]}>
+    <Text style={[styles.overviewLabel, { color: textColor }]}>
       {label}
     </Text>
-    <Text style={[styles.overviewValue, { color: '#2D3436' }]}>
+    <Text style={[styles.overviewValue, { color: textColor }]}>
       {value}
     </Text>
   </View>
@@ -122,7 +124,7 @@ export default function AnalyticsScreen() {
     ? Math.max(...treeLogs.map(log => log.totalTrees))
     : 0, [treeLogs]);
 
-  // FIXED: Calculate total hours and trees per hour/minute correctly
+  // Calculate total hours and trees per hour/minute correctly
   const totalHours = useMemo(() => {
     return treeLogs.reduce((sum, log) => {
       if (!log.hourlyLogs || log.hourlyLogs.length === 0) {
@@ -330,14 +332,14 @@ export default function AnalyticsScreen() {
       androidIcon: 'attach-money',
       color: colors.secondary,
       label: 'Total Earnings',
-      value: totalEarnings >= 100000 ? `$${formatLargeNumber(totalEarnings)}` : `$${totalEarnings.toFixed(2)}`,
+      value: totalEarnings >= 1000 ? formatEarnings(totalEarnings) : `$${totalEarnings.toFixed(2)}`,
     },
     {
       icon: 'cart.fill',
       androidIcon: 'shopping-cart',
       color: colors.error,
       label: 'Total Expenses',
-      value: totalExpenses >= 100000 ? `$${formatLargeNumber(totalExpenses)}` : `$${totalExpenses.toFixed(2)}`,
+      value: totalExpenses >= 1000 ? formatEarnings(totalExpenses) : `$${totalExpenses.toFixed(2)}`,
     },
     {
       icon: 'clock.fill',
@@ -381,27 +383,28 @@ export default function AnalyticsScreen() {
 
   const frameStyle = getFrameStyle();
 
+  // FIXED: Block Talk quotes with proper apostrophes
   const blockTalkQuotes = useMemo(() => [
     { quote: 'The reward for our work is not what we get, but who we become.', author: 'Cam L.' },
     { quote: 'Plant hard and you will become hard. Plant softly and you will remain soft.', author: 'Plantations 3:16' },
-    { quote: 'And the Lord Treesus said unto them, &apos;Fret not the double plant, my child, for the checker cannot check them all.&apos; Thus were his words spoken.', author: 'Revalations 25:37' },
+    { quote: 'And the Lord Treesus said unto them, \'Fret not the double plant, my child, for the checker cannot check them all.\' Thus were his words spoken.', author: 'Revalations 25:37' },
     { quote: 'In the forest no one can hear you scream', author: 'J.K.' },
-    { quote: 'Now the Lord Treesus spoke to them, his faithful, his followers; he doth speak: &apos;What more doth one need?&apos;', author: 'Reflections 69:420' },
+    { quote: 'Now the Lord Treesus spoke to them, his faithful, his followers; he doth speak: \'What more doth one need?\'', author: 'Reflections 69:420' },
     { quote: 'I love the smell of DEET in the morning', author: 'Big Bertha' },
-    { quote: 'I saw a cougar and ran. I didn&apos;t tell the planter next to me because they&apos;re faster. I regret nothing.', author: 'Fred E. (Bonne Bonne Bonne)' },
-    { quote: 'If chocolate milk can&apos;t fix it, it&apos;s probably terminal.', author: 'Liam S.' },
-    { quote: 'It&apos;s 5am, it&apos;s freezing, my ribs have slipped, my wrist is swollen… and somehow the worst part is that the coffee tastes like ass.', author: 'A.K. (Peanut Butter)' },
-    { quote: 'After 9 hours on the block, I realized &apos;tree&apos; is just a very honest word. That&apos;s it. That&apos;s the thought.', author: 'H.A.' },
+    { quote: 'I saw a cougar and ran. I didn\'t tell the planter next to me because they\'re faster. I regret nothing.', author: 'Fred E. (Bonne Bonne Bonne)' },
+    { quote: 'If chocolate milk can\'t fix it, it\'s probably terminal.', author: 'Liam S.' },
+    { quote: 'It\'s 5am, it\'s freezing, my ribs have slipped, my wrist is swollen… and somehow the worst part is that the coffee tastes like ass.', author: 'A.K. (Peanut Butter)' },
+    { quote: 'After 9 hours on the block, I realized \'tree\' is just a very honest word. That\'s it. That\'s the thought.', author: 'H.A.' },
     { quote: 'After high-balling you for two shifts, I can confidently say the secret to planting more trees is planting more trees.', author: 'S.A.' },
-    { quote: 'If you want to plant 3K, you&apos;ve gotta walk like your bag-up depends on it.', author: 'Sean K.' },
-    { quote: 'I don&apos;t want revenge. I want balance. That&apos;s why I&apos;ll be a state checker.', author: 'S.E.' },
+    { quote: 'If you want to plant 3K, you\'ve gotta walk like your bag-up depends on it.', author: 'Sean K.' },
+    { quote: 'I don\'t want revenge. I want balance. That\'s why I\'ll be a state checker.', author: 'S.E.' },
     { quote: 'Yeah, tree planting is pretty fun. My first year I fell into quicksand, got toe tendonitis, fell off a cliff… but hey, I planted 3K on day three.', author: 'E.S.' },
-    { quote: 'You&apos;re a rookie, so here&apos;s my advice: it always gets worse. Trust me, I&apos;ve been doing this for three whole years.', author: 'J.K.' },
+    { quote: 'You\'re a rookie, so here\'s my advice: it always gets worse. Trust me, I\'ve been doing this for three whole years.', author: 'J.K.' },
     { quote: 'Why does your plate look like a prison tray? Should I be worried about your past?', author: 'E.P.' },
-    { quote: 'I&apos;m 90% DEET at this point. A horse wouldn&apos;t survive this! And these bugs are still completely unbothered!!!', author: 'N.L.' },
+    { quote: 'I\'m 90% DEET at this point. A horse wouldn\'t survive this! And these bugs are still completely unbothered!!!', author: 'N.L.' },
     { quote: 'Give him the entire pack of flagger. He will use all of it. Trust me.', author: 'L.G.' },
     { quote: 'Rocks hurt. Wasp nests hurt. Super bitch after 10 hours? That changes you.', author: 'B.E. (Guwbs)' },
-    { quote: 'I loved today. All I heard was &apos;ting ting ahhhhhh, ting ting ahhhhh&apos; on repeat… all day. I&apos;m happy now.', author: 'A.K.' },
+    { quote: 'I loved today. All I heard was \'ting ting ahhhhhh, ting ting ahhhhh\' on repeat… all day. I\'m happy now.', author: 'A.K.' },
   ], []);
 
   return (
@@ -439,6 +442,7 @@ export default function AnalyticsScreen() {
                 color={item.color}
                 label={item.label}
                 value={item.value}
+                textColor={colors.text}
               />
             ))}
           </View>
@@ -803,7 +807,7 @@ export default function AnalyticsScreen() {
           </Text>
           
           <Text style={[styles.blockTalkDescription, { color: colors.textSecondary }]}>
-            If you have &quot;Block Talk&quot; you&apos;d like to see featured here, post it on the Reddit tree planting page and include the keywords &quot;Sylvi Plus&quot; and &quot;Block Talk.&quot; Every six months, we&apos;ll update the app with your submissions.
+            If you have "Block Talk" you'd like to see featured here, post it on the Reddit tree planting page and include the keywords "Sylvi Plus" and "Block Talk." Every six months, we'll update the app with your submissions.
           </Text>
           
           <View style={styles.quotesList}>
@@ -934,7 +938,7 @@ export default function AnalyticsScreen() {
 
                   <View style={[styles.fullscreenStatsSection, { backgroundColor: colors.highlight }]}>
                     <Text style={[styles.fullscreenSectionTitle, { color: colors.text }]}>
-                      Today&apos;s Performance
+                      Today's Performance
                     </Text>
                     <View style={styles.fullscreenStatsGrid}>
                       <View style={styles.fullscreenStatItem}>
