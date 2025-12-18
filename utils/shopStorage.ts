@@ -85,6 +85,8 @@ export const ShopStorageService = {
       cosmetics.coins = 999999;
       
       const allItemIds = [
+        'theme-default',
+        'theme-default-dark',
         'theme-ocean-breeze',
         'theme-ocean-breeze-dark',
         'theme-sunset-glow',
@@ -164,7 +166,6 @@ export const ShopStorageService = {
         'avatar-snowman',
         'avatar-unicorn',
         'avatar-dragon',
-        'avatar-phoenix',
         'avatar-butterfly',
         'avatar-bee',
         'avatar-ladybug',
@@ -174,6 +175,9 @@ export const ShopStorageService = {
         'avatar-lightning',
         'avatar-rainbow',
         'avatar-cloud',
+        'avatar-peanut-butter',
+        'avatar-vape',
+        'avatar-weed',
       ];
       
       cosmetics.purchasedItems = [...new Set([...cosmetics.purchasedItems, ...allItemIds])];

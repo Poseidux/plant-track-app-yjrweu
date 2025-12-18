@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   Modal,
   Animated,
+  Linking,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { StorageService } from '@/utils/storage';
@@ -66,6 +67,7 @@ export default function AnalyticsScreen() {
   const [cardRotation] = useState(new Animated.Value(0));
   const [showFullscreenPerformance, setShowFullscreenPerformance] = useState(false);
   const shareViewRef = useRef(null);
+  const normalShareViewRef = useRef(null);
   const [equippedFrame, setEquippedFrame] = useState<string | undefined>();
   const [equippedAvatar, setEquippedAvatar] = useState<string | undefined>();
 
@@ -256,6 +258,12 @@ export default function AnalyticsScreen() {
   }, [treeLogs]);
 
   const handleShareStats = useCallback(async () => {
+    if (normalShareViewRef.current) {
+      await shareStatsAsImage(normalShareViewRef.current);
+    }
+  }, []);
+
+  const handleShareStatsFullscreen = useCallback(async () => {
     if (shareViewRef.current) {
       await shareStatsAsImage(shareViewRef.current);
     }
@@ -669,7 +677,11 @@ export default function AnalyticsScreen() {
             ]}
           >
             <View style={[styles.performanceCardGlow, { backgroundColor: colors.primary }]} />
-            <View style={styles.performanceCardContent}>
+            <View 
+              ref={normalShareViewRef}
+              style={styles.performanceCardContent}
+              collapsable={false}
+            >
               <View style={styles.performanceCardHeader}>
                 <View style={[
                   styles.performanceAvatarContainer,
@@ -772,20 +784,38 @@ export default function AnalyticsScreen() {
           </View>
           
           <View style={styles.tipsList}>
-            {[
-              'Plant in the morning when soil is moist and temperatures are cooler',
-              'Use proper planting technique: J-root method for better survival rates',
-              'Take regular breaks to maintain consistent planting speed',
-              'Stay hydrated and bring high-energy snacks for sustained performance',
-              'Adjust your technique for different terrain types and soil conditions'
-            ].map((tip, index) => (
-              <View key={`tip-${index}`} style={styles.tipItem}>
-                <Text style={[styles.tipNumber, { color: colors.primary }]}>{index + 1}</Text>
-                <Text style={[styles.tipText, { color: colors.text }]}>
-                  {tip}
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipNumber, { color: colors.primary }]}>1</Text>
+              <Text style={[styles.tipText, { color: colors.text }]}>
+                Check out{' '}
+                <Text 
+                  style={[styles.tipLink, { color: colors.primary }]}
+                  onPress={() => Linking.openURL('https://www.reddit.com/r/treeplanting/')}
+                >
+                  r/treeplanting
                 </Text>
-              </View>
-            ))}
+                {' '}— a whole subreddit dedicated to tree planting with everything you could need.
+              </Text>
+            </View>
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipNumber, { color: colors.primary }]}>2</Text>
+              <Text style={[styles.tipText, { color: colors.text }]}>
+                Visit{' '}
+                <Text 
+                  style={[styles.tipLink, { color: colors.primary }]}
+                  onPress={() => Linking.openURL('https://www.kingkongreforestation.com/')}
+                >
+                  King Kong Reforestation
+                </Text>
+                {' '}— even more information and resources there.
+              </Text>
+            </View>
+            <View style={styles.tipItem}>
+              <Text style={[styles.tipNumber, { color: colors.primary }]}>3</Text>
+              <Text style={[styles.tipText, { color: colors.text }]}>
+                Follow steps 1 and 2. Seriously, between the two, you&apos;ll have all the information you&apos;ll ever need.
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -807,7 +837,7 @@ export default function AnalyticsScreen() {
           </Text>
           
           <Text style={[styles.blockTalkDescription, { color: colors.textSecondary }]}>
-            If you have "Block Talk" you'd like to see featured here, post it on the Reddit tree planting page and include the keywords "Sylvi Plus" and "Block Talk." Every six months, we'll update the app with your submissions.
+            If you have "Block Talk" you&apos;d like to see featured here, post it on the Reddit tree planting page and include the keywords "Sylvi Plus" and "Block Talk." Every six months, we&apos;ll update the app with your submissions.
           </Text>
           
           <View style={styles.quotesList}>
@@ -938,7 +968,7 @@ export default function AnalyticsScreen() {
 
                   <View style={[styles.fullscreenStatsSection, { backgroundColor: colors.highlight }]}>
                     <Text style={[styles.fullscreenSectionTitle, { color: colors.text }]}>
-                      Today's Performance
+                      Today&apos;s Performance
                     </Text>
                     <View style={styles.fullscreenStatsGrid}>
                       <View style={styles.fullscreenStatItem}>
@@ -987,7 +1017,7 @@ export default function AnalyticsScreen() {
 
             <TouchableOpacity
               style={[styles.fullscreenShareButton, { backgroundColor: colors.primary }]}
-              onPress={handleShareStats}
+              onPress={handleShareStatsFullscreen}
             >
               <IconSymbol
                 ios_icon_name="square.and.arrow.up"
@@ -1065,7 +1095,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   overviewValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     marginTop: 4,
   },
@@ -1281,17 +1311,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   performanceCardStatLabel: {
-    fontSize: 12,
+    fontSize: 11,
     marginBottom: 8,
     textAlign: 'center',
   },
   performanceCardStatValue: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     marginBottom: 4,
   },
   performanceCardStatUnit: {
-    fontSize: 11,
+    fontSize: 10,
   },
   performanceCardDivider: {
     width: 1,
@@ -1354,6 +1384,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     lineHeight: 22,
+  },
+  tipLink: {
+    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
   blockTalkCard: {
     borderRadius: 16,
@@ -1506,12 +1540,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   fullscreenStatValue: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '800',
     marginBottom: 8,
   },
   fullscreenStatLabel: {
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
   },
   shareFooter: {

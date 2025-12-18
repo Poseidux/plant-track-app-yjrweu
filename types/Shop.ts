@@ -66,7 +66,6 @@ export const PROFILE_ICONS_EMOJIS = [
   { id: 'avatar-snowman', name: 'Snowman', emoji: '⛄', price: 150 },
   { id: 'avatar-unicorn', name: 'Unicorn', emoji: '🦄', price: 300 },
   { id: 'avatar-dragon', name: 'Dragon', emoji: '🐉', price: 300 },
-  { id: 'avatar-phoenix', name: 'Phoenix', emoji: '🔥🦅', price: 350 },
   { id: 'avatar-butterfly', name: 'Butterfly', emoji: '🦋', price: 150 },
   { id: 'avatar-bee', name: 'Bee', emoji: '🐝', price: 150 },
   { id: 'avatar-ladybug', name: 'Ladybug', emoji: '🐞', price: 150 },
@@ -76,4 +75,7 @@ export const PROFILE_ICONS_EMOJIS = [
   { id: 'avatar-lightning', name: 'Lightning', emoji: '⚡', price: 200 },
   { id: 'avatar-rainbow', name: 'Rainbow', emoji: '🌈', price: 250 },
   { id: 'avatar-cloud', name: 'Cloud', emoji: '☁️', price: 100 },
+  { id: 'avatar-peanut-butter', name: 'Peanut Butter', emoji: '🥜', price: 150 },
+  { id: 'avatar-vape', name: 'Vape', emoji: '💨', price: 200 },
+  { id: 'avatar-weed', name: 'Weed', emoji: '🌿', price: 200 },
 ];
