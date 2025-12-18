@@ -28,11 +28,17 @@ export const AVATAR_FRAMES = [
   { id: 'frame-emerald', name: 'Emerald Frame', emoji: '💚', borderColor: '#50C878', borderWidth: 4, price: 800 },
   { id: 'frame-ruby', name: 'Ruby Frame', emoji: '❤️', borderColor: '#E0115F', borderWidth: 4, price: 800 },
   { id: 'frame-sapphire', name: 'Sapphire Frame', emoji: '💙', borderColor: '#0F52BA', borderWidth: 4, price: 800 },
-  { id: 'frame-rainbow', name: 'Rainbow Frame', emoji: '🌈', borderColor: 'linear-gradient(45deg, #FF0000, #FF7F00, #FFFF00, #00FF00, #0000FF, #4B0082, #9400D3)', borderWidth: 5, price: 1500 },
+  { id: 'frame-rainbow', name: 'Rainbow Frame', emoji: '🌈', borderColor: '#FF0000', borderWidth: 5, price: 1500, isGradient: true, gradientColors: ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'] },
   { id: 'frame-fire', name: 'Fire Frame', emoji: '🔥', borderColor: '#FF4500', borderWidth: 4, price: 600 },
   { id: 'frame-ice', name: 'Ice Frame', emoji: '❄️', borderColor: '#00FFFF', borderWidth: 4, price: 600 },
   { id: 'frame-nature', name: 'Nature Frame', emoji: '🌿', borderColor: '#228B22', borderWidth: 4, price: 600 },
   { id: 'frame-cosmic', name: 'Cosmic Frame', emoji: '✨', borderColor: '#9370DB', borderWidth: 5, price: 900 },
+  { id: 'frame-blue-green', name: 'Ocean Wave', emoji: '🌊', borderColor: '#00CED1', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#0000FF', bottomColor: '#00FF00' },
+  { id: 'frame-red-yellow', name: 'Sunset Blaze', emoji: '🌅', borderColor: '#FF4500', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#FF0000', bottomColor: '#FFD700' },
+  { id: 'frame-purple-pink', name: 'Twilight Dream', emoji: '🌸', borderColor: '#FF69B4', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#9370DB', bottomColor: '#FF69B4' },
+  { id: 'frame-orange-blue', name: 'Fire & Ice', emoji: '🔥❄️', borderColor: '#FF8C00', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#FF4500', bottomColor: '#00BFFF' },
+  { id: 'frame-green-yellow', name: 'Forest Sun', emoji: '🌳☀️', borderColor: '#32CD32', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#228B22', bottomColor: '#FFD700' },
+  { id: 'frame-cyan-magenta', name: 'Neon Glow', emoji: '✨', borderColor: '#00FFFF', borderWidth: 5, price: 700, isHalfHalf: true, topColor: '#00FFFF', bottomColor: '#FF00FF' },
 ];
 
 export const PROFILE_ICONS_EMOJIS = [
@@ -75,7 +81,4 @@ export const PROFILE_ICONS_EMOJIS = [
   { id: 'avatar-lightning', name: 'Lightning', emoji: '⚡', price: 200 },
   { id: 'avatar-rainbow', name: 'Rainbow', emoji: '🌈', price: 250 },
   { id: 'avatar-cloud', name: 'Cloud', emoji: '☁️', price: 100 },
-  { id: 'avatar-peanut-butter', name: 'Peanut Butter', emoji: '🥜', price: 150 },
-  { id: 'avatar-vape', name: 'Vape', emoji: '💨', price: 200 },
-  { id: 'avatar-weed', name: 'Weed', emoji: '🌿', price: 200 },
 ];

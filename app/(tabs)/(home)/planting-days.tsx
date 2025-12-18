@@ -56,13 +56,15 @@ export default function PlantingDaysScreen() {
       const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const hasPlanting = plantingDates.has(dateStr);
       const log = treeLogs.find(l => l.date === dateStr);
+      const isSickOrDayOff = log && (log.dayType === 'sick' || log.dayType === 'dayoff');
 
       days.push(
         <TouchableOpacity
           key={`day-${day}`}
           style={[
             styles.calendarDay,
-            hasPlanting && { backgroundColor: colors.secondary },
+            hasPlanting && !isSickOrDayOff && { backgroundColor: colors.secondary },
+            isSickOrDayOff && { backgroundColor: colors.error },
           ]}
           disabled={!hasPlanting}
         >
@@ -74,9 +76,14 @@ export default function PlantingDaysScreen() {
           >
             {day}
           </Text>
-          {hasPlanting && log && (
+          {hasPlanting && log && !isSickOrDayOff && (
             <Text style={styles.calendarDayTrees}>
               {log.totalTrees}
+            </Text>
+          )}
+          {isSickOrDayOff && (
+            <Text style={styles.calendarDayLabel}>
+              {log.dayType === 'sick' ? 'Sick' : 'Off'}
             </Text>
           )}
         </TouchableOpacity>
@@ -167,39 +174,49 @@ export default function PlantingDaysScreen() {
                 Planting day
               </Text>
             </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
+              <Text style={[styles.legendText, { color: colors.text }]}>
+                Sick day / Day off
+              </Text>
+            </View>
           </View>
         </View>
 
         <View style={[styles.recentCard, { backgroundColor: colors.card }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Recent Planting Days</Text>
-          {treeLogs.slice(0, 10).map((log, index) => (
-            <View key={`recent-${log.id}-${index}`} style={[styles.recentItem, { borderBottomColor: colors.border }]}>
-              <View style={styles.recentLeft}>
-                <IconSymbol
-                  ios_icon_name="calendar"
-                  android_material_icon_name="calendar-today"
-                  size={20}
-                  color={colors.primary}
-                />
-                <View style={styles.recentInfo}>
-                  <Text style={[styles.recentDate, { color: colors.text }]}>
-                    {new Date(log.date).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </Text>
-                  <Text style={[styles.recentProvince, { color: colors.textSecondary }]}>
-                    {log.province}
-                  </Text>
+          {treeLogs.slice(0, 10).map((log, index) => {
+            const isSickOrDayOff = log.dayType === 'sick' || log.dayType === 'dayoff';
+            
+            return (
+              <View key={`recent-${log.id}-${index}`} style={[styles.recentItem, { borderBottomColor: colors.border }]}>
+                <View style={styles.recentLeft}>
+                  <IconSymbol
+                    ios_icon_name="calendar"
+                    android_material_icon_name="calendar-today"
+                    size={20}
+                    color={isSickOrDayOff ? colors.error : colors.primary}
+                  />
+                  <View style={styles.recentInfo}>
+                    <Text style={[styles.recentDate, { color: colors.text }]}>
+                      {new Date(log.date).toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </Text>
+                    <Text style={[styles.recentProvince, { color: colors.textSecondary }]}>
+                      {log.province} {isSickOrDayOff && `• ${log.dayType === 'sick' ? 'Sick Day' : 'Day Off'}`}
+                    </Text>
+                  </View>
                 </View>
+                <Text style={[styles.recentTrees, { color: isSickOrDayOff ? colors.error : colors.secondary }]}>
+                  {isSickOrDayOff ? (log.dayType === 'sick' ? 'Sick' : 'Off') : `${log.totalTrees} trees`}
+                </Text>
               </View>
-              <Text style={[styles.recentTrees, { color: colors.secondary }]}>
-                {log.totalTrees} trees
-              </Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         <View style={styles.bottomPadding} />
@@ -305,10 +322,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginTop: 2,
   },
+  calendarDayLabel: {
+    fontSize: 8,
+    color: '#FFFFFF',
+    marginTop: 2,
+    fontWeight: '600',
+  },
   legend: {
     marginTop: 16,
     padding: 12,
     borderRadius: 8,
+    gap: 8,
   },
   legendItem: {
     flexDirection: 'row',

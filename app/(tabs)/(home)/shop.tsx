@@ -11,6 +11,7 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeContext } from '@/contexts/ThemeContext';
 import { IconSymbol } from '@/components/IconSymbol';
 import { ShopStorageService } from '@/utils/shopStorage';
@@ -257,15 +258,15 @@ export default function ShopScreen() {
   };
 
   const renderThemes = () => {
-    const premiumThemes = APP_THEMES.filter(t => t.id !== 'default');
+    const allThemes = APP_THEMES;
     
     return (
       <View style={styles.itemsContainer}>
-        {premiumThemes.map((theme, index) => {
+        {allThemes.map((theme, index) => {
           const themeItemId = `theme-${theme.id}`;
-          const isPurchased = cosmetics.purchasedItems.includes(themeItemId);
+          const isPurchased = cosmetics.purchasedItems.includes(themeItemId) || theme.isDefault;
           const isEquipped = selectedTheme === theme.id;
-          const price = 500;
+          const price = theme.isDefault ? 0 : 500;
 
           return (
             <TouchableOpacity
@@ -279,7 +280,7 @@ export default function ShopScreen() {
                 },
               ]}
               onPress={() => {
-                if (isPurchased || theme.id === 'default') {
+                if (isPurchased) {
                   handleThemePurchase(theme.id, theme.name, price);
                 } else {
                   handleThemePurchase(theme.id, theme.name, price);
@@ -338,26 +339,58 @@ export default function ShopScreen() {
                   borderWidth: isEquipped ? 3 : 1,
                 },
               ]}
-              onPress={() => {
+              onPress={async () => {
                 if (isPurchased) {
-                  ShopStorageService.equipItem('avatarFrame', frame.id);
-                  loadCosmetics();
+                  await ShopStorageService.equipItem('avatarFrame', frame.id);
+                  await loadCosmetics();
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Alert.alert('Equipped', `${frame.name} has been equipped!`);
                 } else {
                   handlePurchase(frame.id, frame.price, frame.name, 'frame');
                 }
               }}
             >
               <View style={styles.framePreview}>
-                <View style={[
-                  styles.framePreviewCircle,
-                  {
-                    borderColor: frame.borderColor,
-                    borderWidth: frame.borderWidth,
-                  }
-                ]}>
-                  <Text style={styles.framePreviewEmoji}>👤</Text>
-                </View>
+                {(frame as any).isGradient ? (
+                  <LinearGradient
+                    colors={(frame as any).gradientColors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[
+                      styles.framePreviewCircle,
+                      {
+                        borderWidth: frame.borderWidth,
+                      }
+                    ]}
+                  >
+                    <Text style={styles.framePreviewEmoji}>👤</Text>
+                  </LinearGradient>
+                ) : (frame as any).isHalfHalf ? (
+                  <View style={[
+                    styles.framePreviewCircle,
+                    {
+                      borderWidth: frame.borderWidth,
+                      borderColor: 'transparent',
+                      overflow: 'hidden',
+                    }
+                  ]}>
+                    <View style={styles.halfHalfContainer}>
+                      <View style={[styles.halfTop, { backgroundColor: (frame as any).topColor }]} />
+                      <View style={[styles.halfBottom, { backgroundColor: (frame as any).bottomColor }]} />
+                    </View>
+                    <Text style={[styles.framePreviewEmoji, { position: 'absolute', zIndex: 1 }]}>👤</Text>
+                  </View>
+                ) : (
+                  <View style={[
+                    styles.framePreviewCircle,
+                    {
+                      borderColor: frame.borderColor,
+                      borderWidth: frame.borderWidth,
+                    }
+                  ]}>
+                    <Text style={styles.framePreviewEmoji}>👤</Text>
+                  </View>
+                )}
               </View>
               <View style={styles.itemHeader}>
                 <Text style={[styles.itemName, { color: colors.text }]} numberOfLines={1}>{frame.name}</Text>
@@ -401,11 +434,12 @@ export default function ShopScreen() {
                   borderWidth: isEquipped ? 3 : 1,
                 },
               ]}
-              onPress={() => {
+              onPress={async () => {
                 if (isPurchased) {
-                  ShopStorageService.equipItem('avatar', avatar.id);
-                  loadCosmetics();
+                  await ShopStorageService.equipItem('avatar', avatar.id);
+                  await loadCosmetics();
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Alert.alert('Equipped', `${avatar.name} has been equipped!`);
                 } else {
                   handlePurchase(avatar.id, avatar.price, avatar.name, 'avatar');
                 }
@@ -903,6 +937,21 @@ const styles = StyleSheet.create({
   },
   framePreviewEmoji: {
     fontSize: 32,
+  },
+  halfHalfContainer: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 30,
+    overflow: 'hidden',
+  },
+  halfTop: {
+    width: '100%',
+    height: '50%',
+  },
+  halfBottom: {
+    width: '100%',
+    height: '50%',
   },
   bottomPadding: {
     height: 20,

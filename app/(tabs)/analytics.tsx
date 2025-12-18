@@ -800,20 +800,7 @@ export default function AnalyticsScreen() {
             <View style={styles.tipItem}>
               <Text style={[styles.tipNumber, { color: colors.primary }]}>2</Text>
               <Text style={[styles.tipText, { color: colors.text }]}>
-                Visit{' '}
-                <Text 
-                  style={[styles.tipLink, { color: colors.primary }]}
-                  onPress={() => Linking.openURL('https://www.kingkongreforestation.com/')}
-                >
-                  King Kong Reforestation
-                </Text>
-                {' '}— even more information and resources there.
-              </Text>
-            </View>
-            <View style={styles.tipItem}>
-              <Text style={[styles.tipNumber, { color: colors.primary }]}>3</Text>
-              <Text style={[styles.tipText, { color: colors.text }]}>
-                Follow steps 1 and 2. Seriously, between the two, you&apos;ll have all the information you&apos;ll ever need.
+                Follow step 1. Seriously, you&apos;ll have all the information you&apos;ll ever need.
               </Text>
             </View>
           </View>
