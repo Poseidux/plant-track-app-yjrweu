@@ -381,6 +381,29 @@ export default function AnalyticsScreen() {
 
   const frameStyle = getFrameStyle();
 
+  const blockTalkQuotes = useMemo(() => [
+    { quote: 'The reward for our work is not what we get, but who we become.', author: 'Cam L.' },
+    { quote: 'Plant hard and you will become hard. Plant softly and you will remain soft.', author: 'Plantations 3:16' },
+    { quote: 'And the Lord Treesus said unto them, &apos;Fret not the double plant, my child, for the checker cannot check them all.&apos; Thus were his words spoken.', author: 'Revalations 25:37' },
+    { quote: 'In the forest no one can hear you scream', author: 'J.K.' },
+    { quote: 'Now the Lord Treesus spoke to them, his faithful, his followers; he doth speak: &apos;What more doth one need?&apos;', author: 'Reflections 69:420' },
+    { quote: 'I love the smell of DEET in the morning', author: 'Big Bertha' },
+    { quote: 'I saw a cougar and ran. I didn&apos;t tell the planter next to me because they&apos;re faster. I regret nothing.', author: 'Fred E. (Bonne Bonne Bonne)' },
+    { quote: 'If chocolate milk can&apos;t fix it, it&apos;s probably terminal.', author: 'Liam S.' },
+    { quote: 'It&apos;s 5am, it&apos;s freezing, my ribs have slipped, my wrist is swollen… and somehow the worst part is that the coffee tastes like ass.', author: 'A.K. (Peanut Butter)' },
+    { quote: 'After 9 hours on the block, I realized &apos;tree&apos; is just a very honest word. That&apos;s it. That&apos;s the thought.', author: 'H.A.' },
+    { quote: 'After high-balling you for two shifts, I can confidently say the secret to planting more trees is planting more trees.', author: 'S.A.' },
+    { quote: 'If you want to plant 3K, you&apos;ve gotta walk like your bag-up depends on it.', author: 'Sean K.' },
+    { quote: 'I don&apos;t want revenge. I want balance. That&apos;s why I&apos;ll be a state checker.', author: 'S.E.' },
+    { quote: 'Yeah, tree planting is pretty fun. My first year I fell into quicksand, got toe tendonitis, fell off a cliff… but hey, I planted 3K on day three.', author: 'E.S.' },
+    { quote: 'You&apos;re a rookie, so here&apos;s my advice: it always gets worse. Trust me, I&apos;ve been doing this for three whole years.', author: 'J.K.' },
+    { quote: 'Why does your plate look like a prison tray? Should I be worried about your past?', author: 'E.P.' },
+    { quote: 'I&apos;m 90% DEET at this point. A horse wouldn&apos;t survive this! And these bugs are still completely unbothered!!!', author: 'N.L.' },
+    { quote: 'Give him the entire pack of flagger. He will use all of it. Trust me.', author: 'L.G.' },
+    { quote: 'Rocks hurt. Wasp nests hurt. Super bitch after 10 hours? That changes you.', author: 'B.E. (Guwbs)' },
+    { quote: 'I loved today. All I heard was &apos;ting ting ahhhhhh, ting ting ahhhhh&apos; on repeat… all day. I&apos;m happy now.', author: 'A.K.' },
+  ], []);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ImageBackground
@@ -759,6 +782,56 @@ export default function AnalyticsScreen() {
                 </Text>
               </View>
             ))}
+          </View>
+        </View>
+
+        <View style={[styles.blockTalkCard, { backgroundColor: colors.card }]}>
+          <View style={styles.blockTalkHeader}>
+            <IconSymbol
+              ios_icon_name="quote.bubble.fill"
+              android_material_icon_name="format-quote"
+              size={28}
+              color={colors.secondary}
+            />
+            <Text style={[styles.blockTalkTitle, { color: colors.text }]}>
+              Block Talk
+            </Text>
+          </View>
+          
+          <Text style={[styles.blockTalkSubtitle, { color: colors.textSecondary }]}>
+            Dirty Hands, Smart Words
+          </Text>
+          
+          <Text style={[styles.blockTalkDescription, { color: colors.textSecondary }]}>
+            If you have &quot;Block Talk&quot; you&apos;d like to see featured here, post it on the Reddit tree planting page and include the keywords &quot;Sylvi Plus&quot; and &quot;Block Talk.&quot; Every six months, we&apos;ll update the app with your submissions.
+          </Text>
+          
+          <View style={styles.quotesList}>
+            {blockTalkQuotes.map((item, index) => (
+              <View key={`quote-${index}`} style={[styles.quoteItem, { backgroundColor: colors.highlight }]}>
+                <IconSymbol
+                  ios_icon_name="quote.opening"
+                  android_material_icon_name="format-quote"
+                  size={20}
+                  color={colors.primary}
+                  style={styles.quoteIcon}
+                />
+                <View style={styles.quoteContent}>
+                  <Text style={[styles.quoteText, { color: colors.text }]}>
+                    {item.quote}
+                  </Text>
+                  <Text style={[styles.quoteAuthor, { color: colors.textSecondary }]}>
+                    ~ {item.author}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+          
+          <View style={[styles.thankYouSection, { backgroundColor: colors.highlight }]}>
+            <Text style={[styles.thankYouText, { color: colors.textSecondary }]}>
+              *A huge thank you to everyone in my Ontario camp for an incredible season — you were all amazing! Special shout-outs to Kovacs, Cam, Anjeli, Hannah, Fred, Syd, Ned, Gabe, Alec, Declan, and Liam — you all made it unforgettable.*
+            </Text>
           </View>
         </View>
 
@@ -1277,6 +1350,71 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     lineHeight: 22,
+  },
+  blockTalkCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 3,
+  },
+  blockTalkHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  blockTalkTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  blockTalkSubtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  blockTalkDescription: {
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 20,
+    fontStyle: 'italic',
+  },
+  quotesList: {
+    gap: 16,
+  },
+  quoteItem: {
+    flexDirection: 'row',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  quoteIcon: {
+    marginTop: 2,
+  },
+  quoteContent: {
+    flex: 1,
+  },
+  quoteText: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  quoteAuthor: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  thankYouSection: {
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 12,
+  },
+  thankYouText: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   bottomPadding: {
     height: 20,
