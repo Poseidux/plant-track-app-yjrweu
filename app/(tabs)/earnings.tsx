@@ -14,7 +14,7 @@ import {
   ImageBackground,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
-import { StorageService } from '@/utils/storage';
+import { StorageService, parseLocalDate, getLocalDateString } from '@/utils/storage';
 import { EarningsLog, ExpenseLog, EXPENSE_CATEGORIES } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LineChart, BarChart } from 'react-native-chart-kit';
@@ -59,7 +59,7 @@ export default function EarningsScreen() {
 
     const newLog: EarningsLog = {
       id: Date.now().toString(),
-      date: selectedDate.toISOString().split('T')[0],
+      date: getLocalDateString(selectedDate),
       amount: parseFloat(amount),
       paymentType: 'per-tree',
       notes,
@@ -85,7 +85,7 @@ export default function EarningsScreen() {
 
     const newLog: ExpenseLog = {
       id: Date.now().toString(),
-      date: selectedDate.toISOString().split('T')[0],
+      date: getLocalDateString(selectedDate),
       amount: parseFloat(amount),
       category: expenseCategory,
       description: expenseDescription,
@@ -143,13 +143,13 @@ export default function EarningsScreen() {
 
   const getEarningsChartData = () => {
     const sortedLogs = [...earningsLogs].sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
+      parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime()
     );
     const last7 = sortedLogs.slice(-7);
     
     return {
       labels: last7.length > 0 
-        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        ? last7.map(log => parseLocalDate(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
         : ['No Data'],
       datasets: [{
         data: last7.length > 0 ? last7.map(log => log.amount) : [0],
@@ -159,13 +159,13 @@ export default function EarningsScreen() {
 
   const getExpensesChartData = () => {
     const sortedLogs = [...expenseLogs].sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
+      parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime()
     );
     const last7 = sortedLogs.slice(-7);
     
     return {
       labels: last7.length > 0 
-        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        ? last7.map(log => parseLocalDate(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
         : ['No Data'],
       datasets: [{
         data: last7.length > 0 ? last7.map(log => log.amount) : [0],
@@ -194,7 +194,7 @@ export default function EarningsScreen() {
     
     return {
       labels: last7Dates.length > 0 
-        ? last7Dates.map(date => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        ? last7Dates.map(date => parseLocalDate(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
         : ['No Data'],
       datasets: [{
         data: netIncomeData.length > 0 ? netIncomeData : [0],
@@ -229,7 +229,7 @@ export default function EarningsScreen() {
     
     return {
       labels: last7Dates.length > 0 
-        ? last7Dates.map(date => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        ? last7Dates.map(date => parseLocalDate(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
         : ['No Data'],
       datasets: [
         {
@@ -474,7 +474,7 @@ export default function EarningsScreen() {
                     +${log.amount.toFixed(2)}
                   </Text>
                   <Text style={[styles.logDate, { color: colors.textSecondary }]}>
-                    {new Date(log.date).toLocaleDateString('en-US', {
+                    {parseLocalDate(log.date).toLocaleDateString('en-US', {
                       weekday: 'short',
                       month: 'short',
                       day: 'numeric',
@@ -524,7 +524,7 @@ export default function EarningsScreen() {
                     -${log.amount.toFixed(2)}
                   </Text>
                   <Text style={[styles.logDate, { color: colors.textSecondary }]}>
-                    {new Date(log.date).toLocaleDateString('en-US', {
+                    {parseLocalDate(log.date).toLocaleDateString('en-US', {
                       weekday: 'short',
                       month: 'short',
                       day: 'numeric',

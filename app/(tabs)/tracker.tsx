@@ -14,7 +14,7 @@ import {
   ImageBackground,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
-import { StorageService, getLocalDateString } from '@/utils/storage';
+import { StorageService, getLocalDateString, parseLocalDate } from '@/utils/storage';
 import { TreePlantingLog, HourlyLog, TREE_SPECIES, DaySettings } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import MyForest from '@/components/MyForest';
@@ -100,7 +100,7 @@ const LogCard = React.memo(({
   };
 
   // Parse date correctly - log.date is already in YYYY-MM-DD format
-  const logDate = new Date(log.date + 'T00:00:00');
+  const logDate = parseLocalDate(log.date);
 
   return (
     <View style={[styles.logCard, { backgroundColor: colors.card, borderLeftColor: getDayTypeColor(log.dayType) }]}>

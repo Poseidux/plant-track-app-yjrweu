@@ -14,7 +14,7 @@ import {
   Linking,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
-import { StorageService, getLocalDateString } from '@/utils/storage';
+import { StorageService, getLocalDateString, parseLocalDate } from '@/utils/storage';
 import { ShopStorageService } from '@/utils/shopStorage';
 import { TreePlantingLog, EarningsLog, ExpenseLog, Achievement, UserProfile } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -339,14 +339,14 @@ export default function AnalyticsScreen() {
 
   const getTreesChartData = useMemo(() => {
     const sortedLogs = [...treeLogs].sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
+      parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime()
     );
     const last7 = sortedLogs.slice(-7);
     
     return {
       labels: last7.length > 0 
         ? last7.map(log => {
-            const logDate = new Date(log.date + 'T00:00:00');
+            const logDate = parseLocalDate(log.date);
             return logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           })
         : ['No Data'],
@@ -358,14 +358,14 @@ export default function AnalyticsScreen() {
 
   const getEarningsChartData = useMemo(() => {
     const sortedLogs = [...earningsLogs].sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
+      parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime()
     );
     const last7 = sortedLogs.slice(-7);
     
     return {
       labels: last7.length > 0 
         ? last7.map(log => {
-            const logDate = new Date(log.date + 'T00:00:00');
+            const logDate = parseLocalDate(log.date);
             return logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           })
         : ['No Data'],
@@ -377,14 +377,14 @@ export default function AnalyticsScreen() {
 
   const getRateChartData = useMemo(() => {
     const sortedLogs = [...treeLogs].sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
+      parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime()
     );
     const last7 = sortedLogs.slice(-7);
     
     return {
       labels: last7.length > 0 
         ? last7.map(log => {
-            const logDate = new Date(log.date + 'T00:00:00');
+            const logDate = parseLocalDate(log.date);
             return logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           })
         : ['No Data'],

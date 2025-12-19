@@ -10,7 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
-import { StorageService } from '@/utils/storage';
+import { StorageService, parseLocalDate } from '@/utils/storage';
 import { TreePlantingLog } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
@@ -199,7 +199,7 @@ export default function PlantingDaysScreen() {
                   />
                   <View style={styles.recentInfo}>
                     <Text style={[styles.recentDate, { color: colors.text }]}>
-                      {new Date(log.date).toLocaleDateString('en-US', {
+                      {parseLocalDate(log.date).toLocaleDateString('en-US', {
                         weekday: 'short',
                         month: 'short',
                         day: 'numeric',
