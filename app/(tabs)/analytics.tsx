@@ -127,45 +127,52 @@ export default function AnalyticsScreen() {
     ? Math.max(...treeLogs.map(log => log.totalTrees))
     : 0, [treeLogs]);
 
-  // Calculate total hours and trees per hour/minute correctly
-  const totalHours = useMemo(() => {
-    return treeLogs.reduce((sum, log) => {
-      if (!log.hourlyLogs || log.hourlyLogs.length === 0) {
+  // FIXED: Calculate Trees/Hour and Trees/Minute from CURRENT DAY's logs
+  const today = new Date().toISOString().split('T')[0];
+  const todayLog = useMemo(() => treeLogs.find(log => log.date === today), [treeLogs, today]);
+  
+  const todayTrees = useMemo(() => todayLog ? todayLog.totalTrees : 0, [todayLog]);
+  
+  const todayHours = useMemo(() => {
+    if (!todayLog || !todayLog.hourlyLogs || todayLog.hourlyLogs.length === 0) {
+      return 0;
+    }
+    
+    return todayLog.hourlyLogs.reduce((sum, hourLog) => {
+      try {
+        // Parse time strings like "9:00 AM" or "2:30 PM"
+        const parseTime = (timeStr: string) => {
+          const [time, period] = timeStr.split(' ');
+          const [hours, minutes] = time.split(':').map(Number);
+          let hour24 = hours;
+          
+          if (period === 'PM' && hours !== 12) {
+            hour24 = hours + 12;
+          } else if (period === 'AM' && hours === 12) {
+            hour24 = 0;
+          }
+          
+          return hour24 + (minutes || 0) / 60;
+        };
+        
+        const startHour = parseTime(hourLog.startTime);
+        const endHour = parseTime(hourLog.endTime);
+        const hours = endHour - startHour;
+        
+        return sum + (isNaN(hours) || hours < 0 ? 0 : hours);
+      } catch (error) {
+        console.error('Error calculating hours:', error);
         return sum;
       }
-      
-      return sum + log.hourlyLogs.reduce((hourSum, hourLog) => {
-        try {
-          // Parse time strings like "9:00 AM" or "2:30 PM"
-          const parseTime = (timeStr: string) => {
-            const [time, period] = timeStr.split(' ');
-            const [hours, minutes] = time.split(':').map(Number);
-            let hour24 = hours;
-            
-            if (period === 'PM' && hours !== 12) {
-              hour24 = hours + 12;
-            } else if (period === 'AM' && hours === 12) {
-              hour24 = 0;
-            }
-            
-            return hour24 + (minutes || 0) / 60;
-          };
-          
-          const startHour = parseTime(hourLog.startTime);
-          const endHour = parseTime(hourLog.endTime);
-          const hours = endHour - startHour;
-          
-          return hourSum + (isNaN(hours) || hours < 0 ? 0 : hours);
-        } catch (error) {
-          console.error('Error calculating hours:', error);
-          return hourSum;
-        }
-      }, 0);
     }, 0);
-  }, [treeLogs]);
+  }, [todayLog]);
   
-  const treesPerHour = useMemo(() => totalHours > 0 ? totalTrees / totalHours : 0, [totalTrees, totalHours]);
+  const treesPerHour = useMemo(() => todayHours > 0 ? todayTrees / todayHours : 0, [todayTrees, todayHours]);
   const treesPerMinute = useMemo(() => treesPerHour / 60, [treesPerHour]);
+
+  console.log('Today performance:', { todayTrees, todayHours, treesPerHour, treesPerMinute });
+
+  const todayRate = useMemo(() => todayHours > 0 ? todayTrees / todayHours : 0, [todayTrees, todayHours]);
 
   const midPoint = useMemo(() => Math.floor(treeLogs.length / 2), [treeLogs]);
   const firstHalfAvg = useMemo(() => midPoint > 0 
@@ -177,12 +184,6 @@ export default function AnalyticsScreen() {
   const percentageImprovement = useMemo(() => firstHalfAvg > 0 
     ? ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100
     : 0, [firstHalfAvg, secondHalfAvg]);
-
-  const today = new Date().toISOString().split('T')[0];
-  const todayLog = useMemo(() => treeLogs.find(log => log.date === today), [treeLogs, today]);
-  const todayTrees = useMemo(() => todayLog ? todayLog.totalTrees : 0, [todayLog]);
-  const todayHours = useMemo(() => todayLog ? (todayLog.hourlyLogs || []).length : 0, [todayLog]);
-  const todayRate = useMemo(() => todayHours > 0 ? todayTrees / todayHours : 0, [todayTrees, todayHours]);
 
   const getSpeciesDistribution = useCallback(() => {
     const speciesCount: { [key: string]: number } = {};
@@ -392,7 +393,7 @@ export default function AnalyticsScreen() {
 
   const frameStyle = getFrameStyle();
 
-  // FIXED: Block Talk quotes with proper apostrophes
+  // FIXED: Block Talk quotes with the new quote
   const blockTalkQuotes = useMemo(() => [
     { quote: 'The reward for our work is not what we get, but who we become.', author: 'Cam L.' },
     { quote: 'Plant hard and you will become hard. Plant softly and you will remain soft.', author: 'Plantations 3:16' },
@@ -411,12 +412,12 @@ export default function AnalyticsScreen() {
     { quote: 'You\'re a rookie, so here\'s my advice: it always gets worse. Trust me, I\'ve been doing this for three whole years.', author: 'J.K.' },
     { quote: 'Why does your plate look like a prison tray? Should I be worried about your past?', author: 'E.P.' },
     { quote: 'I\'m 90% DEET at this point. A horse wouldn\'t survive this! And these bugs are still completely unbothered!!!', author: 'N.L.' },
-    { quote: 'Give him the entire pack of flagger. He will use all of it. Trust me.', author: 'L.G.' },
+    { quote: 'Solid work today, boys. It\'s ripper night; bad ideas are now encouraged.', author: 'L.G.' },
     { quote: 'Rocks hurt. Wasp nests hurt. Super bitch after 10 hours? That changes you.', author: 'B.E. (Guwbs)' },
     { quote: 'I loved today. All I heard was "ting ting ahhhhhh, ting ting ahhhhh" on repeat… all day. I\'m happy now.', author: 'A.K.' },
   ], []);
 
-  // FIXED: Render avatar with frame correctly
+  // Render avatar with frame correctly
   const renderAvatarWithFrame = () => {
     if (!frameStyle) {
       return (
@@ -1096,7 +1097,7 @@ export default function AnalyticsScreen() {
                       </View>
                       <View style={styles.fullscreenStatItem}>
                         <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
-                          {todayHours}
+                          {todayHours.toFixed(1)}
                         </Text>
                         <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
                           Hours Worked

@@ -94,9 +94,12 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
         console.log('Career Forest total (all seasons):', careerTotal);
       }
       
-      // Each tree icon represents 1000 trees for season, 10000 for career
+      // FIXED: Each tree icon represents 1,000 trees for season, 10,000 for career
       const seasonTreeCount = Math.floor(seasonTotal / 1000);
       const careerTreeCount = Math.floor(careerTotal / 10000);
+
+      console.log('Season tree icons:', seasonTreeCount, '(from', seasonTotal, 'trees)');
+      console.log('Career tree icons:', careerTreeCount, '(from', careerTotal, 'trees)');
 
       const seasonTreeArray: string[] = [];
       for (let i = 0; i < Math.min(seasonTreeCount, 100); i++) {
@@ -111,7 +114,7 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
       if (isMountedRef.current) {
         setSeasonTrees(seasonTreeArray);
         setCareerTrees(careerTreeArray);
-        console.log('Forest updated - Season:', seasonTreeArray.length, 'Career:', careerTreeArray.length);
+        console.log('Forest updated - Season icons:', seasonTreeArray.length, 'Career icons:', careerTreeArray.length);
       }
     } catch (error) {
       console.error('Error generating forests:', error);
