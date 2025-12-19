@@ -31,29 +31,14 @@ export const ShopStorageService = {
     }
   },
 
-  async addCoins(amount: number): Promise<void> {
-    try {
-      const cosmetics = await this.getUserCosmetics();
-      cosmetics.coins += amount;
-      await this.saveUserCosmetics(cosmetics);
-    } catch (error) {
-      console.error('Error adding coins:', error);
-    }
-  },
-
   async purchaseItem(itemId: string, price: number): Promise<boolean> {
     try {
       const cosmetics = await this.getUserCosmetics();
-      
-      if (cosmetics.coins < price) {
-        return false;
-      }
       
       if (cosmetics.purchasedItems.includes(itemId)) {
         return false;
       }
       
-      cosmetics.coins -= price;
       cosmetics.purchasedItems.push(itemId);
       await this.saveUserCosmetics(cosmetics);
       return true;
@@ -82,7 +67,6 @@ export const ShopStorageService = {
   async unlockAllItems(): Promise<void> {
     try {
       const cosmetics = await this.getUserCosmetics();
-      cosmetics.coins = 999999;
       
       const allItemIds = [
         'theme-default',
@@ -136,6 +120,12 @@ export const ShopStorageService = {
         'frame-ice',
         'frame-nature',
         'frame-cosmic',
+        'frame-blue-green',
+        'frame-red-yellow',
+        'frame-purple-pink',
+        'frame-orange-blue',
+        'frame-green-yellow',
+        'frame-cyan-magenta',
         'avatar-tree',
         'avatar-leaf',
         'avatar-seedling',
@@ -175,9 +165,6 @@ export const ShopStorageService = {
         'avatar-lightning',
         'avatar-rainbow',
         'avatar-cloud',
-        'avatar-peanut-butter',
-        'avatar-vape',
-        'avatar-weed',
       ];
       
       cosmetics.purchasedItems = [...new Set([...cosmetics.purchasedItems, ...allItemIds])];
