@@ -133,11 +133,55 @@ export default function AnalyticsScreen() {
     const plantingDays = treeLogs.filter(log => log.dayType !== 'sick' && log.dayType !== 'dayoff');
     
     if (plantingDays.length === 0) {
+      console.log('No planting days found');
       return 0;
     }
 
     let totalTrees = 0;
     let totalHours = 0;
+
+    // Helper function to parse time strings like "9:00 AM" or "2:30 PM"
+    const parseTime = (timeStr: string): number => {
+      try {
+        // Remove extra spaces and split
+        const cleanTime = timeStr.trim();
+        const parts = cleanTime.split(' ');
+        
+        if (parts.length !== 2) {
+          console.error('Invalid time format:', timeStr);
+          return 0;
+        }
+        
+        const [time, period] = parts;
+        const timeParts = time.split(':');
+        
+        if (timeParts.length !== 2) {
+          console.error('Invalid time parts:', timeStr);
+          return 0;
+        }
+        
+        let hours = parseInt(timeParts[0], 10);
+        const minutes = parseInt(timeParts[1], 10);
+        
+        if (isNaN(hours) || isNaN(minutes)) {
+          console.error('Invalid hours or minutes:', timeStr);
+          return 0;
+        }
+        
+        // Convert to 24-hour format
+        if (period.toUpperCase() === 'PM' && hours !== 12) {
+          hours += 12;
+        } else if (period.toUpperCase() === 'AM' && hours === 12) {
+          hours = 0;
+        }
+        
+        // Return as decimal hours
+        return hours + (minutes / 60);
+      } catch (error) {
+        console.error('Error parsing time:', timeStr, error);
+        return 0;
+      }
+    };
 
     plantingDays.forEach(log => {
       totalTrees += log.totalTrees;
@@ -145,37 +189,33 @@ export default function AnalyticsScreen() {
       // Count hours from hourly logs
       if (log.hourlyLogs && log.hourlyLogs.length > 0) {
         log.hourlyLogs.forEach(hourLog => {
-          try {
-            // Parse time strings like "9:00 AM" or "2:30 PM"
-            const parseTime = (timeStr: string) => {
-              const [time, period] = timeStr.split(' ');
-              const [hours, minutes] = time.split(':').map(Number);
-              let hour24 = hours;
-              
-              if (period === 'PM' && hours !== 12) {
-                hour24 = hours + 12;
-              } else if (period === 'AM' && hours === 12) {
-                hour24 = 0;
-              }
-              
-              return hour24 + (minutes || 0) / 60;
-            };
-            
-            const startHour = parseTime(hourLog.startTime);
-            const endHour = parseTime(hourLog.endTime);
-            const hours = endHour - startHour;
-            
-            if (!isNaN(hours) && hours > 0) {
-              totalHours += hours;
-            }
-          } catch (error) {
-            console.error('Error parsing time:', error);
+          const startHour = parseTime(hourLog.startTime);
+          const endHour = parseTime(hourLog.endTime);
+          
+          let hours = endHour - startHour;
+          
+          // Handle case where end time is past midnight (unlikely but possible)
+          if (hours < 0) {
+            hours += 24;
+          }
+          
+          if (!isNaN(hours) && hours > 0 && hours < 24) {
+            totalHours += hours;
+          } else {
+            console.warn('Invalid hour calculation:', {
+              startTime: hourLog.startTime,
+              endTime: hourLog.endTime,
+              startHour,
+              endHour,
+              hours
+            });
           }
         });
       }
     });
 
     console.log('Season performance calculation:', { 
+      plantingDaysCount: plantingDays.length,
       totalTrees, 
       totalHours, 
       treesPerHour: totalHours > 0 ? totalTrees / totalHours : 0 
@@ -197,31 +237,46 @@ export default function AnalyticsScreen() {
       return 0;
     }
 
-    const todayHours = todayLog.hourlyLogs.reduce((sum, hourLog) => {
+    const parseTime = (timeStr: string): number => {
       try {
-        const parseTime = (timeStr: string) => {
-          const [time, period] = timeStr.split(' ');
-          const [hours, minutes] = time.split(':').map(Number);
-          let hour24 = hours;
-          
-          if (period === 'PM' && hours !== 12) {
-            hour24 = hours + 12;
-          } else if (period === 'AM' && hours === 12) {
-            hour24 = 0;
-          }
-          
-          return hour24 + (minutes || 0) / 60;
-        };
+        const cleanTime = timeStr.trim();
+        const parts = cleanTime.split(' ');
         
-        const startHour = parseTime(hourLog.startTime);
-        const endHour = parseTime(hourLog.endTime);
-        const hours = endHour - startHour;
+        if (parts.length !== 2) return 0;
         
-        return sum + (isNaN(hours) || hours < 0 ? 0 : hours);
+        const [time, period] = parts;
+        const timeParts = time.split(':');
+        
+        if (timeParts.length !== 2) return 0;
+        
+        let hours = parseInt(timeParts[0], 10);
+        const minutes = parseInt(timeParts[1], 10);
+        
+        if (isNaN(hours) || isNaN(minutes)) return 0;
+        
+        if (period.toUpperCase() === 'PM' && hours !== 12) {
+          hours += 12;
+        } else if (period.toUpperCase() === 'AM' && hours === 12) {
+          hours = 0;
+        }
+        
+        return hours + (minutes / 60);
       } catch (error) {
-        console.error('Error calculating hours:', error);
-        return sum;
+        console.error('Error parsing time:', timeStr, error);
+        return 0;
       }
+    };
+
+    const todayHours = todayLog.hourlyLogs.reduce((sum, hourLog) => {
+      const startHour = parseTime(hourLog.startTime);
+      const endHour = parseTime(hourLog.endTime);
+      let hours = endHour - startHour;
+      
+      if (hours < 0) {
+        hours += 24;
+      }
+      
+      return sum + (isNaN(hours) || hours < 0 || hours >= 24 ? 0 : hours);
     }, 0);
 
     return todayHours > 0 ? todayLog.totalTrees / todayHours : 0;
