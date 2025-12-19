@@ -143,16 +143,22 @@ export default function AnalyticsScreen() {
     // Helper function to parse time strings like "9:00 AM" or "2:30 PM"
     const parseTime = (timeStr: string): number => {
       try {
-        // Remove extra spaces and split
-        const cleanTime = timeStr.trim();
+        // Remove ALL extra spaces and normalize
+        const cleanTime = timeStr.trim().replace(/\s+/g, ' ');
+        
+        // Split by space to separate time and period
         const parts = cleanTime.split(' ');
         
-        if (parts.length !== 2) {
-          console.error('Invalid time format:', timeStr);
+        if (parts.length < 2) {
+          console.error('Invalid time format (missing AM/PM):', timeStr);
           return 0;
         }
         
-        const [time, period] = parts;
+        // Get the time part (first element) and period (last element)
+        const time = parts[0];
+        const period = parts[parts.length - 1];
+        
+        // Split time into hours and minutes
         const timeParts = time.split(':');
         
         if (timeParts.length !== 2) {
@@ -169,9 +175,10 @@ export default function AnalyticsScreen() {
         }
         
         // Convert to 24-hour format
-        if (period.toUpperCase() === 'PM' && hours !== 12) {
+        const periodUpper = period.toUpperCase();
+        if (periodUpper === 'PM' && hours !== 12) {
           hours += 12;
-        } else if (period.toUpperCase() === 'AM' && hours === 12) {
+        } else if (periodUpper === 'AM' && hours === 12) {
           hours = 0;
         }
         
@@ -239,12 +246,19 @@ export default function AnalyticsScreen() {
 
     const parseTime = (timeStr: string): number => {
       try {
-        const cleanTime = timeStr.trim();
+        // Remove ALL extra spaces and normalize
+        const cleanTime = timeStr.trim().replace(/\s+/g, ' ');
+        
+        // Split by space to separate time and period
         const parts = cleanTime.split(' ');
         
-        if (parts.length !== 2) return 0;
+        if (parts.length < 2) return 0;
         
-        const [time, period] = parts;
+        // Get the time part (first element) and period (last element)
+        const time = parts[0];
+        const period = parts[parts.length - 1];
+        
+        // Split time into hours and minutes
         const timeParts = time.split(':');
         
         if (timeParts.length !== 2) return 0;
@@ -254,9 +268,11 @@ export default function AnalyticsScreen() {
         
         if (isNaN(hours) || isNaN(minutes)) return 0;
         
-        if (period.toUpperCase() === 'PM' && hours !== 12) {
+        // Convert to 24-hour format
+        const periodUpper = period.toUpperCase();
+        if (periodUpper === 'PM' && hours !== 12) {
           hours += 12;
-        } else if (period.toUpperCase() === 'AM' && hours === 12) {
+        } else if (periodUpper === 'AM' && hours === 12) {
           hours = 0;
         }
         

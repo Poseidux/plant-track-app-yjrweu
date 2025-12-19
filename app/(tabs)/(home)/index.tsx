@@ -544,12 +544,14 @@ export default function HomeScreen() {
             />
             <View style={styles.speciesLegend}>
               {getSpeciesBreakdown.map(([species, count], index) => (
-                <View key={`species-legend-${species}-${index}`} style={styles.speciesLegendItem}>
-                  <View style={[styles.speciesLegendColor, { backgroundColor: chartColors[index % chartColors.length] }]} />
-                  <Text style={[styles.speciesLegendText, { color: colors.text }]} numberOfLines={1}>
-                    {species}: {count}
-                  </Text>
-                </View>
+                <React.Fragment key={`species-legend-${index}`}>
+                  <View style={styles.speciesLegendItem}>
+                    <View style={[styles.speciesLegendColor, { backgroundColor: chartColors[index % chartColors.length] }]} />
+                    <Text style={[styles.speciesLegendText, { color: colors.text }]} numberOfLines={1}>
+                      {species}: {count}
+                    </Text>
+                  </View>
+                </React.Fragment>
               ))}
             </View>
           </View>

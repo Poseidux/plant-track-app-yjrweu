@@ -154,20 +154,24 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
   const renderStars = useCallback(() => {
     if (backgroundMode !== 'night') return null;
     
-    return stars.map((star) => (
-      <View
-        key={star.key}
-        style={[
-          styles.star,
-          {
-            top: `${star.top}%`,
-            left: `${star.left}%`,
-            width: star.size,
-            height: star.size,
-          },
-        ]}
-      />
-    ));
+    return (
+      <React.Fragment>
+        {stars.map((star) => (
+          <View
+            key={star.key}
+            style={[
+              styles.star,
+              {
+                top: `${star.top}%`,
+                left: `${star.left}%`,
+                width: star.size,
+                height: star.size,
+              },
+            ]}
+          />
+        ))}
+      </React.Fragment>
+    );
   }, [stars, backgroundMode]);
 
   const renderForestGrid = useCallback((trees: string[], title: string, treesPerEmoji: number, showDayNight: boolean = false) => {
