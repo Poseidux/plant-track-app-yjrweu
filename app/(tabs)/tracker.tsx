@@ -23,6 +23,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DONT_ASK_SPECIES_KEY = '@dont_ask_species';
 
+// Helper to get local date string in America/Toronto timezone
+const getLocalDateString = (date: Date = new Date()): string => {
+  // Convert to America/Toronto timezone
+  const torontoDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Toronto' }));
+  const year = torontoDate.getFullYear();
+  const month = String(torontoDate.getMonth() + 1).padStart(2, '0');
+  const day = String(torontoDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Memoized hourly log item
 const HourlyLogItem = React.memo(({ 
   hourlyLog, 
@@ -98,12 +108,15 @@ const LogCard = React.memo(({
     return '';
   };
 
+  // Parse date correctly - log.date is already in YYYY-MM-DD format
+  const logDate = new Date(log.date + 'T00:00:00');
+
   return (
     <View style={[styles.logCard, { backgroundColor: colors.card, borderLeftColor: getDayTypeColor(log.dayType) }]}>
       <View style={styles.logHeader}>
         <View style={styles.logHeaderLeft}>
           <Text style={[styles.logDate, { color: colors.text }]}>
-            {new Date(log.date).toLocaleDateString('en-US', {
+            {logDate.toLocaleDateString('en-US', {
               weekday: 'short',
               month: 'short',
               day: 'numeric',
@@ -239,11 +252,17 @@ export default function TrackerScreen() {
   const [editTrees, setEditTrees] = useState('');
 
   const loadLogs = useCallback(async () => {
+    console.log('Tracker - Loading logs...');
     const logs = await StorageService.getTreeLogs();
     setTreeLogs(logs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     
-    const today = new Date().toISOString().split('T')[0];
-    const todayLog = logs.find(log => log.date === today);
+    // Get today's date in America/Toronto timezone
+    const todayStr = getLocalDateString();
+    console.log('Tracker - Today date (Toronto):', todayStr);
+    console.log('Tracker - Available log dates:', logs.map(log => log.date));
+    
+    const todayLog = logs.find(log => log.date === todayStr);
+    console.log('Tracker - Today log found:', !!todayLog);
     setCurrentDayLog(todayLog || null);
     setRefreshKey(prev => prev + 1);
   }, []);
@@ -276,8 +295,8 @@ export default function TrackerScreen() {
   };
 
   const loadDaySettings = async () => {
-    const today = new Date().toISOString().split('T')[0];
-    const settings = await StorageService.getDaySettings(today);
+    const todayStr = getLocalDateString();
+    const settings = await StorageService.getDaySettings(todayStr);
     if (settings) {
       setDaySettings(settings);
       setTreesPerBundle(settings.treesPerBundle.toString());
@@ -287,13 +306,13 @@ export default function TrackerScreen() {
   };
 
   const saveDaySettings = useCallback(async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     const settings: DaySettings = {
       treesPerBundle: parseInt(treesPerBundle) || 100,
       treesPerBox: parseInt(treesPerBox) || 50,
       treesPerTray: parseInt(treesPerTray) || 25,
     };
-    await StorageService.saveDaySettings(today, settings);
+    await StorageService.saveDaySettings(todayStr, settings);
     setDaySettings(settings);
   }, [treesPerBundle, treesPerBox, treesPerTray]);
 
@@ -331,7 +350,10 @@ export default function TrackerScreen() {
   }, [bundles, boxes, trays, individualTrees, treesPerBundle, treesPerBox, treesPerTray]);
 
   const saveHourlyLogWithSpecies = useCallback(async (startTimeStr: string, endTimeStr: string, trees: number, species: string) => {
-    const today = new Date().toISOString().split('T')[0];
+    // Use America/Toronto timezone for the log day
+    const todayStr = getLocalDateString();
+    console.log('Tracker - Saving log for date (Toronto):', todayStr);
+    
     const newHourlyLog: HourlyLog = {
       id: Date.now().toString(),
       startTime: startTimeStr,
@@ -357,7 +379,7 @@ export default function TrackerScreen() {
     } else {
       updatedLog = {
         id: Date.now().toString(),
-        date: today,
+        date: todayStr, // Store as YYYY-MM-DD in Toronto timezone
         hourlyLogs: [newHourlyLog],
         totalTrees: trees,
         species: species,
@@ -368,6 +390,7 @@ export default function TrackerScreen() {
       };
     }
 
+    console.log('Tracker - Saving log:', updatedLog);
     await StorageService.saveTreeLog(updatedLog);
     await loadLogs();
     
@@ -439,10 +462,10 @@ export default function TrackerScreen() {
         {
           text: 'Confirm',
           onPress: async () => {
-            const today = new Date().toISOString().split('T')[0];
+            const todayStr = getLocalDateString();
             const sickDayLog: TreePlantingLog = {
               id: Date.now().toString(),
-              date: today,
+              date: todayStr,
               hourlyLogs: [],
               totalTrees: 0,
               species: '',
@@ -469,10 +492,10 @@ export default function TrackerScreen() {
         {
           text: 'Confirm',
           onPress: async () => {
-            const today = new Date().toISOString().split('T')[0];
+            const todayStr = getLocalDateString();
             const dayOffLog: TreePlantingLog = {
               id: Date.now().toString(),
-              date: today,
+              date: todayStr,
               hourlyLogs: [],
               totalTrees: 0,
               species: '',
@@ -675,10 +698,11 @@ export default function TrackerScreen() {
     </Modal>
   );
 
-  // Memoize previous logs
-  const previousLogs = useMemo(() => 
-    treeLogs.filter(log => log.date !== new Date().toISOString().split('T')[0])
-  , [treeLogs]);
+  // Memoize previous logs - exclude today's log
+  const previousLogs = useMemo(() => {
+    const todayStr = getLocalDateString();
+    return treeLogs.filter(log => log.date !== todayStr);
+  }, [treeLogs]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]} key={`tracker-${refreshKey}`}>
@@ -740,7 +764,8 @@ export default function TrackerScreen() {
                 {new Date().toLocaleDateString('en-US', { 
                   weekday: 'long', 
                   month: 'long', 
-                  day: 'numeric' 
+                  day: 'numeric',
+                  timeZone: 'America/Toronto'
                 })}
               </Text>
             </View>
@@ -821,7 +846,8 @@ export default function TrackerScreen() {
               {new Date().toLocaleDateString('en-US', { 
                 weekday: 'long', 
                 month: 'long', 
-                day: 'numeric' 
+                day: 'numeric',
+                timeZone: 'America/Toronto'
               })}
             </Text>
           </View>

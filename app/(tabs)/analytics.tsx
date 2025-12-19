@@ -24,6 +24,17 @@ import { formatLargeNumber, formatEarnings } from '@/utils/formatNumber';
 import { shareStatsAsImage } from '@/utils/shareStatsImage';
 import { AVATAR_FRAMES, PROFILE_ICONS_EMOJIS } from '@/types/Shop';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from 'expo-router';
+
+// Helper to get local date string in America/Toronto timezone
+const getLocalDateString = (date: Date = new Date()): string => {
+  // Convert to America/Toronto timezone
+  const torontoDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Toronto' }));
+  const year = torontoDate.getFullYear();
+  const month = String(torontoDate.getMonth() + 1).padStart(2, '0');
+  const day = String(torontoDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 // Memoized performance item component
 const PerformanceItem = React.memo(({ 
@@ -72,10 +83,44 @@ export default function AnalyticsScreen() {
   const [equippedFrame, setEquippedFrame] = useState<string | undefined>();
   const [equippedAvatar, setEquippedAvatar] = useState<string | undefined>();
 
+  const loadData = useCallback(async () => {
+    console.log('Analytics - Loading data...');
+    const [trees, earnings, expenses, savedAchievements, userProfile, cosmetics] = await Promise.all([
+      StorageService.getTreeLogs(),
+      StorageService.getEarningsLogs(),
+      StorageService.getExpenseLogs(),
+      StorageService.getAchievements(),
+      StorageService.getUserProfile(),
+      ShopStorageService.getUserCosmetics(),
+    ]);
+    
+    console.log('Analytics - Loaded tree logs:', trees.length);
+    console.log('Analytics - Tree log dates:', trees.map(log => log.date));
+    
+    setTreeLogs(trees);
+    setEarningsLogs(earnings);
+    setExpenseLogs(expenses);
+    setProfile(userProfile);
+    setEquippedFrame(cosmetics.equippedAvatarFrame);
+    setEquippedAvatar(cosmetics.equippedAvatar);
+    
+    const updatedAchievements = checkAchievements(trees, earnings, savedAchievements);
+    setAchievements(updatedAchievements);
+    await StorageService.saveAchievements(updatedAchievements);
+  }, []);
+
   useEffect(() => {
     loadData();
     startCardAnimation();
-  }, [loadData, startCardAnimation]);
+  }, []);
+
+  // Reload data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Analytics - Screen focused, reloading data...');
+      loadData();
+    }, [loadData])
+  );
 
   const startCardAnimation = useCallback(() => {
     Animated.loop(
@@ -94,27 +139,6 @@ export default function AnalyticsScreen() {
     ).start();
   }, [cardRotation]);
 
-  const loadData = useCallback(async () => {
-    const [trees, earnings, expenses, savedAchievements, userProfile, cosmetics] = await Promise.all([
-      StorageService.getTreeLogs(),
-      StorageService.getEarningsLogs(),
-      StorageService.getExpenseLogs(),
-      StorageService.getAchievements(),
-      StorageService.getUserProfile(),
-      ShopStorageService.getUserCosmetics(),
-    ]);
-    setTreeLogs(trees);
-    setEarningsLogs(earnings);
-    setExpenseLogs(expenses);
-    setProfile(userProfile);
-    setEquippedFrame(cosmetics.equippedAvatarFrame);
-    setEquippedAvatar(cosmetics.equippedAvatar);
-    
-    const updatedAchievements = checkAchievements(trees, earnings, savedAchievements);
-    setAchievements(updatedAchievements);
-    await StorageService.saveAchievements(updatedAchievements);
-  }, []);
-
   // Memoize calculated values
   const totalTrees = useMemo(() => treeLogs.reduce((sum, log) => sum + log.totalTrees, 0), [treeLogs]);
   const totalEarnings = useMemo(() => earningsLogs.reduce((sum, log) => sum + log.amount, 0), [earningsLogs]);
@@ -130,10 +154,7 @@ export default function AnalyticsScreen() {
   // Helper function to parse time strings to minutes
   const parseTimeToMinutes = useCallback((timeStr: string): number => {
     try {
-      // Clean the time string
       const cleanTime = timeStr.trim().replace(/\s+/g, ' ');
-      
-      // Handle different formats: "9:00 AM", "9:00AM", "09:00 AM", etc.
       const match = cleanTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
       
       if (!match) {
@@ -145,14 +166,12 @@ export default function AnalyticsScreen() {
       const minutes = parseInt(match[2], 10);
       const period = match[3].toUpperCase();
       
-      // Convert to 24-hour format
       if (period === 'PM' && hours !== 12) {
         hours += 12;
       } else if (period === 'AM' && hours === 12) {
         hours = 0;
       }
       
-      // Return total minutes from midnight
       const totalMinutes = hours * 60 + minutes;
       return totalMinutes;
     } catch (error) {
@@ -161,26 +180,25 @@ export default function AnalyticsScreen() {
     }
   }, []);
 
-  // FIXED: Calculate Trees/Hour and Trees/Minute from TODAY'S logs only
+  // FIXED: Calculate Trees/Hour and Trees/Minute from TODAY'S logs with proper timezone handling
   const todayStats = useMemo(() => {
-    // Get today's date in YYYY-MM-DD format
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    // Get today's date in America/Toronto timezone as YYYY-MM-DD
+    const todayStr = getLocalDateString();
     
-    console.log('Analytics - Looking for logs on date:', todayStr);
+    console.log('Analytics - Looking for logs on date (Toronto time):', todayStr);
     console.log('Analytics - Available log dates:', treeLogs.map(log => log.date));
     
-    // Find today's log
+    // Find today's log - match by the log_day field
     const todayLog = treeLogs.find(log => {
-      const logDate = log.date.split('T')[0]; // Handle both YYYY-MM-DD and ISO formats
-      return logDate === todayStr;
+      // The log.date should already be in YYYY-MM-DD format (log_day)
+      return log.date === todayStr;
     });
     
     if (!todayLog) {
       console.log('Analytics - No log found for today');
       return { 
-        treesPerHour: 0, 
-        treesPerMinute: 0,
+        treesPerHour: null, 
+        treesPerMinute: null,
         treesPlanted: 0,
         hoursWorked: 0,
         comparisonToPB: 0
@@ -194,13 +212,32 @@ export default function AnalyticsScreen() {
       hourlyLogsCount: todayLog.hourlyLogs?.length || 0
     });
     
-    if (!todayLog.hourlyLogs || todayLog.hourlyLogs.length === 0) {
-      console.log('Analytics - No hourly logs for today');
+    // If no trees planted, return 0 (not null)
+    if (todayLog.totalTrees === 0) {
+      console.log('Analytics - No trees planted today');
       return { 
         treesPerHour: 0, 
         treesPerMinute: 0,
-        treesPlanted: todayLog.totalTrees,
+        treesPlanted: 0,
         hoursWorked: 0,
+        comparisonToPB: 0
+      };
+    }
+    
+    if (!todayLog.hourlyLogs || todayLog.hourlyLogs.length === 0) {
+      console.log('Analytics - No hourly logs for today, using fallback calculation');
+      
+      // Fallback: Use hours since first log today (if available)
+      // Or default to 1 hour to avoid division by zero
+      const fallbackHours = 1;
+      const tph = todayLog.totalTrees / fallbackHours;
+      const tpm = tph / 60;
+      
+      return { 
+        treesPerHour: tph, 
+        treesPerMinute: tpm,
+        treesPlanted: todayLog.totalTrees,
+        hoursWorked: fallbackHours,
         comparisonToPB: personalBest > 0 ? ((todayLog.totalTrees / personalBest) * 100) : 0
       };
     }
@@ -219,7 +256,7 @@ export default function AnalyticsScreen() {
       
       let duration = endMinutes - startMinutes;
       
-      // Handle overnight shifts (unlikely but possible)
+      // Handle overnight shifts
       if (duration < 0) {
         duration += 24 * 60;
       }
@@ -238,13 +275,18 @@ export default function AnalyticsScreen() {
 
     const hoursWorked = totalMinutes / 60;
 
+    // If no valid time data, use fallback
     if (totalMinutes === 0) {
-      console.log('Analytics - No valid time data for today');
+      console.log('Analytics - No valid time data for today, using fallback');
+      const fallbackHours = 1;
+      const tph = todayLog.totalTrees / fallbackHours;
+      const tpm = tph / 60;
+      
       return { 
-        treesPerHour: 0, 
-        treesPerMinute: 0,
+        treesPerHour: tph, 
+        treesPerMinute: tpm,
         treesPlanted: todayLog.totalTrees,
-        hoursWorked: 0,
+        hoursWorked: fallbackHours,
         comparisonToPB: personalBest > 0 ? ((todayLog.totalTrees / personalBest) * 100) : 0
       };
     }
@@ -425,6 +467,19 @@ export default function AnalyticsScreen() {
     },
   }), [chartConfig, colors.accent]);
 
+  // Format display values for Trees/Hour and Trees/Minute
+  const treesPerHourDisplay = useMemo(() => {
+    if (todayStats.treesPerHour === null) return '—';
+    if (todayStats.treesPerHour === 0) return '0';
+    return todayStats.treesPerHour.toFixed(0);
+  }, [todayStats.treesPerHour]);
+
+  const treesPerMinuteDisplay = useMemo(() => {
+    if (todayStats.treesPerMinute === null) return '—';
+    if (todayStats.treesPerMinute === 0) return '0.0';
+    return todayStats.treesPerMinute.toFixed(1);
+  }, [todayStats.treesPerMinute]);
+
   const performanceItems = useMemo(() => [
     {
       icon: 'leaf.fill',
@@ -459,14 +514,14 @@ export default function AnalyticsScreen() {
       androidIcon: 'schedule',
       color: colors.accent,
       label: 'Trees/Hour',
-      value: todayStats.treesPerHour > 0 ? todayStats.treesPerHour.toFixed(0) : '0',
+      value: treesPerHourDisplay,
     },
     {
       icon: 'timer',
       androidIcon: 'timer',
       color: colors.warning,
       label: 'Trees/Minute',
-      value: todayStats.treesPerMinute > 0 ? todayStats.treesPerMinute.toFixed(1) : '0.0',
+      value: treesPerMinuteDisplay,
     },
     {
       icon: 'chart.line.uptrend.xyaxis',
@@ -482,7 +537,7 @@ export default function AnalyticsScreen() {
       label: 'Improvement',
       value: `${percentageImprovement >= 0 ? '+' : ''}${percentageImprovement.toFixed(1)}%`,
     },
-  ], [colors, totalTrees, totalDays, totalEarnings, totalExpenses, todayStats, averageTreesPerDay, percentageImprovement]);
+  ], [colors, totalTrees, totalDays, totalEarnings, totalExpenses, treesPerHourDisplay, treesPerMinuteDisplay, averageTreesPerDay, percentageImprovement]);
 
   const incompleteAchievements = useMemo(() => achievements.filter(a => a.progress < a.target), [achievements]);
   const displayedAchievements = useMemo(() => showAllAchievements 
@@ -1199,7 +1254,7 @@ export default function AnalyticsScreen() {
                       </View>
                       <View style={styles.fullscreenStatItem}>
                         <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
-                          {todayStats.hoursWorked > 0 ? todayStats.hoursWorked.toFixed(1) : '0.0'}
+                          {todayStats.hoursWorked > 0 ? todayStats.hoursWorked.toFixed(1) : '—'}
                         </Text>
                         <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
                           Hours Worked
@@ -1207,7 +1262,7 @@ export default function AnalyticsScreen() {
                       </View>
                       <View style={styles.fullscreenStatItem}>
                         <Text style={[styles.fullscreenStatValue, { color: colors.accent }]}>
-                          {todayStats.treesPerHour > 0 ? todayStats.treesPerHour.toFixed(0) : '0'}
+                          {treesPerHourDisplay}
                         </Text>
                         <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
                           Trees/Hour
@@ -1215,7 +1270,7 @@ export default function AnalyticsScreen() {
                       </View>
                       <View style={styles.fullscreenStatItem}>
                         <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
-                          {todayStats.comparisonToPB > 0 ? todayStats.comparisonToPB.toFixed(0) : '0'}%
+                          {todayStats.comparisonToPB > 0 ? todayStats.comparisonToPB.toFixed(0) : '—'}%
                         </Text>
                         <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
                           vs PB
