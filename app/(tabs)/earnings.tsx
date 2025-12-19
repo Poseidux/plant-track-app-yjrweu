@@ -466,8 +466,8 @@ export default function EarningsScreen() {
             </Text>
           </View>
         ) : (
-          earningsLogs.slice(0, 10).map((log) => (
-            <View key={log.id} style={[styles.logCard, { backgroundColor: colors.card }]}>
+          earningsLogs.slice(0, 10).map((log, index) => (
+            <View key={`earnings-${log.id}-${index}`} style={[styles.logCard, { backgroundColor: colors.card }]}>
               <View style={styles.logHeader}>
                 <View style={styles.logHeaderLeft}>
                   <Text style={[styles.logAmount, { color: colors.secondary }]}>
@@ -516,8 +516,8 @@ export default function EarningsScreen() {
             </Text>
           </View>
         ) : (
-          expenseLogs.slice(0, 10).map((log) => (
-            <View key={log.id} style={[styles.logCard, { backgroundColor: colors.card }]}>
+          expenseLogs.slice(0, 10).map((log, index) => (
+            <View key={`expense-${log.id}-${index}`} style={[styles.logCard, { backgroundColor: colors.card }]}>
               <View style={styles.logHeader}>
                 <View style={styles.logHeaderLeft}>
                   <Text style={[styles.logAmount, { color: colors.error }]}>
@@ -698,9 +698,9 @@ export default function EarningsScreen() {
 
             <Text style={[styles.label, { color: colors.text }]}>Category *</Text>
             <View style={styles.categoryContainer}>
-              {EXPENSE_CATEGORIES.map((category) => (
+              {EXPENSE_CATEGORIES.map((category, catIndex) => (
                 <TouchableOpacity
-                  key={category}
+                  key={`category-${category}-${catIndex}`}
                   style={[
                     styles.categoryButton,
                     { borderColor: colors.border },

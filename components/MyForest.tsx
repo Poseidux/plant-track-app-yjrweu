@@ -35,7 +35,7 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
     console.log('MyForest: treeLogs changed, regenerating forests');
     generateForests();
     loadBackgroundMode();
-  }, [treeLogs, generateForests]);
+  }, [treeLogs]);
 
   const loadBackgroundMode = useCallback(async () => {
     try {
