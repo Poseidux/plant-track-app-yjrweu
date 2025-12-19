@@ -67,34 +67,39 @@ const ActivityItem = React.memo(({
   log: TreePlantingLog;
   colors: any;
   onEdit: (log: TreePlantingLog) => void;
-}) => (
-  <View style={[styles.activityItem, { borderBottomColor: colors.border }]}>
-    <View style={[styles.activityIcon, { backgroundColor: colors.highlight }]}>
-      <IconSymbol
-        ios_icon_name="leaf.fill"
-        android_material_icon_name="eco"
-        size={20}
-        color={colors.secondary}
-      />
+}) => {
+  // FIXED: Parse date correctly to avoid timezone issues
+  const logDate = new Date(log.date + 'T00:00:00');
+  
+  return (
+    <View style={[styles.activityItem, { borderBottomColor: colors.border }]}>
+      <View style={[styles.activityIcon, { backgroundColor: colors.highlight }]}>
+        <IconSymbol
+          ios_icon_name="leaf.fill"
+          android_material_icon_name="eco"
+          size={20}
+          color={colors.secondary}
+        />
+      </View>
+      <View style={styles.activityContent}>
+        <Text style={[styles.activityTitle, { color: colors.text }]}>
+          {log.totalTrees} {log.species}
+        </Text>
+        <Text style={[styles.activityDate, { color: colors.textSecondary }]}>
+          {logDate.toLocaleDateString()} • {log.province}
+        </Text>
+      </View>
+      <TouchableOpacity onPress={() => onEdit(log)}>
+        <IconSymbol
+          ios_icon_name="pencil.circle.fill"
+          android_material_icon_name="edit"
+          size={28}
+          color={colors.primary}
+        />
+      </TouchableOpacity>
     </View>
-    <View style={styles.activityContent}>
-      <Text style={[styles.activityTitle, { color: colors.text }]}>
-        {log.totalTrees} {log.species}
-      </Text>
-      <Text style={[styles.activityDate, { color: colors.textSecondary }]}>
-        {new Date(log.date).toLocaleDateString()} • {log.province}
-      </Text>
-    </View>
-    <TouchableOpacity onPress={() => onEdit(log)}>
-      <IconSymbol
-        ios_icon_name="pencil.circle.fill"
-        android_material_icon_name="edit"
-        size={28}
-        color={colors.primary}
-      />
-    </TouchableOpacity>
-  </View>
-));
+  );
+});
 
 export default function HomeScreen() {
   const { colors, isDark, selectedTheme, setSelectedTheme, setThemeMode } = useThemeContext();
@@ -293,7 +298,10 @@ export default function HomeScreen() {
     
     return {
       labels: last7.length > 0 
-        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        ? last7.map(log => {
+            const logDate = new Date(log.date + 'T00:00:00');
+            return logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          })
         : ['No Data'],
       datasets: [{
         data: last7.length > 0 ? last7.map(log => log.amount) : [0],
@@ -309,7 +317,10 @@ export default function HomeScreen() {
     
     return {
       labels: last7.length > 0 
-        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        ? last7.map(log => {
+            const logDate = new Date(log.date + 'T00:00:00');
+            return logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          })
         : ['No Data'],
       datasets: [{
         data: last7.length > 0 ? last7.map(log => log.totalTrees) : [0],
@@ -325,7 +336,10 @@ export default function HomeScreen() {
     
     return {
       labels: last7.length > 0 
-        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        ? last7.map(log => {
+            const logDate = new Date(log.date + 'T00:00:00');
+            return logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          })
         : ['No Data'],
       datasets: [{
         data: last7.length > 0 ? last7.map(log => log.averageRate || 0) : [0],
@@ -338,7 +352,10 @@ export default function HomeScreen() {
     const fiveDaysAgo = new Date(now.getTime() - (5 * 24 * 60 * 60 * 1000));
     
     return treeLogs
-      .filter(log => new Date(log.date) >= fiveDaysAgo)
+      .filter(log => {
+        const logDate = new Date(log.date + 'T00:00:00');
+        return logDate >= fiveDaysAgo;
+      })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5);
   }, [treeLogs]);

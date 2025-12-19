@@ -313,7 +313,10 @@ export default function AnalyticsScreen() {
     
     return {
       labels: last7.length > 0 
-        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        ? last7.map(log => {
+            const logDate = new Date(log.date + 'T00:00:00');
+            return logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          })
         : ['No Data'],
       datasets: [{
         data: last7.length > 0 ? last7.map(log => log.totalTrees) : [0],
@@ -329,7 +332,10 @@ export default function AnalyticsScreen() {
     
     return {
       labels: last7.length > 0 
-        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        ? last7.map(log => {
+            const logDate = new Date(log.date + 'T00:00:00');
+            return logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          })
         : ['No Data'],
       datasets: [{
         data: last7.length > 0 ? last7.map(log => log.amount) : [0],
@@ -345,7 +351,10 @@ export default function AnalyticsScreen() {
     
     return {
       labels: last7.length > 0 
-        ? last7.map(log => new Date(log.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+        ? last7.map(log => {
+            const logDate = new Date(log.date + 'T00:00:00');
+            return logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          })
         : ['No Data'],
       datasets: [{
         data: last7.length > 0 ? last7.map(log => log.averageRate || 0) : [0],
