@@ -127,18 +127,16 @@ export default function AnalyticsScreen() {
     ? Math.max(...treeLogs.map(log => log.totalTrees))
     : 0, [treeLogs]);
 
-  // FIXED: Calculate Trees/Hour and Trees/Minute from CURRENT SEASON's ALL logs
-  const seasonTreesPerHour = useMemo(() => {
-    // Get all planting days (not sick/dayoff)
-    const plantingDays = treeLogs.filter(log => log.dayType !== 'sick' && log.dayType !== 'dayoff');
+  // FIXED: Calculate Trees/Hour and Trees/Minute from TODAY'S logs only
+  // Use total trees logged today divided by total minutes elapsed today
+  const { treesPerHour, treesPerMinute } = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayLog = treeLogs.find(log => log.date === today);
     
-    if (plantingDays.length === 0) {
-      console.log('No planting days found');
-      return 0;
+    if (!todayLog || !todayLog.hourlyLogs || todayLog.hourlyLogs.length === 0) {
+      console.log('No logs for today or no hourly logs');
+      return { treesPerHour: 0, treesPerMinute: 0 };
     }
-
-    let totalTrees = 0;
-    let totalHours = 0;
 
     // Helper function to parse time strings like "9:00 AM" or "2:30 PM"
     const parseTime = (timeStr: string): number => {
@@ -182,57 +180,59 @@ export default function AnalyticsScreen() {
           hours = 0;
         }
         
-        // Return as decimal hours
-        return hours + (minutes / 60);
+        // Return total minutes from midnight
+        return hours * 60 + minutes;
       } catch (error) {
         console.error('Error parsing time:', timeStr, error);
         return 0;
       }
     };
 
-    plantingDays.forEach(log => {
-      totalTrees += log.totalTrees;
+    // Calculate total minutes elapsed today
+    let totalMinutes = 0;
+    todayLog.hourlyLogs.forEach(hourLog => {
+      const startMinutes = parseTime(hourLog.startTime);
+      const endMinutes = parseTime(hourLog.endTime);
       
-      // Count hours from hourly logs
-      if (log.hourlyLogs && log.hourlyLogs.length > 0) {
-        log.hourlyLogs.forEach(hourLog => {
-          const startHour = parseTime(hourLog.startTime);
-          const endHour = parseTime(hourLog.endTime);
-          
-          let hours = endHour - startHour;
-          
-          // Handle case where end time is past midnight (unlikely but possible)
-          if (hours < 0) {
-            hours += 24;
-          }
-          
-          if (!isNaN(hours) && hours > 0 && hours < 24) {
-            totalHours += hours;
-          } else {
-            console.warn('Invalid hour calculation:', {
-              startTime: hourLog.startTime,
-              endTime: hourLog.endTime,
-              startHour,
-              endHour,
-              hours
-            });
-          }
+      let minutesElapsed = endMinutes - startMinutes;
+      
+      // Handle case where end time is past midnight (unlikely but possible)
+      if (minutesElapsed < 0) {
+        minutesElapsed += 24 * 60;
+      }
+      
+      if (!isNaN(minutesElapsed) && minutesElapsed > 0 && minutesElapsed < 24 * 60) {
+        totalMinutes += minutesElapsed;
+      } else {
+        console.warn('Invalid minute calculation:', {
+          startTime: hourLog.startTime,
+          endTime: hourLog.endTime,
+          startMinutes,
+          endMinutes,
+          minutesElapsed
         });
       }
     });
 
-    console.log('Season performance calculation:', { 
-      plantingDaysCount: plantingDays.length,
-      totalTrees, 
-      totalHours, 
-      treesPerHour: totalHours > 0 ? totalTrees / totalHours : 0 
+    console.log('Today performance calculation:', { 
+      todayTrees: todayLog.totalTrees,
+      totalMinutes,
+      treesPerMinute: totalMinutes > 0 ? todayLog.totalTrees / totalMinutes : 0,
+      treesPerHour: totalMinutes > 0 ? (todayLog.totalTrees / totalMinutes) * 60 : 0
     });
 
-    return totalHours > 0 ? totalTrees / totalHours : 0;
-  }, [treeLogs]);
+    if (totalMinutes === 0) {
+      return { treesPerHour: 0, treesPerMinute: 0 };
+    }
 
-  const treesPerHour = seasonTreesPerHour;
-  const treesPerMinute = useMemo(() => treesPerHour / 60, [treesPerHour]);
+    const tpm = todayLog.totalTrees / totalMinutes;
+    const tph = tpm * 60;
+
+    return { 
+      treesPerHour: tph, 
+      treesPerMinute: tpm 
+    };
+  }, [treeLogs]);
 
   console.log('Analytics performance stats:', { treesPerHour, treesPerMinute });
 
@@ -246,19 +246,13 @@ export default function AnalyticsScreen() {
 
     const parseTime = (timeStr: string): number => {
       try {
-        // Remove ALL extra spaces and normalize
         const cleanTime = timeStr.trim().replace(/\s+/g, ' ');
-        
-        // Split by space to separate time and period
         const parts = cleanTime.split(' ');
         
         if (parts.length < 2) return 0;
         
-        // Get the time part (first element) and period (last element)
         const time = parts[0];
         const period = parts[parts.length - 1];
-        
-        // Split time into hours and minutes
         const timeParts = time.split(':');
         
         if (timeParts.length !== 2) return 0;
@@ -268,7 +262,6 @@ export default function AnalyticsScreen() {
         
         if (isNaN(hours) || isNaN(minutes)) return 0;
         
-        // Convert to 24-hour format
         const periodUpper = period.toUpperCase();
         if (periodUpper === 'PM' && hours !== 12) {
           hours += 12;
@@ -517,7 +510,6 @@ export default function AnalyticsScreen() {
 
   const frameStyle = getFrameStyle();
 
-  // FIXED: Block Talk quotes with the new quote
   const blockTalkQuotes = useMemo(() => [
     { quote: 'The reward for our work is not what we get, but who we become.', author: 'Cam L.' },
     { quote: 'Plant hard and you will become hard. Plant softly and you will remain soft.', author: 'Plantations 3:16' },
@@ -1208,31 +1200,31 @@ export default function AnalyticsScreen() {
 
                   <View style={[styles.fullscreenStatsSection, { backgroundColor: colors.highlight }]}>
                     <Text style={[styles.fullscreenSectionTitle, { color: colors.text }]}>
-                      Season Performance
+                      Today&apos;s Performance
                     </Text>
                     <View style={styles.fullscreenStatsGrid}>
                       <View style={styles.fullscreenStatItem}>
                         <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
-                          {totalTrees}
-                        </Text>
-                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                          Trees Planted
-                        </Text>
-                      </View>
-                      <View style={styles.fullscreenStatItem}>
-                        <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
-                          {totalDays}
-                        </Text>
-                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                          Days Worked
-                        </Text>
-                      </View>
-                      <View style={styles.fullscreenStatItem}>
-                        <Text style={[styles.fullscreenStatValue, { color: colors.accent }]}>
                           {treesPerHour > 0 ? treesPerHour.toFixed(0) : '0'}
                         </Text>
                         <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
                           Trees/Hour
+                        </Text>
+                      </View>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
+                          {treesPerMinute > 0 ? treesPerMinute.toFixed(1) : '0.0'}
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          Trees/Minute
+                        </Text>
+                      </View>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.accent }]}>
+                          {totalDays}
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          Days Worked
                         </Text>
                       </View>
                       <View style={styles.fullscreenStatItem}>
