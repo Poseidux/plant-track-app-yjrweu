@@ -127,8 +127,42 @@ export default function AnalyticsScreen() {
     ? Math.max(...treeLogs.map(log => log.totalTrees))
     : 0, [treeLogs]);
 
+  // Helper function to parse time strings to minutes
+  const parseTimeToMinutes = useCallback((timeStr: string): number => {
+    try {
+      // Clean the time string
+      const cleanTime = timeStr.trim().replace(/\s+/g, ' ');
+      
+      // Handle different formats: "9:00 AM", "9:00AM", "09:00 AM", etc.
+      const match = cleanTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      
+      if (!match) {
+        console.error('Analytics - Invalid time format:', timeStr);
+        return 0;
+      }
+      
+      let hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      const period = match[3].toUpperCase();
+      
+      // Convert to 24-hour format
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+      }
+      
+      // Return total minutes from midnight
+      const totalMinutes = hours * 60 + minutes;
+      return totalMinutes;
+    } catch (error) {
+      console.error('Analytics - Error parsing time:', timeStr, error);
+      return 0;
+    }
+  }, []);
+
   // FIXED: Calculate Trees/Hour and Trees/Minute from TODAY'S logs only
-  const { treesPerHour, treesPerMinute } = useMemo(() => {
+  const todayStats = useMemo(() => {
     // Get today's date in YYYY-MM-DD format
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -144,7 +178,13 @@ export default function AnalyticsScreen() {
     
     if (!todayLog) {
       console.log('Analytics - No log found for today');
-      return { treesPerHour: 0, treesPerMinute: 0 };
+      return { 
+        treesPerHour: 0, 
+        treesPerMinute: 0,
+        treesPlanted: 0,
+        hoursWorked: 0,
+        comparisonToPB: 0
+      };
     }
     
     console.log('Analytics - Found today log:', {
@@ -156,43 +196,14 @@ export default function AnalyticsScreen() {
     
     if (!todayLog.hourlyLogs || todayLog.hourlyLogs.length === 0) {
       console.log('Analytics - No hourly logs for today');
-      return { treesPerHour: 0, treesPerMinute: 0 };
+      return { 
+        treesPerHour: 0, 
+        treesPerMinute: 0,
+        treesPlanted: todayLog.totalTrees,
+        hoursWorked: 0,
+        comparisonToPB: personalBest > 0 ? ((todayLog.totalTrees / personalBest) * 100) : 0
+      };
     }
-
-    // Helper function to parse time strings
-    const parseTimeToMinutes = (timeStr: string): number => {
-      try {
-        // Clean the time string
-        const cleanTime = timeStr.trim().replace(/\s+/g, ' ');
-        
-        // Handle different formats: "9:00 AM", "9:00AM", "09:00 AM", etc.
-        const match = cleanTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-        
-        if (!match) {
-          console.error('Analytics - Invalid time format:', timeStr);
-          return 0;
-        }
-        
-        let hours = parseInt(match[1], 10);
-        const minutes = parseInt(match[2], 10);
-        const period = match[3].toUpperCase();
-        
-        // Convert to 24-hour format
-        if (period === 'PM' && hours !== 12) {
-          hours += 12;
-        } else if (period === 'AM' && hours === 12) {
-          hours = 0;
-        }
-        
-        // Return total minutes from midnight
-        const totalMinutes = hours * 60 + minutes;
-        console.log('Analytics - Parsed time:', timeStr, '→', totalMinutes, 'minutes');
-        return totalMinutes;
-      } catch (error) {
-        console.error('Analytics - Error parsing time:', timeStr, error);
-        return 0;
-      }
-    };
 
     // Calculate total minutes worked today
     let totalMinutes = 0;
@@ -225,9 +236,17 @@ export default function AnalyticsScreen() {
     console.log('Analytics - Total minutes worked today:', totalMinutes);
     console.log('Analytics - Total trees planted today:', todayLog.totalTrees);
 
+    const hoursWorked = totalMinutes / 60;
+
     if (totalMinutes === 0) {
       console.log('Analytics - No valid time data for today');
-      return { treesPerHour: 0, treesPerMinute: 0 };
+      return { 
+        treesPerHour: 0, 
+        treesPerMinute: 0,
+        treesPlanted: todayLog.totalTrees,
+        hoursWorked: 0,
+        comparisonToPB: personalBest > 0 ? ((todayLog.totalTrees / personalBest) * 100) : 0
+      };
     }
 
     // Calculate rates
@@ -236,61 +255,18 @@ export default function AnalyticsScreen() {
 
     console.log('Analytics - Calculated rates:', {
       treesPerMinute: tpm,
-      treesPerHour: tph
+      treesPerHour: tph,
+      hoursWorked: hoursWorked
     });
 
     return { 
       treesPerHour: tph, 
-      treesPerMinute: tpm 
+      treesPerMinute: tpm,
+      treesPlanted: todayLog.totalTrees,
+      hoursWorked: hoursWorked,
+      comparisonToPB: personalBest > 0 ? ((todayLog.totalTrees / personalBest) * 100) : 0
     };
-  }, [treeLogs]);
-
-  const todayRate = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const todayLog = treeLogs.find(log => log.date.split('T')[0] === today);
-    
-    if (!todayLog || !todayLog.hourlyLogs || todayLog.hourlyLogs.length === 0) {
-      return 0;
-    }
-
-    const parseTime = (timeStr: string): number => {
-      try {
-        const cleanTime = timeStr.trim().replace(/\s+/g, ' ');
-        const match = cleanTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-        
-        if (!match) return 0;
-        
-        let hours = parseInt(match[1], 10);
-        const minutes = parseInt(match[2], 10);
-        const period = match[3].toUpperCase();
-        
-        if (period === 'PM' && hours !== 12) {
-          hours += 12;
-        } else if (period === 'AM' && hours === 12) {
-          hours = 0;
-        }
-        
-        return hours + (minutes / 60);
-      } catch (error) {
-        console.error('Error parsing time:', timeStr, error);
-        return 0;
-      }
-    };
-
-    const todayHours = todayLog.hourlyLogs.reduce((sum, hourLog) => {
-      const startHour = parseTime(hourLog.startTime);
-      const endHour = parseTime(hourLog.endTime);
-      let hours = endHour - startHour;
-      
-      if (hours < 0) {
-        hours += 24;
-      }
-      
-      return sum + (isNaN(hours) || hours < 0 || hours >= 24 ? 0 : hours);
-    }, 0);
-
-    return todayHours > 0 ? todayLog.totalTrees / todayHours : 0;
-  }, [treeLogs]);
+  }, [treeLogs, parseTimeToMinutes, personalBest]);
 
   const midPoint = useMemo(() => Math.floor(treeLogs.length / 2), [treeLogs]);
   const firstHalfAvg = useMemo(() => midPoint > 0 
@@ -474,14 +450,14 @@ export default function AnalyticsScreen() {
       androidIcon: 'schedule',
       color: colors.accent,
       label: 'Trees/Hour',
-      value: treesPerHour > 0 ? treesPerHour.toFixed(0) : '0',
+      value: todayStats.treesPerHour > 0 ? todayStats.treesPerHour.toFixed(0) : '0',
     },
     {
       icon: 'timer',
       androidIcon: 'timer',
       color: colors.warning,
       label: 'Trees/Minute',
-      value: treesPerMinute > 0 ? treesPerMinute.toFixed(1) : '0.0',
+      value: todayStats.treesPerMinute > 0 ? todayStats.treesPerMinute.toFixed(1) : '0.0',
     },
     {
       icon: 'chart.line.uptrend.xyaxis',
@@ -497,7 +473,7 @@ export default function AnalyticsScreen() {
       label: 'Improvement',
       value: `${percentageImprovement >= 0 ? '+' : ''}${percentageImprovement.toFixed(1)}%`,
     },
-  ], [colors, totalTrees, totalDays, totalEarnings, totalExpenses, treesPerHour, treesPerMinute, averageTreesPerDay, percentageImprovement]);
+  ], [colors, totalTrees, totalDays, totalEarnings, totalExpenses, todayStats, averageTreesPerDay, percentageImprovement]);
 
   const incompleteAchievements = useMemo(() => achievements.filter(a => a.progress < a.target), [achievements]);
   const displayedAchievements = useMemo(() => showAllAchievements 
@@ -1206,31 +1182,31 @@ export default function AnalyticsScreen() {
                     <View style={styles.fullscreenStatsGrid}>
                       <View style={styles.fullscreenStatItem}>
                         <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
-                          {treesPerHour > 0 ? treesPerHour.toFixed(0) : '0'}
+                          {formatLargeNumber(todayStats.treesPlanted)}
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          Trees Planted
+                        </Text>
+                      </View>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
+                          {todayStats.hoursWorked > 0 ? todayStats.hoursWorked.toFixed(1) : '0.0'}
+                        </Text>
+                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
+                          Hours Worked
+                        </Text>
+                      </View>
+                      <View style={styles.fullscreenStatItem}>
+                        <Text style={[styles.fullscreenStatValue, { color: colors.accent }]}>
+                          {todayStats.treesPerHour > 0 ? todayStats.treesPerHour.toFixed(0) : '0'}
                         </Text>
                         <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
                           Trees/Hour
                         </Text>
                       </View>
                       <View style={styles.fullscreenStatItem}>
-                        <Text style={[styles.fullscreenStatValue, { color: colors.primary }]}>
-                          {treesPerMinute > 0 ? treesPerMinute.toFixed(1) : '0.0'}
-                        </Text>
-                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                          Trees/Minute
-                        </Text>
-                      </View>
-                      <View style={styles.fullscreenStatItem}>
-                        <Text style={[styles.fullscreenStatValue, { color: colors.accent }]}>
-                          {totalDays}
-                        </Text>
-                        <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
-                          Days Worked
-                        </Text>
-                      </View>
-                      <View style={styles.fullscreenStatItem}>
                         <Text style={[styles.fullscreenStatValue, { color: colors.secondary }]}>
-                          {personalBest > 0 ? ((averageTreesPerDay / personalBest) * 100).toFixed(0) : 0}%
+                          {todayStats.comparisonToPB > 0 ? todayStats.comparisonToPB.toFixed(0) : '0'}%
                         </Text>
                         <Text style={[styles.fullscreenStatLabel, { color: colors.textSecondary }]}>
                           vs PB
