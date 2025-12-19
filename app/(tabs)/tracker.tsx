@@ -20,6 +20,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import MyForest from '@/components/MyForest';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
 
 const DONT_ASK_SPECIES_KEY = '@dont_ask_species';
 
@@ -273,6 +274,14 @@ export default function TrackerScreen() {
     loadDontAskPreference();
     loadDaySettings();
   }, [loadLogs]);
+
+  // Reload data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Tracker - Screen focused, reloading data...');
+      loadLogs();
+    }, [loadLogs])
+  );
 
   const loadDontAskPreference = async () => {
     try {
@@ -570,25 +579,42 @@ export default function TrackerScreen() {
     const totalHours = hourlyLogsArray.length;
     const averageRate = totalHours > 0 ? currentDayLog.totalTrees / totalHours : 0;
 
+    // FIXED: Ensure the date is saved with the correct local date (America/Toronto)
+    const todayStr = getLocalDateString();
+    console.log('Tracker - End Day - Finalizing log for date (Toronto):', todayStr);
+
     const updatedLog: TreePlantingLog = {
       ...currentDayLog,
+      date: todayStr, // Ensure correct local date
       notes,
       dayRating,
       averageRate,
     };
 
+    console.log('Tracker - End Day - Saving finalized log:', updatedLog);
     await StorageService.saveTreeLog(updatedLog);
     
     setNotes('');
     setDayRating(3);
     setShowEndDayModal(false);
     
+    // FIXED: Force reload of data to update UI everywhere
+    console.log('Tracker - End Day - Reloading all data...');
     await loadLogs();
+    
+    // Force a refresh key update to trigger re-renders
+    setRefreshKey(prev => prev + 1);
     
     Alert.alert(
       'Day Complete! 🎉',
       `Total Trees: ${currentDayLog.totalTrees}\nAverage Rate: ${averageRate.toFixed(0)} trees/hour\nRating: ${dayRating}/5`,
-      [{ text: 'Great!', style: 'default' }]
+      [{ 
+        text: 'Great!', 
+        style: 'default',
+        onPress: () => {
+          console.log('Tracker - End Day - Alert dismissed, data should be refreshed');
+        }
+      }]
     );
   }, [currentDayLog, notes, dayRating, loadLogs]);
 
@@ -901,7 +927,7 @@ export default function TrackerScreen() {
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Previous Days</Text>
 
         {treeLogs.length > 0 && (
-          <MyForest treeLogs={treeLogs} />
+          <MyForest treeLogs={treeLogs} key={`forest-${refreshKey}`} />
         )}
 
         {previousLogs.length === 0 ? (
