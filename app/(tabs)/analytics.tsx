@@ -14,7 +14,7 @@ import {
   Linking,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
-import { StorageService } from '@/utils/storage';
+import { StorageService, getLocalDateString } from '@/utils/storage';
 import { ShopStorageService } from '@/utils/shopStorage';
 import { TreePlantingLog, EarningsLog, ExpenseLog, Achievement, UserProfile } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -25,16 +25,6 @@ import { shareStatsAsImage } from '@/utils/shareStatsImage';
 import { AVATAR_FRAMES, PROFILE_ICONS_EMOJIS } from '@/types/Shop';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
-
-// Helper to get local date string in America/Toronto timezone
-const getLocalDateString = (date: Date = new Date()): string => {
-  // Convert to America/Toronto timezone
-  const torontoDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Toronto' }));
-  const year = torontoDate.getFullYear();
-  const month = String(torontoDate.getMonth() + 1).padStart(2, '0');
-  const day = String(torontoDate.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 // Memoized performance item component
 const PerformanceItem = React.memo(({ 
@@ -180,12 +170,12 @@ export default function AnalyticsScreen() {
     }
   }, []);
 
-  // FIXED: Calculate Trees/Hour and Trees/Minute from TODAY'S logs with proper timezone handling
+  // Calculate Trees/Hour and Trees/Minute from TODAY'S logs using device's local timezone
   const todayStats = useMemo(() => {
-    // Get today's date in America/Toronto timezone as YYYY-MM-DD
+    // Get today's date using device's local timezone
     const todayStr = getLocalDateString();
     
-    console.log('Analytics - Looking for logs on date (Toronto time):', todayStr);
+    console.log('Analytics - Looking for logs on date (device local):', todayStr);
     console.log('Analytics - Available log dates:', treeLogs.map(log => log.date));
     
     // Find today's log - match by the log_day field

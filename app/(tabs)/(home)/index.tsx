@@ -15,7 +15,7 @@ import {
   FlatList,
 } from 'react-native';
 import { useThemeContext } from '@/contexts/ThemeContext';
-import { StorageService } from '@/utils/storage';
+import { StorageService, getLocalDateString } from '@/utils/storage';
 import { ShopStorageService } from '@/utils/shopStorage';
 import { TreePlantingLog, EarningsLog, PROVINCES, TREE_SPECIES } from '@/types/TreePlanting';
 import { IconSymbol } from '@/components/IconSymbol';
