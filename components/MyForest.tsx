@@ -17,6 +17,7 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
   const [seasonTrees, setSeasonTrees] = useState<string[]>([]);
   const [careerTrees, setCareerTrees] = useState<string[]>([]);
   const [backgroundMode, setBackgroundMode] = useState<'day' | 'night'>('day');
+  const [isLoading, setIsLoading] = useState(true);
   
   const isMountedRef = React.useRef(true);
 
@@ -31,9 +32,10 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
   }, []);
 
   useEffect(() => {
+    console.log('MyForest: treeLogs changed, regenerating forests');
     generateForests();
     loadBackgroundMode();
-  }, [treeLogs]);
+  }, [treeLogs, generateForests]);
 
   const loadBackgroundMode = useCallback(async () => {
     try {
@@ -62,6 +64,7 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
 
   const generateForests = useCallback(async () => {
     try {
+      setIsLoading(true);
       const activeSeason = await StorageService.getActiveSeason();
       
       // Calculate Season Forest from current season logs only
@@ -69,37 +72,41 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
       if (activeSeason) {
         const seasonLogs = await StorageService.getSeasonTreeLogs(activeSeason.id);
         seasonTotal = seasonLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-        console.log('Season Forest total:', seasonTotal, 'from', seasonLogs.length, 'logs');
+        console.log('MyForest - Season total:', seasonTotal, 'from', seasonLogs.length, 'logs');
       } else {
+        // If no active season, use the passed treeLogs
         seasonTotal = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-        console.log('Season Forest total (no active season):', seasonTotal);
+        console.log('MyForest - Season total (no active season):', seasonTotal);
       }
       
       // Calculate Career Forest from ALL seasons correctly
       const allSeasons = await StorageService.getSeasons();
       let careerTotal = 0;
       
-      for (const season of allSeasons) {
-        const seasonLogs = await StorageService.getSeasonTreeLogs(season.id);
-        const seasonSum = seasonLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-        careerTotal += seasonSum;
-        console.log(`Career Forest - Season ${season.name}: ${seasonSum} trees`);
-      }
-      
-      // If no seasons exist, use current logs
-      if (careerTotal === 0) {
-        careerTotal = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
-        console.log('Career Forest total (no seasons):', careerTotal);
+      if (allSeasons.length > 0) {
+        for (const season of allSeasons) {
+          const seasonLogs = await StorageService.getSeasonTreeLogs(season.id);
+          const seasonSum = seasonLogs.reduce((sum, log) => sum + log.totalTrees, 0);
+          careerTotal += seasonSum;
+          console.log(`MyForest - Career Forest - Season ${season.name}: ${seasonSum} trees`);
+        }
+        console.log('MyForest - Career total (all seasons):', careerTotal);
       } else {
-        console.log('Career Forest total (all seasons):', careerTotal);
+        // If no seasons exist, use current logs
+        careerTotal = treeLogs.reduce((sum, log) => sum + log.totalTrees, 0);
+        console.log('MyForest - Career total (no seasons):', careerTotal);
       }
       
       // FIXED: Each tree icon represents 1,000 trees for season, 10,000 for career
       const seasonTreeCount = Math.floor(seasonTotal / 1000);
       const careerTreeCount = Math.floor(careerTotal / 10000);
 
-      console.log('Season tree icons:', seasonTreeCount, '(from', seasonTotal, 'trees)');
-      console.log('Career tree icons:', careerTreeCount, '(from', careerTotal, 'trees)');
+      console.log('MyForest - Tree icon counts:', { 
+        seasonTreeCount, 
+        careerTreeCount,
+        seasonTotal,
+        careerTotal 
+      });
 
       const seasonTreeArray: string[] = [];
       for (let i = 0; i < Math.min(seasonTreeCount, 100); i++) {
@@ -114,10 +121,14 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
       if (isMountedRef.current) {
         setSeasonTrees(seasonTreeArray);
         setCareerTrees(careerTreeArray);
-        console.log('Forest updated - Season icons:', seasonTreeArray.length, 'Career icons:', careerTreeArray.length);
+        setIsLoading(false);
+        console.log('MyForest - Updated forests - Season icons:', seasonTreeArray.length, 'Career icons:', careerTreeArray.length);
       }
     } catch (error) {
-      console.error('Error generating forests:', error);
+      console.error('MyForest - Error generating forests:', error);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [treeLogs]);
 
@@ -160,6 +171,19 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
   }, [stars, backgroundMode]);
 
   const renderForestGrid = useCallback((trees: string[], title: string, treesPerEmoji: number, showDayNight: boolean = false) => {
+    if (isLoading) {
+      return (
+        <View style={styles.forestContainer}>
+          <Text style={[styles.forestTitle, { color: colors.text }]}>🌲 {title} 🌲</Text>
+          <View style={[styles.emptyForestCard, { backgroundColor: colors.highlight }]}>
+            <Text style={[styles.emptyForestText, { color: colors.textSecondary }]}>
+              Loading...
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
     if (trees.length === 0) {
       return (
         <View style={styles.forestContainer}>
@@ -168,6 +192,9 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
             <Text style={styles.emptyTreeEmoji}>🌲</Text>
             <Text style={[styles.emptyForestText, { color: colors.textSecondary }]}>
               Start planting to grow your forest!
+            </Text>
+            <Text style={[styles.forestInfo, { color: colors.textSecondary, marginTop: 8 }]}>
+              Each tree icon represents {treesPerEmoji.toLocaleString()} trees planted
             </Text>
           </View>
         </View>
@@ -200,7 +227,7 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
         </Text>
       </View>
     );
-  }, [colors, backgroundMode, renderStars]);
+  }, [colors, backgroundMode, renderStars, isLoading]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.card }]}>
@@ -228,10 +255,6 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
       {renderForestGrid(careerTrees, 'Your Career Forest', 10000, false)}
     </View>
   );
-}, (prevProps, nextProps) => {
-  // Custom comparison to prevent unnecessary re-renders
-  return prevProps.treeLogs.length === nextProps.treeLogs.length &&
-         prevProps.treeLogs[0]?.id === nextProps.treeLogs[0]?.id;
 });
 
 MyForest.displayName = 'MyForest';
