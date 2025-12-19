@@ -128,105 +128,116 @@ export default function AnalyticsScreen() {
     : 0, [treeLogs]);
 
   // FIXED: Calculate Trees/Hour and Trees/Minute from TODAY'S logs only
-  // Use total trees logged today divided by total minutes elapsed today
   const { treesPerHour, treesPerMinute } = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const todayLog = treeLogs.find(log => log.date === today);
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
     
-    if (!todayLog || !todayLog.hourlyLogs || todayLog.hourlyLogs.length === 0) {
-      console.log('No logs for today or no hourly logs');
+    console.log('Analytics - Looking for logs on date:', todayStr);
+    console.log('Analytics - Available log dates:', treeLogs.map(log => log.date));
+    
+    // Find today's log
+    const todayLog = treeLogs.find(log => {
+      const logDate = log.date.split('T')[0]; // Handle both YYYY-MM-DD and ISO formats
+      return logDate === todayStr;
+    });
+    
+    if (!todayLog) {
+      console.log('Analytics - No log found for today');
+      return { treesPerHour: 0, treesPerMinute: 0 };
+    }
+    
+    console.log('Analytics - Found today log:', {
+      date: todayLog.date,
+      totalTrees: todayLog.totalTrees,
+      hasHourlyLogs: !!todayLog.hourlyLogs,
+      hourlyLogsCount: todayLog.hourlyLogs?.length || 0
+    });
+    
+    if (!todayLog.hourlyLogs || todayLog.hourlyLogs.length === 0) {
+      console.log('Analytics - No hourly logs for today');
       return { treesPerHour: 0, treesPerMinute: 0 };
     }
 
-    // Helper function to parse time strings like "9:00 AM" or "2:30 PM"
-    const parseTime = (timeStr: string): number => {
+    // Helper function to parse time strings
+    const parseTimeToMinutes = (timeStr: string): number => {
       try {
-        // Remove ALL extra spaces and normalize
+        // Clean the time string
         const cleanTime = timeStr.trim().replace(/\s+/g, ' ');
         
-        // Split by space to separate time and period
-        const parts = cleanTime.split(' ');
+        // Handle different formats: "9:00 AM", "9:00AM", "09:00 AM", etc.
+        const match = cleanTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
         
-        if (parts.length < 2) {
-          console.error('Invalid time format (missing AM/PM):', timeStr);
+        if (!match) {
+          console.error('Analytics - Invalid time format:', timeStr);
           return 0;
         }
         
-        // Get the time part (first element) and period (last element)
-        const time = parts[0];
-        const period = parts[parts.length - 1];
-        
-        // Split time into hours and minutes
-        const timeParts = time.split(':');
-        
-        if (timeParts.length !== 2) {
-          console.error('Invalid time parts:', timeStr);
-          return 0;
-        }
-        
-        let hours = parseInt(timeParts[0], 10);
-        const minutes = parseInt(timeParts[1], 10);
-        
-        if (isNaN(hours) || isNaN(minutes)) {
-          console.error('Invalid hours or minutes:', timeStr);
-          return 0;
-        }
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        const period = match[3].toUpperCase();
         
         // Convert to 24-hour format
-        const periodUpper = period.toUpperCase();
-        if (periodUpper === 'PM' && hours !== 12) {
+        if (period === 'PM' && hours !== 12) {
           hours += 12;
-        } else if (periodUpper === 'AM' && hours === 12) {
+        } else if (period === 'AM' && hours === 12) {
           hours = 0;
         }
         
         // Return total minutes from midnight
-        return hours * 60 + minutes;
+        const totalMinutes = hours * 60 + minutes;
+        console.log('Analytics - Parsed time:', timeStr, '→', totalMinutes, 'minutes');
+        return totalMinutes;
       } catch (error) {
-        console.error('Error parsing time:', timeStr, error);
+        console.error('Analytics - Error parsing time:', timeStr, error);
         return 0;
       }
     };
 
-    // Calculate total minutes elapsed today
+    // Calculate total minutes worked today
     let totalMinutes = 0;
-    todayLog.hourlyLogs.forEach(hourLog => {
-      const startMinutes = parseTime(hourLog.startTime);
-      const endMinutes = parseTime(hourLog.endTime);
+    
+    for (const hourLog of todayLog.hourlyLogs) {
+      const startMinutes = parseTimeToMinutes(hourLog.startTime);
+      const endMinutes = parseTimeToMinutes(hourLog.endTime);
       
-      let minutesElapsed = endMinutes - startMinutes;
-      
-      // Handle case where end time is past midnight (unlikely but possible)
-      if (minutesElapsed < 0) {
-        minutesElapsed += 24 * 60;
+      if (startMinutes === 0 || endMinutes === 0) {
+        console.warn('Analytics - Skipping invalid time range:', hourLog.startTime, '-', hourLog.endTime);
+        continue;
       }
       
-      if (!isNaN(minutesElapsed) && minutesElapsed > 0 && minutesElapsed < 24 * 60) {
-        totalMinutes += minutesElapsed;
+      let duration = endMinutes - startMinutes;
+      
+      // Handle overnight shifts (unlikely but possible)
+      if (duration < 0) {
+        duration += 24 * 60;
+      }
+      
+      // Sanity check: duration should be between 0 and 24 hours
+      if (duration > 0 && duration <= 24 * 60) {
+        totalMinutes += duration;
+        console.log('Analytics - Added duration:', duration, 'minutes from', hourLog.startTime, 'to', hourLog.endTime);
       } else {
-        console.warn('Invalid minute calculation:', {
-          startTime: hourLog.startTime,
-          endTime: hourLog.endTime,
-          startMinutes,
-          endMinutes,
-          minutesElapsed
-        });
+        console.warn('Analytics - Invalid duration:', duration, 'minutes');
       }
-    });
+    }
 
-    console.log('Today performance calculation:', { 
-      todayTrees: todayLog.totalTrees,
-      totalMinutes,
-      treesPerMinute: totalMinutes > 0 ? todayLog.totalTrees / totalMinutes : 0,
-      treesPerHour: totalMinutes > 0 ? (todayLog.totalTrees / totalMinutes) * 60 : 0
-    });
+    console.log('Analytics - Total minutes worked today:', totalMinutes);
+    console.log('Analytics - Total trees planted today:', todayLog.totalTrees);
 
     if (totalMinutes === 0) {
+      console.log('Analytics - No valid time data for today');
       return { treesPerHour: 0, treesPerMinute: 0 };
     }
 
+    // Calculate rates
     const tpm = todayLog.totalTrees / totalMinutes;
     const tph = tpm * 60;
+
+    console.log('Analytics - Calculated rates:', {
+      treesPerMinute: tpm,
+      treesPerHour: tph
+    });
 
     return { 
       treesPerHour: tph, 
@@ -234,11 +245,9 @@ export default function AnalyticsScreen() {
     };
   }, [treeLogs]);
 
-  console.log('Analytics performance stats:', { treesPerHour, treesPerMinute });
-
   const todayRate = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    const todayLog = treeLogs.find(log => log.date === today);
+    const todayLog = treeLogs.find(log => log.date.split('T')[0] === today);
     
     if (!todayLog || !todayLog.hourlyLogs || todayLog.hourlyLogs.length === 0) {
       return 0;
@@ -247,25 +256,17 @@ export default function AnalyticsScreen() {
     const parseTime = (timeStr: string): number => {
       try {
         const cleanTime = timeStr.trim().replace(/\s+/g, ' ');
-        const parts = cleanTime.split(' ');
+        const match = cleanTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
         
-        if (parts.length < 2) return 0;
+        if (!match) return 0;
         
-        const time = parts[0];
-        const period = parts[parts.length - 1];
-        const timeParts = time.split(':');
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        const period = match[3].toUpperCase();
         
-        if (timeParts.length !== 2) return 0;
-        
-        let hours = parseInt(timeParts[0], 10);
-        const minutes = parseInt(timeParts[1], 10);
-        
-        if (isNaN(hours) || isNaN(minutes)) return 0;
-        
-        const periodUpper = period.toUpperCase();
-        if (periodUpper === 'PM' && hours !== 12) {
+        if (period === 'PM' && hours !== 12) {
           hours += 12;
-        } else if (periodUpper === 'AM' && hours === 12) {
+        } else if (period === 'AM' && hours === 12) {
           hours = 0;
         }
         
