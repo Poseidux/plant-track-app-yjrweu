@@ -1,16 +1,17 @@
+
 {
   "expo": {
     "name": "Verdant Tracker",
     "slug": "Verdant Tracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/natively-dark.png",
+    "icon": "./assets/images/f2037505-6eb5-442d-a722-42f1b9412ebb.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/natively-dark.png",
+      "image": "./assets/images/f2037505-6eb5-442d-a722-42f1b9412ebb.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#1a7f64"
     },
     "ios": {
       "supportsTablet": true,
@@ -21,14 +22,14 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/natively-dark.png",
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/images/f2037505-6eb5-442d-a722-42f1b9412ebb.png",
+        "backgroundColor": "#1a7f64"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.Natively"
     },
     "web": {
-      "favicon": "./assets/images/final_quest_240x240.png",
+      "favicon": "./assets/images/f2037505-6eb5-442d-a722-42f1b9412ebb.png",
       "bundler": "metro"
     },
     "plugins": [
