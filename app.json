@@ -5,11 +5,11 @@
     "slug": "Verdant Tracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/f2037505-6eb5-442d-a722-42f1b9412ebb.png",
+    "icon": "./assets/images/1d8eb800-4004-4963-8eb9-180c39bd2819.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/f2037505-6eb5-442d-a722-42f1b9412ebb.png",
+      "image": "./assets/images/1d8eb800-4004-4963-8eb9-180c39bd2819.png",
       "resizeMode": "contain",
       "backgroundColor": "#1a7f64"
     },
@@ -18,18 +18,20 @@
       "bundleIdentifier": "com.anonymous.Natively",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "icon": "./assets/images/1d8eb800-4004-4963-8eb9-180c39bd2819.png"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/f2037505-6eb5-442d-a722-42f1b9412ebb.png",
+        "foregroundImage": "./assets/images/4380b71c-612d-403e-84c3-c582e170d35a.png",
         "backgroundColor": "#1a7f64"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Natively"
+      "package": "com.anonymous.Natively",
+      "icon": "./assets/images/4380b71c-612d-403e-84c3-c582e170d35a.png"
     },
     "web": {
-      "favicon": "./assets/images/f2037505-6eb5-442d-a722-42f1b9412ebb.png",
+      "favicon": "./assets/images/1d8eb800-4004-4963-8eb9-180c39bd2819.png",
       "bundler": "metro"
     },
     "plugins": [
