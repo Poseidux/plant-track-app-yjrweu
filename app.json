@@ -5,11 +5,11 @@
     "slug": "Verdant Tracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/1d8eb800-4004-4963-8eb9-180c39bd2819.png",
+    "icon": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/1d8eb800-4004-4963-8eb9-180c39bd2819.png",
+      "image": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png",
       "resizeMode": "contain",
       "backgroundColor": "#1a7f64"
     },
@@ -19,19 +19,19 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "icon": "./assets/images/1d8eb800-4004-4963-8eb9-180c39bd2819.png"
+      "icon": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/4380b71c-612d-403e-84c3-c582e170d35a.png",
+        "foregroundImage": "./assets/images/d9af1230-f55f-4ddc-818c-21c5109452a7.png",
         "backgroundColor": "#1a7f64"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.Natively",
-      "icon": "./assets/images/4380b71c-612d-403e-84c3-c582e170d35a.png"
+      "icon": "./assets/images/d9af1230-f55f-4ddc-818c-21c5109452a7.png"
     },
     "web": {
-      "favicon": "./assets/images/1d8eb800-4004-4963-8eb9-180c39bd2819.png",
+      "favicon": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png",
       "bundler": "metro"
     },
     "plugins": [
