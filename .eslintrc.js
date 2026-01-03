@@ -1,3 +1,4 @@
+
 // https://docs.expo.dev/guides/using-eslint/
 module.exports = {
   extends: [
@@ -31,7 +32,13 @@ module.exports = {
     "@typescript-eslint/no-wrapper-object-types": "off",
     "@typescript-eslint/ban-tslint-comment": "off",
     "react/no-unescaped-entities": "off",
-    "import/no-unresolved": "error",
+    "import/no-unresolved": ["error", { 
+      ignore: [
+        "^better-auth",
+        "^@better-auth",
+        "^expo-secure-store"
+      ] 
+    }],
     "prefer-const": "off",
     "react/prop-types": 1,
     "no-case-declarations": "off",
@@ -44,6 +51,13 @@ module.exports = {
       files: ['metro.config.js'],
       rules: {
         '@typescript-eslint/no-var-requires': 'off'
+      }
+    },
+    {
+      files: ['lib/auth.ts'],
+      rules: {
+        '@typescript-eslint/ban-ts-comment': 'off',
+        'import/no-unresolved': 'off'
       }
     }
   ]

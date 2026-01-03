@@ -1,8 +1,7 @@
-
 {
   "expo": {
     "name": "TreeTracker",
-    "slug": "TreeTracker",
+    "slug": "plant-track-app-yjrweu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -19,7 +18,7 @@
         "foregroundImage": "./assets/images/263f01fc-1bbb-4963-83cf-f04c3400c93e.png",
         "backgroundColor": "#1DB954"
       },
-      "package": "com.anonymous.TreeTracker",
+      "package": "com.poseiduxfitness.sylviplus",
       "icon": "./assets/images/263f01fc-1bbb-4963-83cf-f04c3400c93e.png"
     },
     "web": {
