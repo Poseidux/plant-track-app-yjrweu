@@ -1,50 +1,48 @@
+
 {
   "expo": {
-    "name": "TreeTracker",
-    "slug": "plant-track-app-yjrweu",
+    "name": "Natively",
+    "slug": "Natively",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "icon": "./assets/images/natively-dark.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/natively-dark.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.TreeTracker",
-      "icon": "./assets/images/icon.png"
+      "bundleIdentifier": "com.anonymous.Natively",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/263f01fc-1bbb-4963-83cf-f04c3400c93e.png",
+        "foregroundImage": "./assets/images/96c4d1c1-2a7e-4812-8128-bed5a0c2a95b.png",
         "backgroundColor": "#1DB954"
       },
-      "package": "com.poseiduxfitness.sylviplus",
-      "icon": "./assets/images/263f01fc-1bbb-4963-83cf-f04c3400c93e.png"
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.Natively"
     },
     "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/final_quest_240x240.png",
+      "bundler": "metro"
     },
     "plugins": [
+      "expo-font",
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#1DB954"
-        }
-      ]
+      "expo-web-browser"
     ],
+    "scheme": "natively",
     "experiments": {
       "typedRoutes": true
     },
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1DB954"
+    "extra": {
+      "router": {}
     }
   }
 }
