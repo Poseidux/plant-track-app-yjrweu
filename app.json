@@ -1,35 +1,37 @@
 
 {
   "expo": {
-    "name": "Natively",
-    "slug": "Natively",
+    "name": "Verdant Tracker",
+    "slug": "Verdant Tracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/natively-dark.png",
+    "icon": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/natively-dark.png",
+      "image": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#1a7f64"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.Natively",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "icon": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/3e7e0978-e5b1-406b-8eec-13517f521c61.png",
-        "backgroundColor": "#1a9d7c"
+        "foregroundImage": "./assets/images/d9af1230-f55f-4ddc-818c-21c5109452a7.png",
+        "backgroundColor": "#1a7f64"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Natively"
+      "package": "com.anonymous.Natively",
+      "icon": "./assets/images/d9af1230-f55f-4ddc-818c-21c5109452a7.png"
     },
     "web": {
-      "favicon": "./assets/images/final_quest_240x240.png",
+      "favicon": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png",
       "bundler": "metro"
     },
     "plugins": [
@@ -44,5 +46,6 @@
     "extra": {
       "router": {}
     }
-  }
+  },
+  "scheme": "Verdant Tracker"
 }
