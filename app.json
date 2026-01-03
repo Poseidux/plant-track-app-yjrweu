@@ -1,51 +1,51 @@
 
 {
   "expo": {
-    "name": "Verdant Tracker",
-    "slug": "Verdant Tracker",
+    "name": "TreeTracker",
+    "slug": "TreeTracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1a7f64"
-    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.Natively",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      },
-      "icon": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png"
+      "bundleIdentifier": "com.anonymous.TreeTracker",
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/d9af1230-f55f-4ddc-818c-21c5109452a7.png",
-        "backgroundColor": "#1a7f64"
+        "foregroundImage": "./assets/images/263f01fc-1bbb-4963-83cf-f04c3400c93e.png",
+        "backgroundColor": "#1DB954"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Natively",
-      "icon": "./assets/images/d9af1230-f55f-4ddc-818c-21c5109452a7.png"
+      "package": "com.anonymous.TreeTracker",
+      "icon": "./assets/images/263f01fc-1bbb-4963-83cf-f04c3400c93e.png"
     },
     "web": {
-      "favicon": "./assets/images/80ca3ca5-8576-4ab3-90e8-216642077eac.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-font",
       "expo-router",
-      "expo-web-browser"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#1DB954"
+        }
+      ]
     ],
-    "scheme": "natively",
     "experiments": {
       "typedRoutes": true
     },
-    "extra": {
-      "router": {}
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1DB954"
     }
-  },
-  "scheme": "Verdant Tracker"
+  }
 }
