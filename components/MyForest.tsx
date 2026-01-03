@@ -31,6 +31,12 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
     };
   }, []);
 
+  useEffect(() => {
+    console.log('MyForest: treeLogs changed, regenerating forests');
+    generateForests();
+    loadBackgroundMode();
+  }, [treeLogs]);
+
   const loadBackgroundMode = useCallback(async () => {
     try {
       const value = await AsyncStorage.getItem(BACKGROUND_MODE_KEY);
@@ -39,6 +45,20 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
       }
     } catch (error) {
       console.error('Error loading background mode:', error);
+    }
+  }, []);
+
+  const toggleBackgroundMode = useCallback(async (value: boolean) => {
+    const newMode = value ? 'night' : 'day';
+    
+    if (isMountedRef.current) {
+      setBackgroundMode(newMode);
+    }
+    
+    try {
+      await AsyncStorage.setItem(BACKGROUND_MODE_KEY, newMode);
+    } catch (error) {
+      console.error('Error saving background mode:', error);
     }
   }, []);
 
@@ -111,26 +131,6 @@ const MyForest = React.memo(function MyForest({ treeLogs }: MyForestProps) {
       }
     }
   }, [treeLogs]);
-
-  useEffect(() => {
-    console.log('MyForest: treeLogs changed, regenerating forests');
-    generateForests();
-    loadBackgroundMode();
-  }, [treeLogs, generateForests, loadBackgroundMode]);
-
-  const toggleBackgroundMode = useCallback(async (value: boolean) => {
-    const newMode = value ? 'night' : 'day';
-    
-    if (isMountedRef.current) {
-      setBackgroundMode(newMode);
-    }
-    
-    try {
-      await AsyncStorage.setItem(BACKGROUND_MODE_KEY, newMode);
-    } catch (error) {
-      console.error('Error saving background mode:', error);
-    }
-  }, []);
 
   // Memoize stars to prevent recreation - stable reference
   const stars = useMemo(() => {

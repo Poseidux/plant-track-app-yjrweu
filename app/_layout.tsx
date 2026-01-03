@@ -2,7 +2,7 @@
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { Platform, AppState, AppStateStatus } from 'react-native';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,7 +22,35 @@ const getLocalDateString = (date: Date = new Date()): string => {
 export default function RootLayout() {
   const appState = useRef(AppState.currentState);
 
-  const checkDayRollover = useCallback(async () => {
+  useEffect(() => {
+    console.log('RootLayout mounted');
+    console.log('Platform:', Platform.OS);
+    
+    // Check for day rollover on app start
+    checkDayRollover();
+    
+    // Subscribe to app state changes
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      console.log('RootLayout unmounting');
+      subscription.remove();
+    };
+  }, []);
+
+  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+    console.log('App state changed from', appState.current, 'to', nextAppState);
+    
+    // When app comes to foreground
+    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+      console.log('App returned to foreground - checking for day rollover');
+      await checkDayRollover();
+    }
+    
+    appState.current = nextAppState;
+  };
+
+  const checkDayRollover = async () => {
     try {
       const currentLogDay = getLocalDateString();
       console.log('Current Log Day (Toronto):', currentLogDay);
@@ -55,35 +83,7 @@ export default function RootLayout() {
     } catch (error) {
       console.error('Error checking day rollover:', error);
     }
-  }, []);
-
-  const handleAppStateChange = useCallback(async (nextAppState: AppStateStatus) => {
-    console.log('App state changed from', appState.current, 'to', nextAppState);
-    
-    // When app comes to foreground
-    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-      console.log('App returned to foreground - checking for day rollover');
-      await checkDayRollover();
-    }
-    
-    appState.current = nextAppState;
-  }, [checkDayRollover]);
-
-  useEffect(() => {
-    console.log('RootLayout mounted');
-    console.log('Platform:', Platform.OS);
-    
-    // Check for day rollover on app start
-    checkDayRollover();
-    
-    // Subscribe to app state changes
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
-    return () => {
-      console.log('RootLayout unmounting');
-      subscription.remove();
-    };
-  }, [checkDayRollover, handleAppStateChange]);
+  };
 
   return (
     <ErrorBoundary fallbackTitle="App Error">
