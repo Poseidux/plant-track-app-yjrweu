@@ -99,19 +99,6 @@ export default function AnalyticsScreen() {
     await StorageService.saveAchievements(updatedAchievements);
   }, []);
 
-  useEffect(() => {
-    loadData();
-    startCardAnimation();
-  }, []);
-
-  // Reload data when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      console.log('Analytics - Screen focused, reloading data...');
-      loadData();
-    }, [loadData])
-  );
-
   const startCardAnimation = useCallback(() => {
     Animated.loop(
       Animated.sequence([
@@ -128,6 +115,19 @@ export default function AnalyticsScreen() {
       ])
     ).start();
   }, [cardRotation]);
+
+  useEffect(() => {
+    loadData();
+    startCardAnimation();
+  }, [loadData, startCardAnimation]);
+
+  // Reload data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Analytics - Screen focused, reloading data...');
+      loadData();
+    }, [loadData])
+  );
 
   // Memoize calculated values
   const totalTrees = useMemo(() => treeLogs.reduce((sum, log) => sum + log.totalTrees, 0), [treeLogs]);
